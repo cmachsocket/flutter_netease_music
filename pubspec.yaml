@@ -42,6 +42,7 @@ dependencies:
       path: src/dart
   flex_color_scheme:
   audio_video_progress_bar:
+  responsive_builder:
 dev_dependencies:
   flutter_test:
     sdk: flutter
