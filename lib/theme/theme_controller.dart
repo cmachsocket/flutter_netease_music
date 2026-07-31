@@ -13,13 +13,14 @@ class ThemeController extends GetxController {
   void onInit() {
     super.onInit();
     final saved = _box.read<String>(_key);
-    mode = (saved == null
-            ? ThemeMode.system
-            : ThemeMode.values.firstWhere(
-                (e) => e.name == saved,
-                orElse: () => ThemeMode.system,
-              ))
-        .obs;
+    mode =
+        (saved == null
+                ? ThemeMode.system
+                : ThemeMode.values.firstWhere(
+                    (e) => e.name == saved,
+                    orElse: () => ThemeMode.system,
+                  ))
+            .obs;
   }
 
   Future<void> set(ThemeMode m) async {
