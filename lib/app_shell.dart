@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'HomePage/HomePage.dart';
 import 'LibraryPage/LibraryPage.dart';
-import 'PlayPage/BottomPlay.dart';
+import 'PlayPage/BottomPlayer.dart';
 import 'SettingsPage/settings.dart';
 import 'app_shell_controller.dart';
 import 'searchPage/searchPage.dart';
@@ -55,7 +55,7 @@ class AppShell extends StatelessWidget {
                 },
               ),
             ),
-            const BottomPlay(),
+            const BottomPlayer(),
           ],
         ),
         bottomNavigationBar: BottomNavigationBar(
