@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'theme_switcher.dart';
 
-/// Tab 内容(放进 app_shell 的 IndexedStack),不再自己包 Scaffold/AppBar,
-/// 也不做嵌套命名路由 —— ThemeSwitcher 就直接挂在 ListTile 的 trailing。
+/// 设置 tab 内容(放进 app_shell 的 IndexedStack)。
+/// 父级 IndexedStack 必须被 Expanded 包裹 —— 否则 Column 的主轴给的是
+/// 0..Infinity,ListView 里的 RenderViewport 拿到 unbounded height 报错。
 class Settings extends StatelessWidget {
   const Settings({super.key});
 
@@ -11,7 +12,8 @@ class Settings extends StatelessWidget {
     return ListView(
       children: const [
         ListTile(
-          title: Text('主题模式'),
+          leading: Icon(Icons.brightness_6_outlined),
+          title: Text('主题'),
           subtitle: Text('跟随系统 / 浅色 / 深色'),
           trailing: ThemeSwitcher(),
         ),

@@ -1,41 +1,71 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'app_shell_controller.dart';
+import 'HomePage/HomePage.dart';
+import 'LibraryPage/LibraryPage.dart';
+import 'PlayPage/BottomPlay.dart';
 import 'SettingsPage/settings.dart';
+import 'app_shell_controller.dart';
+import 'searchPage/searchPage.dart';
 
-/// 顶层 Scaffold:AppBar 标题随 tab 切换,IndexedStack 占位。
-/// 内容 tab 留空给各页面目录自行实现。
+/// 顶层 Scaffold,IndexedStack 那一格换成 Navigator。
+/// 切 tab 用 GetX:Get.to() + id 推到 shell 自己的 navigator。
+/// tab 状态完全交给 GetxController(AppShellController),本类 StatelessWidget。
 class AppShell extends StatelessWidget {
   const AppShell({super.key});
 
+  /// AppShell 这一层 Navigator 在 Get 中的 id,跟 Settings 的内嵌 id 区分
+  static const int shellNavigatorId = 0;
+
   static const _titles = ['发现', '搜索', '我的', '设置'];
+
+  /// 按 index 返回 tab 内容
+  static Widget _content(int i) {
+    switch (i) {
+      case 0:
+        return const HomePage();
+      case 1:
+        return const SearchPage();
+      case 2:
+        return const LibraryPage();
+      case 3:
+        return const Settings();
+    }
+    return const HomePage();
+  }
 
   @override
   Widget build(BuildContext context) {
     final tab = Get.find<AppShellController>();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Obx(() {
-          final i = tab.index.value.clamp(0, _titles.length - 1);
-          return Text(_titles[i]);
-        }),
-      ),
-      body: Obx(
-        () => IndexedStack(
-          index: tab.index.value,
-          children: const [
-            Center(child: Text('发现')),
-            Center(child: Text('搜索')),
-            Center(child: Text('我的')),
-            Center(child: Settings()),
+    return Obx(() {
+      final i = tab.index.value.clamp(0, 3);
+      return Scaffold(
+        appBar: AppBar(title: Text(_titles[i])),
+        body: Column(
+          children: [
+            Expanded(
+              child: Navigator(
+                key: Get.nestedKey(shellNavigatorId),
+                initialRoute: '/',
+                onGenerateRoute: (settings) {
+                  if (settings.name == '/') {
+                    return GetPageRoute(page: () => _content(i));
+                  }
+                  return null;
+                },
+              ),
+            ),
+            const BottomPlay(),
           ],
         ),
-      ),
-      bottomNavigationBar: Obx(
-        () => BottomNavigationBar(
-          currentIndex: tab.index.value,
-          onTap: tab.change,
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: i,
+          onTap: (j) {
+            if (j == i) return;
+            tab.change(j);
+            // 用 GetX 的导航 API 推到 shell 自己的 navigator
+            Get.off(() => _content(j.clamp(0, 3)), id: shellNavigatorId);
+          },
           type: BottomNavigationBarType.fixed,
           items: const [
             BottomNavigationBarItem(
@@ -60,7 +90,7 @@ class AppShell extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
+      );
+    });
   }
 }
