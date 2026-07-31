@@ -58,13 +58,13 @@ class AppShell extends StatelessWidget {
     return OrientationLayoutBuilder(
       portrait: (_) => Column(
         children: [
-          Expanded(child: _navigator(i)),
-          const BottomPlayer(),
+          Expanded(flex: 6, child: _navigator(i)),
+          const Expanded(flex: 1, child: BottomPlayer()),
         ],
       ),
       landscape: (_) => Column(
         children: [
-          Expanded(flex: 4, child: _navigator(i)),
+          Expanded(flex: 5, child: _navigator(i)),
           const Expanded(flex: 1, child: BottomPlayer()),
         ],
       ),

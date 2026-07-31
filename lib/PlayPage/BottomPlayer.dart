@@ -13,7 +13,7 @@ class BottomPlayer extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Expanded(
-            flex: 2,
+            flex: 3,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -24,6 +24,23 @@ class BottomPlayer extends StatelessWidget {
                   fit: BoxFit.cover,
                 ),
                 //todo: bind to actual cover
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text(
+                        'Song Title',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text('Artist Name'),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.favorite_border),
+                  onPressed: () {},
+                ),
                 IconButton(
                   icon: const Icon(Icons.skip_previous),
                   onPressed: () {},
@@ -45,6 +62,7 @@ class BottomPlayer extends StatelessWidget {
               buffered: const Duration(seconds: 60),
               total: const Duration(minutes: 3),
               onSeek: (duration) {},
+              timeLabelLocation: TimeLabelLocation.sides,
             ),
           ),
         ],
