@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'theme_switcher.dart';
+import 'ThemeSwitcher.dart';
 
 /// 设置 tab 内容(放进 app_shell 的 IndexedStack)。
 /// 父级 IndexedStack 必须被 Expanded 包裹 —— 否则 Column 的主轴给的是

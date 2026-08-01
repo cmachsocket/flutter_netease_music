@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../theme/theme_controller.dart';
+import '../theme/ThemeController.dart';
 
 /// 设置页用的三段主题切换器
 class ThemeSwitcher extends StatelessWidget {

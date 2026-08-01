@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 
-import 'app_shell.dart';
-import 'app_shell_controller.dart';
-import 'theme/app_theme.dart';
-import 'theme/theme_controller.dart';
+import 'AppShell.dart';
+import 'AppShellController.dart';
+import 'theme/AppTheme.dart';
+import 'theme/ThemeController.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -6,8 +6,8 @@ import 'package:responsive_builder/responsive_builder.dart';
 import 'HomePage/HomePage.dart';
 import 'LibraryPage/LibraryPage.dart';
 import 'PlayPage/BottomPlayer.dart';
-import 'SettingsPage/settings.dart';
-import 'app_shell_controller.dart';
+import 'SettingsPage/SettingsPage.dart';
+import 'AppShellController.dart';
 import 'searchPage/searchPage.dart';
 
 /// 顶层 Scaffold,IndexedStack 那一格换成 Navigator。
@@ -19,8 +19,6 @@ class AppShell extends StatelessWidget {
 
   /// AppShell 这一层 Navigator 在 Get 中的 id,跟 Settings 的内嵌 id 区分
   static const int shellNavigatorId = 0;
-
-  static const _titles = ['发现', '搜索', '我的', '设置'];
 
   /// 按 index 返回 tab 内容
   static Widget _content(int i) {
@@ -78,7 +76,6 @@ class AppShell extends StatelessWidget {
     return Obx(() {
       final i = tab.index.value.clamp(0, 3);
       return Scaffold(
-        appBar: AppBar(title: Text(_titles[i])),
         body: _responsiveBody(i),
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: i,
