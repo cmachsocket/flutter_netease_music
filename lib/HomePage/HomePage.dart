@@ -5,6 +5,11 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: Text('发现'));
+    return const Column(
+      children: [Expanded(child: Row(children:[
+
+            ] 
+          ))],
+    );
   }
 }

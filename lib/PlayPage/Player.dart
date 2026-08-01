@@ -22,6 +22,7 @@ class Player extends StatelessWidget {
             // 处理返回操作
           },
         ),
+
         centerTitle: true,
         title: Column(
           mainAxisSize: MainAxisSize.min,
@@ -42,13 +43,24 @@ class Player extends StatelessWidget {
           ],
         ),
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          controller.switchPage();
+        },
+        child: Obx(
+          () => Icon(
+            controller.centerIndex.value == 0 ? Icons.music_note : Icons.lyrics,
+          ),
+        ),
+      ),
       body: Column(
         children: [
           // 图片 / 歌词：Expanded 占满中间区域，子项居中
           Expanded(
             child: Obx(
               () => GestureDetector(
-                onTap: () => controller.switchPage(),
+                onSecondaryTap: () => controller.switchPage(),
+                onLongPress: () => controller.switchPage(),
                 child: Center(
                   child: IndexedStack(
                     index: controller.centerIndex.value,
