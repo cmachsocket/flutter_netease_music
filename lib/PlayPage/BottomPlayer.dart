@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 
 import 'Player.dart';
 import 'PlayerController.dart';
+import '../PlayListPage/PlayListPage.dart';
+import '../PlayListPage/PlayListController.dart';
 
 /// 底部 mini 播放器:全局共享 [PlayerController] 的 position / lyric
 ///
@@ -75,6 +77,12 @@ class BottomPlayer extends StatelessWidget {
                   IconButton(
                     icon: const Icon(Icons.skip_next),
                     onPressed: () {},
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.playlist_play),
+                    onPressed: () {
+                      Get.to(() => PlayListPage(), binding: PlayListBinding());
+                    },
                   ),
                 ],
               ),

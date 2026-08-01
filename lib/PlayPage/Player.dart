@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'Lyrics.dart';
 import 'PlayerController.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
+import '../PlayListPage/PlayListPage.dart';
+import '../PlayListPage/PlayListController.dart';
 
 class Player extends StatelessWidget {
   Player({super.key});
@@ -103,6 +105,12 @@ class Player extends StatelessWidget {
               IconButton(
                 icon: const Icon(Icons.favorite_border),
                 onPressed: () {},
+              ),
+              IconButton(
+                icon: const Icon(Icons.playlist_play),
+                onPressed: () {
+                  Get.to(() => PlayListPage(), binding: PlayListBinding());
+                },
               ),
             ],
           ),
