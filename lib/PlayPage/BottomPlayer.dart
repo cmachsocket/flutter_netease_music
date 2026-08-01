@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'Player.dart';
+import 'PlayerController.dart';
 
 class BottomPlayer extends StatelessWidget {
   const BottomPlayer({super.key});
-
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
     return GestureDetector(
       onTap: () {
-        Get.to(() => const Player());
+        Get.to(() => Player(), binding: PlayerBinding());
       },
       child: Container(
         color: scheme.surfaceContainerHighest,
@@ -76,10 +76,10 @@ class BottomPlayer extends StatelessWidget {
                 timeLabelLocation: TimeLabelLocation.sides,
                 // 颜色全部跟主题走:进度条 = primary,底色 = onSurface 淡,缓冲 = primary 淡
                 progressBarColor: scheme.primary,
-                baseBarColor: scheme.onSurface.withOpacity(0.2),
-                bufferedBarColor: scheme.primary.withOpacity(0.3),
+                baseBarColor: scheme.onSurface.withValues(alpha: 0.3),
+                bufferedBarColor: scheme.primary.withValues(alpha: 0.3),
                 thumbColor: scheme.primary,
-                thumbGlowColor: scheme.primary.withOpacity(0.4),
+                thumbGlowColor: scheme.primary.withValues(alpha: 0.4),
                 timeLabelTextStyle: TextStyle(color: scheme.onSurface),
               ),
             ),
