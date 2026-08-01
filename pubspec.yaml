@@ -43,6 +43,7 @@ dependencies:
   flex_color_scheme:
   audio_video_progress_bar:
   responsive_builder:
+  flutter_lyric: ^3.0.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

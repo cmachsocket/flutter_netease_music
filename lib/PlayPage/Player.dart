@@ -70,20 +70,20 @@ class Player extends StatelessWidget {
               ),
             ),
           ),
-          ProgressBar(
-            progress: const Duration(
-              seconds: 30,
-            ), //todo: bind to actual progress
-            buffered: const Duration(seconds: 60),
-            total: const Duration(minutes: 3),
-            onSeek: (duration) => controller.updatePosition(duration),
-            // 颜色全部跟主题走:进度条 = primary,底色 = onSurface 淡,缓冲 = primary 淡
-            progressBarColor: scheme.primary,
-            baseBarColor: scheme.onSurface.withValues(alpha: 0.3),
-            bufferedBarColor: scheme.primary.withValues(alpha: 0.3),
-            thumbColor: scheme.primary,
-            thumbGlowColor: scheme.primary.withValues(alpha: 0.4),
-            timeLabelTextStyle: textTheme.bodySmall,
+          Obx(
+            () => ProgressBar(
+              progress: controller.position.value,
+              buffered: const Duration(seconds: 60),
+              total: controller.duration.value,
+              onSeek: (duration) => controller.updatePosition(duration),
+              // 颜色全部跟主题走:进度条 = primary,底色 = onSurface 淡,缓冲 = primary 淡
+              progressBarColor: scheme.primary,
+              baseBarColor: scheme.onSurface.withValues(alpha: 0.3),
+              bufferedBarColor: scheme.primary.withValues(alpha: 0.3),
+              thumbColor: scheme.primary,
+              thumbGlowColor: scheme.primary.withValues(alpha: 0.4),
+              timeLabelTextStyle: textTheme.bodySmall,
+            ),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,

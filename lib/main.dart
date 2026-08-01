@@ -4,6 +4,7 @@ import 'package:get_storage/get_storage.dart';
 
 import 'AppShell.dart';
 import 'AppShellController.dart';
+import 'PlayPage/PlayerController.dart';
 import 'theme/AppTheme.dart';
 import 'theme/ThemeController.dart';
 
@@ -12,6 +13,8 @@ Future<void> main() async {
   await GetStorage.init();
   Get.lazyPut(() => ThemeController());
   Get.lazyPut(() => AppShellController());
+  // 全局播放状态:AppShell 的 BottomPlayer 一启动就要能 find 到
+  Get.lazyPut(() => PlayerController());
   runApp(const FlutterNeteaseMusicApp());
 }
 
