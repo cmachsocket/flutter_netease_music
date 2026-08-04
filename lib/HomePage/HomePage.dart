@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'SongListCard.dart';
+import '../widgets/SongListCard.dart';
+
+import '../widgets/aspect_driven_grid.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -12,7 +14,7 @@ class HomePage extends StatelessWidget {
         Row(
           children: const [
             Expanded(
-              child: SongListCard(
+              child: TopSongListCard(
                 playlistId: 'daily',
                 title: '每日推荐',
                 subtitle: 'xx首歌曲',
@@ -21,9 +23,9 @@ class HomePage extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: SongListCard(
+              child: TopSongListCard(
                 playlistId: 'private-fm',
-                title: '私人FM',
+                title: '私人雷达',
                 subtitle: 'xx首歌曲',
                 imageUrl:
                     'https://cdn.jsdelivr.net/gh/cmachsocket/resources/avatar.png',
@@ -34,7 +36,9 @@ class HomePage extends StatelessWidget {
 
         Text('推荐歌单', style: textTheme.titleLarge, textAlign: TextAlign.left),
         Expanded(
-          child: ListView.builder(
+          child: AspectDrivenGrid(
+            childAspectRatio: 0.8,
+            minColumns: 2,
             itemCount: 10,
             itemBuilder: (context, index) {
               return SongListCard(
