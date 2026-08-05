@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class LibraryController extends GetxController {
@@ -7,4 +6,9 @@ class LibraryController extends GetxController {
   void setTabIndex(int index) {
     tabIndex.value = index;
   }
+}
+
+class LibraryBinding extends Bindings {
+  @override
+  void dependencies() => Get.lazyPut(() => LibraryController());
 }

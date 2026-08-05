@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 
 import 'HomePage/HomePage.dart';
+import 'LibraryPage/LibraryController.dart';
 import 'LibraryPage/LibraryPage.dart';
 import 'SettingsPage/SettingsPage.dart';
 import 'AppShellController.dart';
@@ -32,6 +33,17 @@ class AppShell extends StatelessWidget {
         return const Settings();
     }
     return const HomePage();
+  }
+
+  /// 跟 _content 对应:每个 tab 是否需要 binding。
+  /// library tab 切到时才需要 LibraryController,所以用 Get.to(binding:) 按需绑定。
+  /// 启动前已注入的(AppShellController / ThemeController / PlayerController)走 global,不在这里绑。
+  static Bindings? _bindingForTab(int i) {
+    switch (i) {
+      case 2:
+        return LibraryBinding();
+    }
+    return null;
   }
 
   /// shell 这一层的 Navigator,内容跟着 tab index 走
@@ -82,7 +94,11 @@ class AppShell extends StatelessWidget {
             if (j == i) return;
             tab.change(j);
             // 用 GetX 的导航 API 推到 shell 自己的 navigator
-            Get.to(() => _content(j.clamp(0, 3)), id: shellNavigatorId);
+            Get.to(
+              () => _content(j.clamp(0, 3)),
+              binding: _bindingForTab(j.clamp(0, 3)),
+              id: shellNavigatorId,
+            );
           },
           type: BottomNavigationBarType.fixed,
           items: const [

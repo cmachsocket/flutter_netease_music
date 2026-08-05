@@ -29,3 +29,8 @@ class ThemeController extends GetxController {
     Get.changeThemeMode(m); // 立刻全 app 切换,不用重启
   }
 }
+
+class ThemeBinding extends Bindings {
+  @override
+  void dependencies() => Get.lazyPut(() => ThemeController());
+}

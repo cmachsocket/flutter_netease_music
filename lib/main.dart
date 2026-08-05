@@ -11,9 +11,11 @@ import 'theme/ThemeController.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await GetStorage.init();
+  // Bootstrap binding:这些 controller 在 AppShell 一启动就要被 find,
+  // 所以必须在 runApp 之前注入。route-level(比如 LibraryController)
+  // 的 binding 在 Get.to(binding:) 时按需触发。
   Get.lazyPut(() => ThemeController());
   Get.lazyPut(() => AppShellController());
-  // 全局播放状态:AppShell 的 BottomPlayer 一启动就要能 find 到
   Get.lazyPut(() => PlayerController());
   runApp(const FlutterNeteaseMusicApp());
 }

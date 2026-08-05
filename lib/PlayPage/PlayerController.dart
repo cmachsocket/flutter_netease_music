@@ -68,3 +68,8 @@ class PlayerController extends GetxController {
 
   void switchPage() => centerIndex.value = centerIndex.value == 0 ? 1 : 0;
 }
+
+class PlayerBinding extends Bindings {
+  @override
+  void dependencies() => Get.lazyPut(() => PlayerController());
+}
