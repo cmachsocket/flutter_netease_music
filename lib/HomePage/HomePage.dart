@@ -14,7 +14,7 @@ class HomePage extends StatelessWidget {
         Row(
           children: const [
             Expanded(
-              child: TopSongListCard(
+              child: LineSongListCard(
                 playlistId: 'daily',
                 title: '每日推荐',
                 subtitle: 'xx首歌曲',
@@ -23,7 +23,7 @@ class HomePage extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: TopSongListCard(
+              child: LineSongListCard(
                 playlistId: 'private-fm',
                 title: '私人雷达',
                 subtitle: 'xx首歌曲',

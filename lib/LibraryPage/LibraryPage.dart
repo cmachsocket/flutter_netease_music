@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../AppShell.dart';
+import '../ArtistPage/ArtistController.dart';
+import '../ArtistPage/ArtistDetail.dart';
 import '../widgets/aspect_driven_grid.dart';
 import '../widgets/SongListCard.dart';
 import 'LibraryController.dart';
@@ -7,12 +10,12 @@ import 'LibraryController.dart';
 class LibraryPage extends StatelessWidget {
   const LibraryPage({super.key});
 
-  // tabIndex -> 中文标签:三个 tab 都复用 SongListCard,只换 title 让用户看得到切了
+  // tabIndex -> 中文标签:歌单 / 专辑 / 艺人
+  // 专辑 tab 暂时也复用 SongListCard 默认导航(stub 阶段);等 AlbumDetail 出来再单独 override
   static const _labelOf = {1: '歌单', 2: '专辑', 3: '艺人'};
 
   @override
   Widget build(BuildContext context) {
-    // 列数 / 间距 / item 比例全部从容器宽高比派生,零硬编码
     final controller = Get.find<LibraryController>();
 
     return Obx(() {
@@ -49,12 +52,15 @@ class LibraryPage extends StatelessWidget {
               minColumns: 2,
               itemCount: 10,
               itemBuilder: (context, index) {
+                final id = 'tab-$tab-$index';
                 return SongListCard(
-                  playlistId: 'tab-$tab-$index',
+                  playlistId: id,
                   title: '$label $index',
                   subtitle: 'xx首歌曲',
                   imageUrl:
                       'https://cdn.jsdelivr.net/gh/cmachsocket/resources/avatar.png',
+                  // 艺人 tab 走 ArtistDetail,其他 tab 走 SongListCard 默认导航
+                  onTap: tab == 3 ? () => _openArtist(id) : null,
                 );
               },
             ),
@@ -62,5 +68,18 @@ class LibraryPage extends StatelessWidget {
         ],
       );
     });
+  }
+
+  /// 艺人卡片点击:推到 AppShell 的嵌套 Navigator,绑定 ArtistController(路由 pop 时自动销毁)
+  void _openArtist(String artistId) {
+    Get.to(
+      () => ArtistDetail(artistId: artistId),
+      id: AppShell.shellNavigatorId,
+      binding: BindingsBuilder(() {
+        Get.lazyPut<ArtistController>(
+          () => ArtistController(artistId: artistId),
+        );
+      }),
+    );
   }
 }
