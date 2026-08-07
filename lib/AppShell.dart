@@ -9,6 +9,7 @@ import 'LibraryPage/LibraryPage.dart';
 import 'SettingsPage/SettingsPage.dart';
 import 'AppShellController.dart';
 import 'searchPage/searchPage.dart';
+import 'searchPage/SearchController.dart' show SearchPageBinding;
 
 /// 顶层 Scaffold,IndexedStack 那一格换成 Navigator。
 /// 切 tab 用 GetX:Get.to() + id 推到 shell 自己的 navigator。
@@ -40,6 +41,8 @@ class AppShell extends StatelessWidget {
   /// 启动前已注入的(AppShellController / ThemeController / PlayerController)走 global,不在这里绑。
   static Bindings? _bindingForTab(int i) {
     switch (i) {
+      case 1:
+        return SearchPageBinding();
       case 2:
         return LibraryBinding();
     }
