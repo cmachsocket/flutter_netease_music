@@ -37,8 +37,7 @@ class SearchController extends GetxController {
   /// keyword 变空但输入框不会清空(看起来没反应)
   final TextEditingController textController = TextEditingController();
 
-  /// 当前搜索关键词的观察者 —— 通过 [textController] listener 自动同步,
-  /// 接 SDK 后用 `ever(keyword, ...)` debounce 触发 SearchController.search(type, keyword)
+  //显式onChanged: (s) => controller.setKeyword(s), 绑定 keyword,点清除按钮时同步清空 keyword
   final RxString keyword = ''.obs;
 
   @override
@@ -56,7 +55,7 @@ class SearchController extends GetxController {
     keyword.value = '';
   }
 
-  void search(String Keyword) {}
+  void search(String Keyword) {} //todo: 真正的搜索
 }
 
 /// 搜索页 binding:跟 LibraryController / ArtistController / SongListController 同款
