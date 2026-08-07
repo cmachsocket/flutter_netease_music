@@ -1,10 +1,10 @@
 import 'package:get/get.dart';
-import '../PlayListPage/PlayListController.dart' show Song;
+import '../models/Song.dart';
 
 /// 歌单详情页 controller
 ///
 /// - 一张歌单一个实例(由 [playlistId] 区分);路由 pop 时随 binding 自动销毁
-/// - 数据模型暂复用 [PlayListController] 里的 [Song](字段对齐,且避免重复定义)
+/// - 数据模型走 [Song](已抽到 ../models/Song.dart)
 /// - 后端接入 (TODO: 接 musiclibrary SDK 拉真歌单) 目前先用 [load] 内部的占位数据
 class SongListController extends GetxController {
   SongListController({required this.playlistId});

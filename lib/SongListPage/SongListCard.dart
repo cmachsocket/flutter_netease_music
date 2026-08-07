@@ -109,11 +109,7 @@ class LineSongListCard extends StatelessWidget {
         onTap: () => Get.to(
           () => SongListDetail(playlistId: playlistId),
           id: AppShell.shellNavigatorId,
-          binding: BindingsBuilder(() {
-            Get.lazyPut<SongListController>(
-              () => SongListController(playlistId: playlistId),
-            );
-          }),
+          binding: SongListDetailBinding(playlistId: playlistId),
         ),
         leading: Image.network(imageUrl ?? '', fit: BoxFit.cover),
         title: Text(

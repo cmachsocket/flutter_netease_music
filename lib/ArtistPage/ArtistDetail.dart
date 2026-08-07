@@ -3,8 +3,8 @@ import 'package:get/get.dart';
 
 import '../SongListPage/SongListBody.dart';
 import '../SongListPage/SongListCard.dart';
+import '../models/Album.dart';
 import '../widgets/aspect_driven_grid.dart';
-import 'Album.dart';
 import 'Artist.dart';
 import 'ArtistController.dart';
 

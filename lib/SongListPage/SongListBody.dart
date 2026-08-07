@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../PlayListPage/PlayListController.dart' show Song;
+import '../models/Song.dart';
 import 'SongRowTile.dart';
 
 /// 歌曲列表壳:loading / empty / error / 真实列表 四态合一

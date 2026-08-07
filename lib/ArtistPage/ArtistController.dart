@@ -1,7 +1,6 @@
 import 'package:get/get.dart';
-
-import '../PlayListPage/PlayListController.dart' show Song;
-import 'Album.dart';
+import '../models/Song.dart';
+import '../models/Album.dart';
 import 'Artist.dart';
 
 /// 艺人页 controller
@@ -67,8 +66,7 @@ class ArtistController extends GetxController {
       id: id,
       name: '艺术家 $id',
       bio: '这是一个示例艺术家的简介,描述其音乐风格、代表作品等。',
-      photoUrl:
-          'https://cdn.jsdelivr.net/gh/cmachsocket/resources/avatar.png',
+      photoUrl: 'https://cdn.jsdelivr.net/gh/cmachsocket/resources/avatar.png',
       songCount: 3,
       albumCount: 2,
     );

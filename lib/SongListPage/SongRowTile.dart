@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../PlayListPage/PlayListController.dart' show Song;
+import '../models/Song.dart';
+import '../widgets/linked_detail_text.dart';
 
 /// 歌曲行(供 SongListDetail / ArtistDetail 共用)
 ///
@@ -20,17 +21,19 @@ class SongRowTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return ListTile(
       leading: _Cover(url: song.coverUrl),
-      title: Text(
-        song.title,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Text(
-        '${song.artist} - ${song.album}',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+      title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: LinkedDetailText(
+        song: Song(
+          id: "",
+          title: "",
+          artist: "",
+          album: "",
+          coverUrl: "",
+          duration: Duration.zero,
+        ), // TODO: 传入真实 song
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,

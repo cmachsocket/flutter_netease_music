@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../AppShell.dart';
-import '../ArtistPage/ArtistController.dart';
 import '../ArtistPage/ArtistDetail.dart';
 import '../widgets/aspect_driven_grid.dart';
 import '../SongListPage/SongListCard.dart';

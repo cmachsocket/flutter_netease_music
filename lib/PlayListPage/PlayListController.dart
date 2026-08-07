@@ -2,49 +2,9 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 
 import '../PlayPage/PlayerController.dart';
+import '../models/Song.dart';
 
 /// 单曲数据模型(后续从后端/SDK 注入时扩展字段)
-class Song {
-  final String id;
-  final String title;
-  final String artist;
-  final String album;
-  final String coverUrl;
-  final Duration duration;
-
-  const Song({
-    required this.id,
-    required this.title,
-    required this.artist,
-    required this.album,
-    required this.coverUrl,
-    required this.duration,
-  });
-
-  String get durationLabel {
-    final m = duration.inMinutes;
-    final s = duration.inSeconds % 60;
-    return '$m:${s.toString().padLeft(2, '0')}';
-  }
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'artist': artist,
-        'album': album,
-        'coverUrl': coverUrl,
-        'duration': duration.inSeconds,
-      };
-
-  factory Song.fromJson(Map<String, dynamic> json) => Song(
-        id: json['id'] as String,
-        title: json['title'] as String,
-        artist: json['artist'] as String,
-        album: json['album'] as String,
-        coverUrl: json['coverUrl'] as String,
-        duration: Duration(seconds: json['duration'] as int),
-      );
-}
 
 /// 播放列表页的 controller
 ///
@@ -83,8 +43,9 @@ class PlayListController extends GetxController {
       _seedDefaults();
     }
     final savedIdx = box.read<int>(_currentIndexKey) ?? 0;
-    currentIndex.value =
-        (savedIdx >= 0 && savedIdx < playlist.length) ? savedIdx : 0;
+    currentIndex.value = (savedIdx >= 0 && savedIdx < playlist.length)
+        ? savedIdx
+        : 0;
   }
 
   void _seedDefaults() {
@@ -172,7 +133,9 @@ class PlayListController extends GetxController {
       final player = Get.find<PlayerController>();
       player.updatePosition(Duration.zero);
       player.updateDuration(
-        playlist.isEmpty ? Duration.zero : playlist[currentIndex.value].duration,
+        playlist.isEmpty
+            ? Duration.zero
+            : playlist[currentIndex.value].duration,
       );
     }
   }

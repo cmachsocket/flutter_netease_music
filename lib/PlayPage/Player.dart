@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_netease_music/widgets/linked_detail_text.dart';
 import 'package:get/get.dart';
 import 'Lyrics.dart';
 import 'PlayerController.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import '../PlayListPage/PlayListPage.dart';
 import '../PlayListPage/PlayListController.dart';
-import '../ArtistPage/ArtistDetail.dart';
+import '../models/Song.dart';
 import '../SongListPage/SongListDetail.dart';
 
 class Player extends StatelessWidget {
@@ -37,43 +38,17 @@ class Player extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            Row(
+            LinkedDetailText(
+              song: Song(
+                id: "",
+                title: "",
+                artist: "",
+                album: "",
+                coverUrl: "",
+                duration: Duration.zero,
+              ),
               mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                TextButton(
-                  onPressed: () {
-                    Get.to(
-                      () => ArtistDetail(artistId: "111"),
-                      binding: ArtistDetailBinding(artistId: "111"),
-                    );
-                  },
-                  child: Text(
-                    'Artist Name',
-                    style: textTheme.bodyMedium,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Text(
-                  '-',
-                  style: textTheme.bodyMedium,
-                  textAlign: TextAlign.center,
-                ),
-                TextButton(
-                  onPressed: () {
-                    Get.to(
-                      () => SongListDetail(playlistId: "111"),
-                      binding: SongListDetailBinding(playlistId: "111"),
-                    );
-                  },
-                  child: Text(
-                    'Album Name',
-                    style: textTheme.bodyMedium,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
+              textStyle: textTheme.bodyMedium,
             ),
           ],
         ),

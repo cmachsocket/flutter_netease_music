@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../models/Song.dart';
+import '../widgets/linked_detail_text.dart';
 import 'SongListBody.dart';
 import 'SongListController.dart';
 
@@ -35,47 +37,15 @@ class SongListDetail extends StatelessWidget {
             if (list.isNotEmpty &&
                 !controller.isLoading.value &&
                 controller.errorMessage.value == null)
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      "歌单描述",
-                      style: textTheme.bodyMedium,
-                      maxLines: 4,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.left,
-                    ),
-                  ),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextButton.icon(
-                        icon: const Icon(Icons.play_arrow),
-                        onPressed: () {
-                          // TODO: 播放歌单
-                        },
-                        label: Text(
-                          '播放',
-                          style: textTheme.bodyMedium,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      TextButton.icon(
-                        icon: const Icon(Icons.favorite_border),
-                        onPressed: () {
-                          // TODO: 收藏歌单
-                        },
-                        label: Text(
-                          '收藏',
-                          style: textTheme.bodyMedium,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+              LinkedDetailText(
+                song: Song(
+                  id: "",
+                  title: "",
+                  artist: "",
+                  album: "",
+                  coverUrl: "",
+                  duration: Duration.zero,
+                ),
               ),
             Expanded(
               child: SongListBody(
