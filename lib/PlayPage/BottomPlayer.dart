@@ -6,6 +6,7 @@ import 'Player.dart';
 import 'PlayerController.dart';
 import '../PlayListPage/PlayListPage.dart';
 import '../PlayListPage/PlayListController.dart';
+import '../ArtistPage/ArtistDetail.dart';
 
 /// 底部 mini 播放器:全局共享 [PlayerController] 的 position / lyric
 ///
@@ -44,19 +45,30 @@ class BottomPlayer extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Song Title',
-                          style: textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
+                        TextButton(
+                          onPressed: () {},
+                          child: Text(
+                            'Song Title',
+                            style: textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
-                        Text(
-                          'Artist Name',
-                          style: textTheme.bodySmall,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        TextButton(
+                          onPressed: () {
+                            Get.to(
+                              () => ArtistDetail(artistId: "111"),
+                              binding: ArtistDetailBinding(artistId: "111"),
+                            );
+                          },
+                          child: Text(
+                            'Artist Name',
+                            style: textTheme.bodySmall,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ),

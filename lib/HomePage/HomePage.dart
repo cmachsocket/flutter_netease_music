@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../widgets/SongListCard.dart';
+import '../SongListPage/SongListCard.dart';
 
 import '../widgets/aspect_driven_grid.dart';
 

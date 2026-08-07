@@ -92,3 +92,16 @@ class SongListDetail extends StatelessWidget {
     );
   }
 }
+
+class SongListDetailBinding extends Bindings {
+  final String playlistId;
+
+  SongListDetailBinding({required this.playlistId});
+
+  @override
+  void dependencies() {
+    Get.lazyPut<SongListController>(
+      () => SongListController(playlistId: playlistId),
+    );
+  }
+}

@@ -4,7 +4,7 @@ import '../AppShell.dart';
 import '../ArtistPage/ArtistController.dart';
 import '../ArtistPage/ArtistDetail.dart';
 import '../widgets/aspect_driven_grid.dart';
-import '../widgets/SongListCard.dart';
+import '../SongListPage/SongListCard.dart';
 import 'LibraryController.dart';
 
 class LibraryPage extends StatelessWidget {
@@ -75,11 +75,7 @@ class LibraryPage extends StatelessWidget {
     Get.to(
       () => ArtistDetail(artistId: artistId),
       id: AppShell.shellNavigatorId,
-      binding: BindingsBuilder(() {
-        Get.lazyPut<ArtistController>(
-          () => ArtistController(artistId: artistId),
-        );
-      }),
+      binding: ArtistDetailBinding(artistId: artistId),
     );
   }
 }

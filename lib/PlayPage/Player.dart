@@ -5,6 +5,8 @@ import 'PlayerController.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import '../PlayListPage/PlayListPage.dart';
 import '../PlayListPage/PlayListController.dart';
+import '../ArtistPage/ArtistDetail.dart';
+import '../SongListPage/SongListDetail.dart';
 
 class Player extends StatelessWidget {
   Player({super.key});
@@ -35,10 +37,43 @@ class Player extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            Text(
-              'Artist Name - Album Name',
-              style: textTheme.bodyMedium,
-              textAlign: TextAlign.center,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TextButton(
+                  onPressed: () {
+                    Get.to(
+                      () => ArtistDetail(artistId: "111"),
+                      binding: ArtistDetailBinding(artistId: "111"),
+                    );
+                  },
+                  child: Text(
+                    'Artist Name',
+                    style: textTheme.bodyMedium,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Text(
+                  '-',
+                  style: textTheme.bodyMedium,
+                  textAlign: TextAlign.center,
+                ),
+                TextButton(
+                  onPressed: () {
+                    Get.to(
+                      () => SongListDetail(playlistId: "111"),
+                      binding: SongListDetailBinding(playlistId: "111"),
+                    );
+                  },
+                  child: Text(
+                    'Album Name',
+                    style: textTheme.bodyMedium,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
           ],
         ),

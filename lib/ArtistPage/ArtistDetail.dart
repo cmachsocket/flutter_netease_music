@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../widgets/SongListBody.dart';
-import '../widgets/SongListCard.dart';
+import '../SongListPage/SongListBody.dart';
+import '../SongListPage/SongListCard.dart';
 import '../widgets/aspect_driven_grid.dart';
 import 'Album.dart';
 import 'Artist.dart';
@@ -16,14 +16,13 @@ import 'ArtistController.dart';
 /// - 专辑视图直接复用 [SongListCard] + [AspectDrivenGrid],不抽新组件
 /// - 歌曲视图直接复用 [SongListBody] (→ 内部用 [SongRowTile])
 class ArtistDetail extends StatelessWidget {
-  const ArtistDetail({super.key, required this.artistId});
+  ArtistDetail({super.key, required this.artistId});
 
   final String artistId;
 
+  final controller = Get.find<ArtistController>();
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<ArtistController>();
-
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -200,5 +199,16 @@ class _AlbumsSection extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+class ArtistDetailBinding extends Bindings {
+  final String artistId;
+
+  ArtistDetailBinding({required this.artistId});
+
+  @override
+  void dependencies() {
+    Get.lazyPut<ArtistController>(() => ArtistController(artistId: artistId));
   }
 }
