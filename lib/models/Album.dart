@@ -1,13 +1,14 @@
 /// 专辑 / EP / 单曲 模型
 ///
-/// 后续接 musiclibrary SDK 时,字段从 [netease_cloud_music_api.artist_album] / [album] 解析
-enum AlbumType { album, ep, single }
+/// 字段从 [netease_cloud_music_api.artist_album] / [album] / [album_detail] 解析
+enum AlbumType { album, ep, single, compilation }
 
 extension AlbumTypeLabel on AlbumType {
   String get label => switch (this) {
         AlbumType.album => '专辑',
         AlbumType.ep => 'EP',
         AlbumType.single => '单曲',
+        AlbumType.compilation => '合辑',
       };
 }
 
@@ -29,4 +30,40 @@ class Album {
     required this.releaseDate,
     required this.type,
   });
+
+  /// 从网易云 /album 或 /artist/album 返回的 JSON 解析
+  ///
+  /// 主要字段:
+  /// - id, name
+  /// - artists: List<Map> 取第一个 name
+  /// - picUrl: 封面图 URL
+  /// - size: 曲目数
+  /// - publishTime: 发行时间(unix ms)
+  /// - type: 'Album' / 'Single' / 'EP' / 'Compilation'
+  factory Album.fromNeteaseJson(Map<String, dynamic> json) {
+    final artists = (json['artists'] as List?) ?? const [];
+    final firstArtist = artists.isNotEmpty
+        ? Map<String, dynamic>.from(artists.first as Map)
+        : null;
+    final size = json['size'] is int ? json['size'] as int : 0;
+    final publishTime = json['publishTime'] is int
+        ? json['publishTime'] as int
+        : 0;
+    final typeStr = (json['type'] ?? 'Album').toString().toLowerCase();
+    final type = switch (typeStr) {
+      'single' => AlbumType.single,
+      'ep' => AlbumType.ep,
+      'compilation' => AlbumType.compilation,
+      _ => AlbumType.album,
+    };
+    return Album(
+      id: json['id'].toString(),
+      name: (json['name'] ?? '').toString(),
+      artist: (firstArtist?['name'] ?? '').toString(),
+      coverUrl: (json['picUrl'] ?? '').toString(),
+      songCount: size,
+      releaseDate: DateTime.fromMillisecondsSinceEpoch(publishTime),
+      type: type,
+    );
+  }
 }

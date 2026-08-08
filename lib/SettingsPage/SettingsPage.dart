@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import 'LoginController.dart';
+import '../sdk/netease_api.dart';
+import 'LoginController.dart' show LoginPageBinding;
 import 'LoginPage.dart';
 import 'ThemeSwitcher.dart';
 
@@ -15,24 +16,45 @@ class Settings extends StatelessWidget {
   static void _openLogin() =>
       Get.to(() => const LoginPage(), binding: LoginPageBinding());
 
+  /// 退出登录入口(已登录态才显示):直接走 [NeteaseApi.logout],
+  /// 不依赖 LoginController(用户可能从没进过 LoginPage,LoginController 未注入)
+  static void _doLogout() {
+    Get.find<NeteaseApi>().logout();
+    Get.snackbar('已退出', '本地登录态已清除', snackPosition: SnackPosition.BOTTOM);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final api = Get.find<NeteaseApi>();
     return ListView(
       children: [
-        // 登录账号入口:stub 阶段只是跳过去再跳回来,接 SDK 后这里再分
-        // "未登录 → 登录账号" / "已登录 → 退出登录" 双态
-        ListTile(
-          leading: const Icon(Icons.account_circle_outlined),
-          title: const Text('登录账号'),
-          subtitle: const Text('手机号 + 验证码'),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: _openLogin,
-        ),
         const ListTile(
           leading: Icon(Icons.brightness_6_outlined),
           title: Text('主题'),
           subtitle: Text('跟随系统 / 浅色 / 深色'),
           trailing: ThemeSwitcher(),
+        ),
+
+        // 登录账号:已登录 → "已登录 (退出)" / 未登录 → "登录账号"
+        Obx(
+          () => ListTile(
+            leading: Icon(
+              api.loggedIn.value
+                  ? Icons.account_circle
+                  : Icons.account_circle_outlined,
+            ),
+            title: Text(api.loggedIn.value ? '已登录' : '登录账号'),
+            subtitle: Text(
+              api.loggedIn.value
+                  ? '本地登录态已保存,点击退出'
+                  : '手机号 + 验证码',
+            ),
+            trailing: api.loggedIn.value
+                ? const Icon(Icons.logout)
+                : const Icon(Icons.chevron_right),
+            onTap: () =>
+                api.loggedIn.value ? _doLogout() : _openLogin(),
+          ),
         ),
       ],
     );

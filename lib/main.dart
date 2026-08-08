@@ -5,6 +5,7 @@ import 'package:get_storage/get_storage.dart';
 import 'AppShell.dart';
 import 'AppShellController.dart';
 import 'PlayPage/PlayerController.dart';
+import 'sdk/netease_api.dart';
 import 'theme/AppTheme.dart';
 import 'theme/ThemeController.dart';
 
@@ -17,6 +18,9 @@ Future<void> main() async {
   Get.lazyPut(() => ThemeController());
   Get.lazyPut(() => AppShellController());
   Get.lazyPut(() => PlayerController());
+  // 网易云 SDK:创建 NeteaseCloudMusicApi 实例 + 恢复持久化 cookie
+  // (必须在 GetStorage.init 之后)
+  await initNeteaseApi();
   runApp(const FlutterNeteaseMusicApp());
 }
 

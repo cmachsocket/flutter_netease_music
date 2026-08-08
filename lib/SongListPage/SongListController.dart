@@ -1,11 +1,15 @@
 import 'package:get/get.dart';
+
 import '../models/Song.dart';
+import '../sdk/api_exception.dart';
+import '../sdk/netease_api.dart';
 
 /// 歌单详情页 controller
 ///
 /// - 一张歌单一个实例(由 [playlistId] 区分);路由 pop 时随 binding 自动销毁
 /// - 数据模型走 [Song](已抽到 ../models/Song.dart)
-/// - 后端接入 (TODO: 接 musiclibrary SDK 拉真歌单) 目前先用 [load] 内部的占位数据
+/// - 接 SDK 后:[load] 调 `/playlist/detail` 拿歌单元信息 + `/playlist/track/all`
+///   拿所有曲目(因为 playlist_detail 只返前 1000 首,track_all 才能拿全)
 class SongListController extends GetxController {
   SongListController({required this.playlistId});
 
@@ -16,114 +20,65 @@ class SongListController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxnString errorMessage = RxnString();
 
+  /// 歌单标题(从 playlist_detail 取)
+  final RxnString title = RxnString();
+
+  /// 歌单封面(从 playlist_detail 取)
+  final RxnString coverUrl = RxnString();
+
+  /// 歌单描述(从 playlist_detail 取)
+  final RxnString description = RxnString();
+
   @override
   void onInit() {
     super.onInit();
     load();
   }
 
-  /// 拉当前歌单 ([playlistId]) 的曲目
+  /// 拉当前歌单 ([playlistId]) 的元信息 + 曲目
   ///
-  /// 现在是 stub:按 playlistId 给一组占位 Song,模拟一次异步拉取
-  /// 之后接 SDK 时换成 `await musiclibrary.getPlaylistDetail(playlistId)`
+  /// 两个调用并行(互不依赖):detail 拿标题/封面,track_all 拿完整曲目
   Future<void> load() async {
     isLoading.value = true;
     errorMessage.value = null;
+    final api = Get.find<NeteaseApi>();
+    final id = playlistId;
     try {
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-      songs.assignAll(_seedFor(playlistId));
-    } catch (e) {
-      errorMessage.value = e.toString();
+      // 1. 拉歌单元信息(标题/封面/描述)
+      try {
+        final detail = await api.call(
+          (a) => a.playlist_detail(id),
+          what: '拉歌单详情',
+        );
+        final playlist = detail.body['playlist'];
+        if (playlist is Map) {
+          final p = Map<String, dynamic>.from(playlist);
+          title.value = (p['name'] ?? '').toString();
+          coverUrl.value = (p['coverImgUrl'] ?? '').toString();
+          description.value = (p['description'] ?? '').toString();
+        }
+      } on ApiException {
+        // 元信息失败不影响曲目展示,继续往下走
+      }
+
+      // 2. 拉所有曲目(track_all 而非 detail.tracks,后者只返前 1000 首)
+      final tracks = await api.call(
+        (a) => a.playlist_track_all(id),
+        what: '拉歌单曲目',
+      );
+      final songsList = tracks.body['songs'];
+      if (songsList is List) {
+        songs.assignAll(
+          songsList
+              .whereType<Map>()
+              .map((m) => Song.fromNeteaseJson(Map<String, dynamic>.from(m)))
+              .toList(),
+        );
+      }
+    } on ApiException catch (e) {
+      errorMessage.value = e.message;
     } finally {
       isLoading.value = false;
-    }
-  }
-
-  List<Song> _seedFor(String id) {
-    final cover =
-        'https://cdn.jsdelivr.net/gh/cmachsocket/resources/avatar.png';
-    switch (id) {
-      case 'daily':
-        return [
-          Song(
-            id: 'd1',
-            title: '为你推荐 - 红莲',
-            artist: '艺术家 A',
-            album: 'Daily Mix',
-            coverUrl: cover,
-            duration: const Duration(minutes: 3, seconds: 30),
-          ),
-          Song(
-            id: 'd2',
-            title: '为你推荐 - 远海',
-            artist: '艺术家 B',
-            album: 'Daily Mix',
-            coverUrl: cover,
-            duration: const Duration(minutes: 4, seconds: 5),
-          ),
-          Song(
-            id: 'd3',
-            title: '为你推荐 - 夜行',
-            artist: '艺术家 C',
-            album: 'Daily Mix',
-            coverUrl: cover,
-            duration: const Duration(minutes: 2, seconds: 56),
-          ),
-        ];
-      case 'private-fm':
-        return [
-          Song(
-            id: 'p1',
-            title: '私人 FM - 早安',
-            artist: '艺术家 X',
-            album: 'FM',
-            coverUrl: cover,
-            duration: const Duration(minutes: 3, seconds: 2),
-          ),
-          Song(
-            id: 'p2',
-            title: '私人 FM - 微风',
-            artist: '艺术家 Y',
-            album: 'FM',
-            coverUrl: cover,
-            duration: const Duration(minutes: 3, seconds: 47),
-          ),
-          Song(
-            id: 'p3',
-            title: '私人 FM - 山林',
-            artist: '艺术家 Z',
-            album: 'FM',
-            coverUrl: cover,
-            duration: const Duration(minutes: 4, seconds: 21),
-          ),
-        ];
-      default:
-        return [
-          Song(
-            id: '$id-1',
-            title: '歌单 $id - 1',
-            artist: '艺术家 A',
-            album: 'Mixed',
-            coverUrl: cover,
-            duration: const Duration(minutes: 3, seconds: 12),
-          ),
-          Song(
-            id: '$id-2',
-            title: '歌单 $id - 2',
-            artist: '艺术家 B',
-            album: 'Mixed',
-            coverUrl: cover,
-            duration: const Duration(minutes: 4, seconds: 0),
-          ),
-          Song(
-            id: '$id-3',
-            title: '歌单 $id - 3',
-            artist: '艺术家 C',
-            album: 'Mixed',
-            coverUrl: cover,
-            duration: const Duration(minutes: 5, seconds: 24),
-          ),
-        ];
     }
   }
 
@@ -138,5 +93,12 @@ class SongListController extends GetxController {
   /// - player.playAt(currentIndex)
   void playSong(Song song) {
     // TODO: 联动 PlayListController + PlayerController
+  }
+}
+
+class SongListBinding extends Bindings {
+  @override
+  void dependencies() {
+    // 不带参数:参数在 [SongListDetailBinding] 里走(那边拿 playlistId)
   }
 }

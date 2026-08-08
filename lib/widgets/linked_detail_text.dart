@@ -5,6 +5,13 @@ import '../SongListPage/SongListDetail.dart';
 import '../AppShell.dart';
 import '../models/Song.dart';
 
+/// 歌曲列表里的"艺人 - 专辑"双链接文本
+///
+/// - 艺人点击 → [ArtistDetail](artistId: song.artistId)
+/// - 专辑点击 → [SongListDetail](playlistId: 'album-${song.albumId}')
+///   (复用 SongListController 的 'album-' 前缀分支,把专辑当特殊 playlistId 处理,
+///   避免另起 [AlbumDetail] controller —— 这是 stub 阶段就在用的约定)
+/// - 任一 ID 缺失 → 对应链接降级为只读 Text(避免点开 "111" 占位)
 class LinkedDetailText extends StatelessWidget {
   final Song song;
   final VoidCallback? onTap;
@@ -23,51 +30,115 @@ class LinkedDetailText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final style = textStyle ?? textTheme.bodySmall;
+
     return Row(
+      mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: mainAxisAlignment ?? MainAxisAlignment.start,
       children: [
-        TextButton(
-          onPressed: () {
-            backFirst == true
-                ? Get.back()
-                : null; // 如果 backFirst 为 true，则先返回上一个页面
-            Get.to(
-              () => ArtistDetail(artistId: "111"),
-              id: AppShell.shellNavigatorId,
-              binding: ArtistDetailBinding(artistId: "111"),
-            );
-          },
-          child: Text(
-            'Artist Name',
-            maxLines: 1,
-            style: textStyle ?? textTheme.bodySmall,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        Text(
-          '-',
-          textAlign: TextAlign.center,
-          style: textStyle ?? textTheme.bodySmall,
-        ),
-        TextButton(
-          onPressed: () {
-            backFirst == true
-                ? Get.back()
-                : null; // 如果 backFirst 为 true，则先返回上一个页面
-            Get.to(
-              () => SongListDetail(playlistId: "111"),
-              id: AppShell.shellNavigatorId,
-              binding: SongListDetailBinding(playlistId: "111"),
-            );
-          },
-          child: Text(
-            'Album Name',
-            maxLines: 1,
-            style: textStyle ?? textTheme.bodySmall,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
+        _ArtistLink(song: song, style: style, backFirst: backFirst ?? false),
+        Text('-', textAlign: TextAlign.center, style: style),
+        _AlbumLink(song: song, style: style, backFirst: backFirst ?? false),
       ],
+    );
+  }
+}
+
+/// 艺人链接:有 artistId → TextButton;否则降级为只读 Text
+class _ArtistLink extends StatelessWidget {
+  const _ArtistLink({
+    required this.song,
+    required this.style,
+    required this.backFirst,
+  });
+
+  final Song song;
+  final TextStyle? style;
+  final bool backFirst;
+
+  @override
+  Widget build(BuildContext context) {
+    final id = song.artistId;
+    final text = song.artist.isEmpty ? '未知艺人' : song.artist;
+    if (id == null || id.isEmpty) {
+      return _ReadOnlyText(text: text, style: style);
+    }
+    return Flexible(
+      child: TextButton(
+        style: TextButton.styleFrom(
+          padding: EdgeInsets.zero,
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        onPressed: () => _navigate(id),
+        child: Text(text, maxLines: 1, style: style, overflow: TextOverflow.ellipsis),
+      ),
+    );
+  }
+
+  void _navigate(String artistId) {
+    if (backFirst) Get.back();
+    Get.to(
+      () => ArtistDetail(artistId: artistId),
+      id: AppShell.shellNavigatorId,
+      binding: ArtistDetailBinding(artistId: artistId),
+    );
+  }
+}
+
+/// 专辑链接:复用 SongListDetail,playlistId 走 'album-{albumId}' 前缀
+class _AlbumLink extends StatelessWidget {
+  const _AlbumLink({
+    required this.song,
+    required this.style,
+    required this.backFirst,
+  });
+
+  final Song song;
+  final TextStyle? style;
+  final bool backFirst;
+
+  @override
+  Widget build(BuildContext context) {
+    final id = song.albumId;
+    final text = song.album.isEmpty ? '未知专辑' : song.album;
+    if (id == null || id.isEmpty) {
+      return Flexible(
+        child: _ReadOnlyText(text: text, style: style),
+      );
+    }
+    return Flexible(
+      child: TextButton(
+        style: TextButton.styleFrom(
+          padding: EdgeInsets.zero,
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        onPressed: () {
+          if (backFirst) Get.back();
+          Get.to(
+            () => SongListDetail(playlistId: 'album-$id'),
+            id: AppShell.shellNavigatorId,
+            binding: SongListDetailBinding(playlistId: 'album-$id'),
+          );
+        },
+        child: Text(text, maxLines: 1, style: style, overflow: TextOverflow.ellipsis),
+      ),
+    );
+  }
+}
+
+/// 纯文本(没有 ID 时降级显示)
+class _ReadOnlyText extends StatelessWidget {
+  const _ReadOnlyText({required this.text, required this.style});
+
+  final String text;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    return Flexible(
+      child: Text(text, maxLines: 1, style: style, overflow: TextOverflow.ellipsis),
     );
   }
 }

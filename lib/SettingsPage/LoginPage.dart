@@ -7,8 +7,8 @@ import 'LoginController.dart';
 /// 登录页(手机 + 验证码)
 ///
 /// - 入口:调用方 `Get.to(() => LoginPage(), binding: LoginPageBinding())`
-/// - 暂不接 SDK:[LoginController.sendCode] 只启动倒计时;
-///   [LoginController.login] 直接 Get.back() 模拟登录成功
+/// - 接 SDK:[LoginController.sendCode] 调 `/captcha/sent`;失败弹 SnackBar
+///   [LoginController.login] 调 `/login/cellphone`;成功后 Get.back() + 持久化 cookie
 /// - 数据源:[LoginController.phoneController] / [codeController] 显式绑给 TextField,
 ///   清除/回填才能真正生效(跟 SearchController 同款)
 class LoginPage extends StatelessWidget {
@@ -51,14 +51,20 @@ class LoginPage extends StatelessWidget {
             ),
           ),
 
-          // "获取验证码" 按钮:放在右下角当链接式按钮
+          // "获取验证码" 按钮:放在右下角当链接式按钮,loading 时显示 spinner
           Obx(
             () => Align(
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed:
                     controller.canSendCode ? controller.sendCode : null,
-                child: Text(_sendCodeLabel(controller.countdown.value)),
+                child: controller.isSendingCode.value
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(_sendCodeLabel(controller.countdown.value)),
               ),
             ),
           ),
@@ -67,7 +73,13 @@ class LoginPage extends StatelessWidget {
           Obx(
             () => ElevatedButton(
               onPressed: controller.canLogin ? controller.login : null,
-              child: const Text('登录'),
+              child: controller.isLoggingIn.value
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('登录'),
             ),
           ),
         ],
