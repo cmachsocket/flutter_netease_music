@@ -74,3 +74,10 @@ class _RecommendedGrid extends StatelessWidget {
     });
   }
 }
+
+class HomePageBinding extends Bindings {
+  @override
+  void dependencies() {
+    Get.lazyPut(() => HomeController());
+  }
+}

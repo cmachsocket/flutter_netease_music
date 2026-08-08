@@ -41,12 +41,14 @@ class AppShell extends StatelessWidget {
   /// 启动前已注入的(AppShellController / ThemeController / PlayerController)走 global,不在这里绑。
   static Bindings? _bindingForTab(int i) {
     switch (i) {
+      case 0:
+        return HomePageBinding();
       case 1:
         return SearchPageBinding();
       case 2:
         return LibraryBinding();
     }
-    return null;
+    return HomePageBinding();
   }
 
   /// shell 这一层的 Navigator,内容跟着 tab index 走

@@ -1,6 +1,8 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:get/get.dart';
 
-import '../sdk/api_call.dart';
 import '../sdk/api_exception.dart';
 import '../sdk/netease_api.dart';
 
@@ -9,12 +11,13 @@ import '../sdk/netease_api.dart';
 /// 三个 tab 分别对应网易云"我的":
 /// - tab 1 (歌单): /user/playlist(uid)
 /// - tab 2 (专辑): /album/sublist
-/// - tab 3 (艺人): /user/follows(uid)
+/// - tab 3 (艺人): /user/follow/mixed(scene=1)
 ///
 /// **未登录时**:不调接口,展示"请先登录"占位卡
 /// **uid 缺失时**:拉一次 /user/account,缓存到 [NeteaseApi.currentUid]
 class LibraryController extends GetxController {
   final RxInt tabIndex = 1.obs;
+  Worker? _loginWorker;
 
   // tab 1: 歌单
   final RxBool playlistsLoading = false.obs;
@@ -31,10 +34,28 @@ class LibraryController extends GetxController {
   final RxnString artistsError = RxnString();
   final RxList<ArtistSummary> artists = <ArtistSummary>[].obs;
 
+  @override
+  void onInit() {
+    super.onInit();
+    final api = Get.find<NeteaseApi>();
+    _loginWorker = ever<bool>(api.loggedIn, (loggedIn) {
+      if (loggedIn) {
+        _loadVisibleTab();
+      }
+    });
+    if (api.loggedIn.value) {
+      _loadVisibleTab();
+    }
+  }
+
   void setTabIndex(int index) {
     tabIndex.value = index;
     // 切换时按需触发加载(只在未加载过且未在加载中时)
-    switch (index) {
+    _loadVisibleTab();
+  }
+
+  void _loadVisibleTab() {
+    switch (tabIndex.value) {
       case 1:
         if (playlists.isEmpty && !playlistsLoading.value) loadPlaylists();
         break;
@@ -67,9 +88,11 @@ class LibraryController extends GetxController {
         playlists.assignAll(
           list
               .whereType<Map>()
-              .map((m) => PlaylistSummary.fromNeteaseJson(
-                    Map<String, dynamic>.from(m),
-                  ))
+              .map(
+                (m) => PlaylistSummary.fromNeteaseJson(
+                  Map<String, dynamic>.from(m),
+                ),
+              )
               .toList(),
         );
       }
@@ -98,9 +121,10 @@ class LibraryController extends GetxController {
         albums.assignAll(
           list
               .whereType<Map>()
-              .map((m) => AlbumSummary.fromNeteaseJson(
-                    Map<String, dynamic>.from(m),
-                  ))
+              .map(
+                (m) =>
+                    AlbumSummary.fromNeteaseJson(Map<String, dynamic>.from(m)),
+              )
               .toList(),
         );
       }
@@ -116,24 +140,26 @@ class LibraryController extends GetxController {
     artistsLoading.value = true;
     artistsError.value = null;
     final api = Get.find<NeteaseApi>();
-    final uid = await _ensureUid(api);
-    if (uid == null) {
-      artistsLoading.value = false;
-      return;
-    }
     try {
       final r = await api.call(
-        (a) => a.user_follows(uid.toString(), limit: '50'),
+        (a) => a.user_follow_mixed(size: '50', cursor: '0', scene: '1'),
         what: '我的关注艺人',
       );
-      final list = r.body['follow'];
+      debugPrint(
+        '[LibraryController] /user/follow/mixed raw body = ${jsonEncode(r.body)}',
+      );
+      final data = r.body['data'];
+      final list = data is Map ? (data['records'] ?? data['list']) : data;
       if (list is List) {
         artists.assignAll(
           list
               .whereType<Map>()
-              .map((m) => ArtistSummary.fromNeteaseJson(
-                    Map<String, dynamic>.from(m),
-                  ))
+              .map((record) => record['artistInfo'])
+              .whereType<Map>()
+              .map(
+                (m) =>
+                    ArtistSummary.fromNeteaseJson(Map<String, dynamic>.from(m)),
+              )
               .toList(),
         );
       }
@@ -149,6 +175,12 @@ class LibraryController extends GetxController {
     if (api.currentUid.value != null) return api.currentUid.value;
     await api.fetchCurrentUid();
     return api.currentUid.value;
+  }
+
+  @override
+  void onClose() {
+    _loginWorker?.dispose();
+    super.onClose();
   }
 }
 

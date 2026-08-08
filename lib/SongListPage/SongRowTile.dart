@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/Song.dart';
 import '../widgets/linked_detail_text.dart';
+import '../widgets/netease_image.dart' show neteaseImageHeaders;
 
 /// 歌曲行(供 SongListDetail / ArtistDetail 共用)
 ///
@@ -65,6 +66,7 @@ class _Cover extends StatelessWidget {
     return Image.network(
       url,
       fit: BoxFit.cover,
+      headers: neteaseImageHeaders,
       errorBuilder: (_, _, _) => Container(
         color: scheme.surfaceContainerHigh,
         alignment: Alignment.center,

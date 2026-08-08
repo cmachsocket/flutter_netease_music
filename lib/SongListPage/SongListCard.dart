@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../AppShell.dart';
+import '../widgets/netease_image.dart' show neteaseImageHeaders;
 import 'SongListController.dart';
 import 'SongListDetail.dart';
 
@@ -43,7 +44,7 @@ class SongListCard extends StatelessWidget {
             Expanded(
               child: AspectRatio(
                 aspectRatio: 1,
-                child: Image.network(imageUrl ?? '', fit: BoxFit.cover),
+                child: Image.network(imageUrl ?? '', fit: BoxFit.cover, headers: neteaseImageHeaders),
               ),
             ),
             ListTile(
@@ -111,7 +112,7 @@ class LineSongListCard extends StatelessWidget {
           id: AppShell.shellNavigatorId,
           binding: SongListDetailBinding(playlistId: playlistId),
         ),
-        leading: Image.network(imageUrl ?? '', fit: BoxFit.cover),
+        leading: Image.network(imageUrl ?? '', fit: BoxFit.cover, headers: neteaseImageHeaders),
         title: Text(
           title ?? '',
           style: textTheme.bodySmall,

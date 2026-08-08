@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:get/get.dart';
 
 import '../models/Album.dart';
@@ -53,17 +56,17 @@ class ArtistController extends GetxController {
 
     await Future.wait([
       safeRun('拉艺人信息', () async {
-        final r = await api.call(
-          (a) => a.artists(id),
-          what: '拉艺人信息',
+        final r = await api.call((a) => a.artists(id), what: '拉艺人信息');
+        debugPrint(
+          '[ArtistController] /artists raw body = ${jsonEncode(r.body)}',
         );
         final m = r.body;
         if (m.isNotEmpty) artist.value = Artist.fromNeteaseJson(m);
       }),
       safeRun('拉艺人专辑', () async {
-        final r = await api.call(
-          (a) => a.artist_album(id),
-          what: '拉艺人专辑',
+        final r = await api.call((a) => a.artist_album(id), what: '拉艺人专辑');
+        debugPrint(
+          '[ArtistController] /artist/album raw body = ${jsonEncode(r.body)}',
         );
         final list = r.body['hotAlbums'] ?? r.body['albums'];
         if (list is List) {
@@ -79,6 +82,9 @@ class ArtistController extends GetxController {
         final r = await api.call(
           (a) => a.artist_songs(id, limit: '50'),
           what: '拉艺人歌曲',
+        );
+        debugPrint(
+          '[ArtistController] /artist/songs raw body = ${jsonEncode(r.body)}',
         );
         final list = r.body['songs'];
         if (list is List) {

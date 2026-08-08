@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../widgets/netease_image.dart' show neteaseImageHeaders;
 import 'PlayListController.dart';
 
 /// 播放列表页
@@ -74,6 +75,7 @@ class _Cover extends StatelessWidget {
     return Image.network(
       url,
       fit: BoxFit.cover,
+      headers: neteaseImageHeaders,
       errorBuilder: (_, _, _) => Container(
         color: scheme.surfaceContainerHigh,
         alignment: Alignment.center,

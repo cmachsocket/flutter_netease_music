@@ -7,6 +7,7 @@ import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import '../PlayListPage/PlayListPage.dart';
 import '../PlayListPage/PlayListController.dart';
 import '../models/Song.dart';
+import '../widgets/netease_image.dart';
 
 class Player extends StatelessWidget {
   Player({super.key});
@@ -80,7 +81,7 @@ class Player extends StatelessWidget {
                         aspectRatio: 1,
                         child: Image(
                           //todo: bind to actual cover
-                          image: NetworkImage(
+                          image: neteaseNetworkImage(
                             'https://cdn.jsdelivr.net/gh/cmachsocket/resources/avatar.png',
                           ),
                           fit: BoxFit.cover,

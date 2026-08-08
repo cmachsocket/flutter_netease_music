@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 
 import '../AppShell.dart';
 import '../ArtistPage/ArtistDetail.dart';
-import '../SongListPage/SongListDetail.dart';
 import '../SongListPage/SongListCard.dart';
 import '../sdk/netease_api.dart';
 import '../widgets/aspect_driven_grid.dart';
@@ -15,11 +14,7 @@ import 'LibraryController.dart';
 class LibraryPage extends StatelessWidget {
   const LibraryPage({super.key});
 
-  static const Map<int, String> _labelOf = {
-    1: '歌单',
-    2: '专辑',
-    3: '艺人',
-  };
+  static const Map<int, String> _labelOf = {1: '歌单', 2: '专辑', 3: '艺人'};
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +45,9 @@ class LibraryPage extends StatelessWidget {
             selected: {tab},
             onSelectionChanged: (s) => controller.setTabIndex(s.first),
           ),
-          Expanded(child: _TabContent(tab: tab, label: label)),
+          Expanded(
+            child: _TabContent(tab: tab, label: label),
+          ),
         ],
       );
     });

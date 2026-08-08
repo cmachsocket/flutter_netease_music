@@ -5,6 +5,7 @@ import '../SongListPage/SongListBody.dart';
 import '../SongListPage/SongListCard.dart';
 import '../models/Album.dart';
 import '../widgets/aspect_driven_grid.dart';
+import '../widgets/netease_image.dart';
 import 'Artist.dart';
 import 'ArtistController.dart';
 
@@ -78,7 +79,7 @@ class _ArtistHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         CircleAvatar(
-          backgroundImage: NetworkImage(artist.photoUrl),
+          backgroundImage: neteaseNetworkImage(artist.photoUrl),
           onBackgroundImageError: (_, _) {},
           backgroundColor: scheme.surfaceContainerHigh,
           child: Icon(Icons.person, color: scheme.onSurfaceVariant),

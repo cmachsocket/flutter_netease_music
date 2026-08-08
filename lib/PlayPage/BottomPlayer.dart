@@ -7,6 +7,7 @@ import 'PlayerController.dart';
 import '../PlayListPage/PlayListPage.dart';
 import '../PlayListPage/PlayListController.dart';
 import '../ArtistPage/ArtistDetail.dart';
+import '../widgets/netease_image.dart';
 
 /// 底部 mini 播放器:全局共享 [PlayerController] 的 position / lyric
 ///
@@ -33,7 +34,7 @@ class BottomPlayer extends StatelessWidget {
                 children: [
                   // 封面
                   Image(
-                    image: NetworkImage(
+                    image: neteaseNetworkImage(
                       'https://cdn.jsdelivr.net/gh/cmachsocket/resources/avatar.png',
                     ),
                     fit: BoxFit.cover,

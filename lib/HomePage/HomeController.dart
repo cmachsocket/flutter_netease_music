@@ -1,6 +1,5 @@
 import 'package:get/get.dart';
 
-import '../sdk/api_call.dart';
 import '../sdk/api_exception.dart';
 import '../sdk/netease_api.dart';
 
@@ -37,9 +36,10 @@ class HomeController extends GetxController {
         recommended.assignAll(
           list
               .whereType<Map>()
-              .map((m) => PlaylistCard.fromNeteaseJson(
-                    Map<String, dynamic>.from(m),
-                  ))
+              .map(
+                (m) =>
+                    PlaylistCard.fromNeteaseJson(Map<String, dynamic>.from(m)),
+              )
               .toList(),
         );
       }
