@@ -10,12 +10,14 @@ class LinkedDetailText extends StatelessWidget {
   final VoidCallback? onTap;
   final TextStyle? textStyle;
   final MainAxisAlignment? mainAxisAlignment;
+  final bool? backFirst;
   const LinkedDetailText({
     super.key,
     required this.song,
     this.onTap,
     this.textStyle,
     this.mainAxisAlignment,
+    this.backFirst,
   });
 
   @override
@@ -26,6 +28,9 @@ class LinkedDetailText extends StatelessWidget {
       children: [
         TextButton(
           onPressed: () {
+            backFirst == true
+                ? Get.back()
+                : null; // 如果 backFirst 为 true，则先返回上一个页面
             Get.to(
               () => ArtistDetail(artistId: "111"),
               id: AppShell.shellNavigatorId,
@@ -46,6 +51,9 @@ class LinkedDetailText extends StatelessWidget {
         ),
         TextButton(
           onPressed: () {
+            backFirst == true
+                ? Get.back()
+                : null; // 如果 backFirst 为 true，则先返回上一个页面
             Get.to(
               () => SongListDetail(playlistId: "111"),
               id: AppShell.shellNavigatorId,

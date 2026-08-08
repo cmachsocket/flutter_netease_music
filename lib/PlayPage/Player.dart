@@ -7,7 +7,6 @@ import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import '../PlayListPage/PlayListPage.dart';
 import '../PlayListPage/PlayListController.dart';
 import '../models/Song.dart';
-import '../SongListPage/SongListDetail.dart';
 
 class Player extends StatelessWidget {
   Player({super.key});
@@ -49,6 +48,7 @@ class Player extends StatelessWidget {
               ),
               mainAxisAlignment: MainAxisAlignment.center,
               textStyle: textTheme.bodyMedium,
+              backFirst: true,
             ),
           ],
         ),

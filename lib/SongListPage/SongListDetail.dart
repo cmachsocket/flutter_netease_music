@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../models/Song.dart';
-import '../widgets/linked_detail_text.dart';
 import 'SongListBody.dart';
 import 'SongListController.dart';
 
@@ -19,7 +17,7 @@ class SongListDetail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<SongListController>();
-
+    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -36,15 +34,47 @@ class SongListDetail extends StatelessWidget {
             if (list.isNotEmpty &&
                 !controller.isLoading.value &&
                 controller.errorMessage.value == null)
-              LinkedDetailText(
-                song: Song(
-                  id: "",
-                  title: "",
-                  artist: "",
-                  album: "",
-                  coverUrl: "",
-                  duration: Duration.zero,
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      "歌单描述",
+                      style: textTheme.bodyMedium,
+                      maxLines: 4,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.left,
+                    ),
+                  ),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextButton.icon(
+                        icon: const Icon(Icons.play_arrow),
+                        onPressed: () {
+                          // TODO: 播放歌单
+                        },
+                        label: Text(
+                          '播放',
+                          style: textTheme.bodyMedium,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.favorite_border),
+                        onPressed: () {
+                          // TODO: 收藏歌单
+                        },
+                        label: Text(
+                          '收藏',
+                          style: textTheme.bodyMedium,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             Expanded(
               child: SongListBody(

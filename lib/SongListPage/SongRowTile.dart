@@ -21,7 +21,6 @@ class SongRowTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     return ListTile(
       leading: _Cover(url: song.coverUrl),
       title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
