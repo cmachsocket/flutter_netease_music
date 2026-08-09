@@ -1,74 +1,167 @@
+import 'dart:async';
+
 import 'package:flutter_lyric/flutter_lyric.dart';
 import 'package:get/get.dart';
 
-/// 播放页统一控制器:进度 + 切页 + 歌词
+import '../models/Song.dart';
+import '../sdk/api_call.dart';
+import '../sdk/api_exception.dart';
+import '../sdk/netease_api.dart';
+import 'AudioPlayerService.dart';
+
+/// 播放页统一控制器:进度 + 切页 + 歌词 + 实际音频加载
 ///
-/// 把 flutter_lyric 的 [LyricController] 也托管在这里,
-/// 避免歌词/进度条双源状态,保证点击歌词行的 seek 能直接驱动进度条。
+/// - **音频**:通过 [AudioPlayerService] 调 just_audio,
+///   [loadSong] 走 `/song/url` 拿临时 mp3 直链 → `setUrl` 加载 → `play()`
+/// - **进度**:订阅 [AudioPlayerService.positionStream] 写 [position];
+///   订阅 [durationStream] 写 [duration](避免被 Player 那边 push 覆盖)
+/// - **歌词**:由 [fetchLyric] 主动拉 `/lyric`(TODO 后续切 lyric_new 拿逐字)
+///   失败 / 空 → 保持 sample LRC(占位不让 UI 空)
+/// - **切页**:左右滑切 cover / lyric(原有 UI 逻辑)
 class PlayerController extends GetxController {
-  // region 播放状态
-  /// 图片 / 歌词 切页索引
-  final RxInt centerIndex = 0.obs;
+  /// bitrate 默认 standard(128k = '128000')。
+  ///
+  /// **NetEase API 只认数字字符串码率**(128000/192000/320000/999000),不识别
+  /// "standard"/"exhigh" 这种语义别名 —— 传字符串后端返 500 + body "undefined"
+  /// (2026-08-10 复现确认)。SDK 不做转换,直接拼进 query。
+  static const String defaultBitrate = '128000';
 
-  /// 当前播放位置(由 ProgressBar.onSeek / Lyric 点击行 / 后续 audio player 推动)
+  // region 播放状态(由 AudioPlayer stream 推动)
   final Rx<Duration> position = Duration.zero.obs;
-
-  /// 歌曲总长度(由 audio player.durationStream 推动;默认 3 分钟占位)
   final Rx<Duration> duration = const Duration(minutes: 3).obs;
+  final RxBool isPlaying = false.obs;
+
+  /// 当前播放的歌曲(null = 还没加载)
+  final Rxn<Song> currentSong = Rxn<Song>();
+
+  /// 当前加载是否进行中(用来显示 loading 状态,避免重复触发)
+  final RxBool isLoadingSong = false.obs;
+  // endregion
+
+  // region UI 切页
+  final RxInt centerIndex = 0.obs;
   // endregion
 
   // region 歌词
-  /// 包装底层 flutter_lyric 控制器,供 [Lyrics] widget 使用
   final LyricController lyricController = LyricController();
   Worker? _positionWorker;
+  // endregion
 
-  // 占位 LRC(正式版由后端/解析器注入)
+  late final AudioPlayerService _audio;
+  StreamSubscription<Duration>? _posSub;
+  StreamSubscription<Duration?>? _durSub;
+  StreamSubscription<bool>? _playingSub;
+
+  /// 占位 LRC(正式版由 fetchLyric 注入)
   static const String _sampleLrc = '''
 [00:00.00]示例歌词第一行 - 欢迎使用
 [00:05.00]这是第二行歌词
 [00:10.00]第三行歌词在这里
-[00:15.00]下面继续测试滚动效果
-[00:20.00]第五行,看看高亮
-[00:25.00]第六行,继续
-[00:30.00]第七行歌词内容
-[00:35.00]第八行,看看还能不能滚
-[00:40.00]第九行,接近末尾
-[00:45.00]第十行,快结束了
-[00:50.00]倒数第二行
-[00:55.00]最后一首歌词行
 ''';
-  // endregion
 
   @override
   void onInit() {
     super.onInit();
+    _audio = Get.find<AudioPlayerService>();
     lyricController.loadLyric(_sampleLrc);
+
+    // 订阅 just_audio 的 stream → 写 Rx
+    _posSub = _audio.positionStream.listen((p) => position.value = p);
+    _durSub = _audio.durationStream.listen((d) {
+      if (d != null) duration.value = d;
+    });
+    _playingSub = _audio.playingStream.listen((p) => isPlaying.value = p);
 
     // 进度推进 → 歌词高亮 + 自动滚动
     _positionWorker = ever<Duration>(position, lyricController.setProgress);
 
-    // 点击歌词行 → seek(直接改 position,进度条自动跟随)
+    // 点击歌词行 → seek
     lyricController.setOnTapLineCallback((Duration p) {
-      updatePosition(p);
+      _audio.seek(p);
     });
   }
 
   @override
   void onClose() {
+    _posSub?.cancel();
+    _durSub?.cancel();
+    _playingSub?.cancel();
     _positionWorker?.dispose();
     lyricController.dispose();
     super.onClose();
   }
 
-  /// 由 ProgressBar.onSeek 或底层 audio player 调用
-  void updatePosition(Duration p) => position.value = p;
+  /// 加载并播放一首新歌
+  ///
+  /// 流程:1) 调 /song/url 拿临时 mp3 直链 → 2) just_audio setUrl → 3) play
+  /// - 已经在加载同一首 → 直接 return(避免重入)
+  /// - 失败 → SnackBar 提示,UI 状态保留(不切歌)
+  Future<void> loadSong(Song song, {String bitrate = defaultBitrate}) async {
+    if (isLoadingSong.value) return;
+    isLoadingSong.value = true;
+    final api = Get.find<NeteaseApi>();
+    try {
+      final r = await api.call(
+        (a) => a.song_url(song.id, br: bitrate),
+        what: '取播放 URL',
+      );
+      final url = _extractFirstUrl(r.body);
+      if (url == null || url.isEmpty) {
+        Get.snackbar(
+          '无法播放',
+          '${song.title} 取不到播放 URL(可能是 VIP / 版权)',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      }
+      currentSong.value = song;
+      await _audio.setUrl(url);
+      await _audio.play();
+      // 歌词加载(异步,不阻塞音频启动)
+      unawaited(fetchLyric(song.id));
+    } on ApiException catch (e) {
+      Get.snackbar('加载失败 (code ${e.code})', e.message,
+          snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      isLoadingSong.value = false;
+    }
+  }
 
-  /// 由 audio player.durationStream 推动
-  void updateDuration(Duration d) => duration.value = d;
+  /// /song/url 返回结构:body['data'][0]['url']
+  String? _extractFirstUrl(Map<String, dynamic> body) {
+    final data = body['data'];
+    if (data is! List || data.isEmpty) return null;
+    final first = data.first;
+    if (first is Map) return (first['url'] as String?)?.toString();
+    return null;
+  }
 
+  /// 拉歌词并灌进 lyricController
+  ///
+  /// - 调 /lyric(id) 拿 lrc 字段
+  /// - 失败 / 为空 → 保持 sample LRC,UI 不会空
+  Future<void> fetchLyric(String songId) async {
+    final api = Get.find<NeteaseApi>();
+    try {
+      final r = await api.call((a) => a.lyric(songId), what: '取歌词');
+      final lrc = (r.body['lrc']?['lyric'] as String?)?.toString() ?? '';
+      if (lrc.trim().isEmpty) return; // 保持 sample
+      lyricController.loadLyric(lrc);
+    } on ApiException {
+      // 静默:歌词拿不到不影响播放
+    }
+  }
+
+  // region 控制接口(给 Player UI 调用)
+  void play() => _audio.play();
+  void pause() => _audio.pause();
+  void togglePlay() => isPlaying.value ? pause() : play();
+  void seek(Duration p) => _audio.seek(p);
   void switchPage() => centerIndex.value = centerIndex.value == 0 ? 1 : 0;
+  // endregion
 }
 
+/// 启动时注册(在 main.dart 里调)
 class PlayerBinding extends Bindings {
   @override
   void dependencies() => Get.lazyPut(() => PlayerController());

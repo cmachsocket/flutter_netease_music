@@ -43,8 +43,11 @@ dependencies:
   flex_color_scheme:
   audio_video_progress_bar:
   responsive_builder:
-  flutter_lyric: 
+  flutter_lyric:
   flutter_staggered_grid_view:
+  # 音频播放:just_audio 是核心引擎,audio_service 加锁屏/通知控制
+  just_audio:
+  audio_service:
 dev_dependencies:
   flutter_test:
     sdk: flutter

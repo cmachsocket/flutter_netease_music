@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 
 import '../models/Album.dart';
 import '../models/Song.dart';
+import '../PlayListPage/PlayListController.dart';
 import '../sdk/api_exception.dart';
 import '../sdk/netease_api.dart';
 import 'Artist.dart';
@@ -116,6 +117,6 @@ class ArtistController extends GetxController {
   }
 
   void playSong(Song song) {
-    // TODO: 联动 PlayListController + PlayerController
+    Get.find<PlayListController>().playSong(song);
   }
 }

@@ -1,63 +1,59 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_netease_music/widgets/linked_detail_text.dart';
 import 'package:get/get.dart';
+
 import 'Lyrics.dart';
 import 'PlayerController.dart';
-import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
+import '../models/Song.dart';
 import '../PlayListPage/PlayListPage.dart';
 import '../PlayListPage/PlayListController.dart';
-import '../models/Song.dart';
+import '../widgets/linked_detail_text.dart';
 import '../widgets/netease_image.dart';
+import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 
 class Player extends StatelessWidget {
   Player({super.key});
   final controller = Get.find<PlayerController>();
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final playlist = Get.find<PlayListController>();
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: Icon(Icons.arrow_back),
-          onPressed: () {
-            Get.back();
-            // 处理返回操作
-          },
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Get.back(),
         ),
-
         centerTitle: true,
-        title: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 标题 + 副标题：字号 / 颜色全部走主题
-            Text(
-              'Song Title',
-              style: textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
+        title: Obx(() {
+          final song = controller.currentSong.value;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                song?.title ?? '未在播放',
+                style: textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              textAlign: TextAlign.center,
-            ),
-            LinkedDetailText(
-              song: Song(
-                id: "",
-                title: "",
-                artist: "",
-                album: "",
-                coverUrl: "",
-                duration: Duration.zero,
-              ),
-              mainAxisAlignment: MainAxisAlignment.center,
-              textStyle: textTheme.bodyMedium,
-              backFirst: true,
-            ),
-          ],
-        ),
+              if (song != null)
+                LinkedDetailText(
+                  song: song,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  textStyle: textTheme.bodyMedium,
+                  backFirst: true,
+                ),
+            ],
+          );
+        }),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          controller.switchPage();
-        },
+        onPressed: controller.switchPage,
         child: Obx(
           () => Icon(
             controller.centerIndex.value == 0 ? Icons.music_note : Icons.lyrics,
@@ -66,12 +62,12 @@ class Player extends StatelessWidget {
       ),
       body: Column(
         children: [
-          // 图片 / 歌词：Expanded 占满中间区域，子项居中
+          // 图片 / 歌词:Expanded 占满中间区域
           Expanded(
             child: Obx(
               () => GestureDetector(
-                onSecondaryTap: () => controller.switchPage(),
-                onLongPress: () => controller.switchPage(),
+                onSecondaryTap: controller.switchPage,
+                onLongPress: controller.switchPage,
                 child: Center(
                   child: IndexedStack(
                     index: controller.centerIndex.value,
@@ -79,16 +75,15 @@ class Player extends StatelessWidget {
                     children: [
                       AspectRatio(
                         aspectRatio: 1,
-                        child: Image(
-                          //todo: bind to actual cover
-                          image: neteaseNetworkImage(
-                            'https://cdn.jsdelivr.net/gh/cmachsocket/resources/avatar.png',
-                          ),
-                          fit: BoxFit.cover,
-                        ),
+                        child: Obx(() {
+                          final song = controller.currentSong.value;
+                          return Image(
+                            image: neteaseNetworkImage(song?.coverUrl ?? ''),
+                            fit: BoxFit.cover,
+                          );
+                        }),
                       ),
-
-                      Lyrics(),
+                      const Lyrics(),
                     ],
                   ),
                 ),
@@ -100,8 +95,7 @@ class Player extends StatelessWidget {
               progress: controller.position.value,
               buffered: const Duration(seconds: 60),
               total: controller.duration.value,
-              onSeek: (duration) => controller.updatePosition(duration),
-              // 颜色全部跟主题走:进度条 = primary,底色 = onSurface 淡,缓冲 = primary 淡
+              onSeek: controller.seek,
               progressBarColor: scheme.primary,
               baseBarColor: scheme.onSurface.withValues(alpha: 0.3),
               bufferedBarColor: scheme.primary.withValues(alpha: 0.3),
@@ -115,10 +109,20 @@ class Player extends StatelessWidget {
             children: [
               IconButton(
                 icon: const Icon(Icons.skip_previous),
-                onPressed: () {},
+                onPressed: () => _prev(playlist),
               ),
-              IconButton(icon: const Icon(Icons.play_arrow), onPressed: () {}),
-              IconButton(icon: const Icon(Icons.skip_next), onPressed: () {}),
+              Obx(
+                () => IconButton(
+                  icon: Icon(
+                    controller.isPlaying.value ? Icons.pause : Icons.play_arrow,
+                  ),
+                  onPressed: controller.togglePlay,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.skip_next),
+                onPressed: () => _next(playlist),
+              ),
             ],
           ),
           Row(
@@ -131,14 +135,25 @@ class Player extends StatelessWidget {
               ),
               IconButton(
                 icon: const Icon(Icons.playlist_play),
-                onPressed: () {
-                  Get.to(() => PlayListPage(), binding: PlayListBinding());
-                },
+                onPressed: () =>
+                    Get.to(() => PlayListPage(), binding: PlayListBinding()),
               ),
             ],
           ),
         ],
       ),
     );
+  }
+
+  void _next(PlayListController playlist) {
+    final next = playlist.currentIndex.value + 1;
+    if (next >= playlist.playlist.length) return;
+    playlist.selectIndex(next);
+  }
+
+  void _prev(PlayListController playlist) {
+    final prev = playlist.currentIndex.value - 1;
+    if (prev < 0) return;
+    playlist.selectIndex(prev);
   }
 }

@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 
 import '../models/Song.dart';
+import '../PlayListPage/PlayListController.dart';
 import '../sdk/api_exception.dart';
 import '../sdk/netease_api.dart';
 
@@ -87,12 +88,9 @@ class SongListController extends GetxController {
     // TODO: 接 controller.toggleFavorite(songId);接 player 那边通知
   }
 
-  /// 播放(占位)。后续接 PlayerController:
-  /// - 把 song 入到 [PlayListController.playlist] 末尾
-  /// - currentIndex.value = playlist.length - 1
-  /// - player.playAt(currentIndex)
+  /// 播放:走 PlayListController.playSong(自动追加到队列末尾 + 加载到 just_audio)
   void playSong(Song song) {
-    // TODO: 联动 PlayListController + PlayerController
+    Get.find<PlayListController>().playSong(song);
   }
 }
 

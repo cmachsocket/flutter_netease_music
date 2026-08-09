@@ -1,7 +1,10 @@
 import 'package:flutter/widgets.dart' show TextEditingController;
 import 'package:get/get.dart';
 
+import '../models/Album.dart';
 import '../models/Song.dart';
+import '../ArtistPage/Artist.dart';
+import '../sdk/api_call.dart';
 import '../sdk/api_exception.dart';
 import '../sdk/netease_api.dart';
 
@@ -29,11 +32,11 @@ enum SearchType {
   final String label;
 }
 
-/// 搜索页 controller(持当前 [SearchType] + 搜索结果)
+/// 搜索页 controller
 ///
-/// - [keyword] / [type] / [results] / [isLoading] 全部响应式
-/// - [search] 调 SDK [NeteaseCloudMusicApi.search],结果按当前 type 解析
-/// - **当前 stub**:只支持 `song` 类型结果解析(其它 type 等 SearchPage UI 加对应展示时再做)
+/// - 4 个 [SearchType] 各自维护一份结果(切 tab 不丢旧结果)
+/// - [search] 调 SDK /search,**只查当前 type**(省钱 + 响应快)
+/// - [setType] 切 tab 时如果有当前 keyword 就**自动重搜**(旧结果跨 type 不能复用)
 class SearchController extends GetxController {
   final Rx<SearchType> type = SearchType.song.obs;
 
@@ -42,17 +45,19 @@ class SearchController extends GetxController {
   /// keyword 变空但输入框不会清空(看起来没反应)
   final TextEditingController textController = TextEditingController();
 
-  // 显式 onChanged: (s) => controller.setKeyword(s), 绑定 keyword,
-  // 点清除按钮时同步清空 keyword
+  /// 当前输入框的关键词
   final RxString keyword = ''.obs;
 
-  /// 搜索结果(只缓存当前 type 的)
-  final RxList<Song> results = <Song>[].obs;
+  /// 4 份结果(切 tab 不丢;只有同 type 才覆盖)
+  final RxList<Song> songResults = <Song>[].obs;
+  final RxList<Album> albumResults = <Album>[].obs;
+  final RxList<Artist> artistResults = <Artist>[].obs;
+  final RxList<PlaylistSummary> playlistResults = <PlaylistSummary>[].obs;
 
   /// 搜索进行中
   final RxBool isLoading = false.obs;
 
-  /// 错误信息(给 UI 显示)
+  /// 错误信息
   final RxnString errorMessage = RxnString();
 
   @override
@@ -61,25 +66,44 @@ class SearchController extends GetxController {
     super.onClose();
   }
 
-  void setType(SearchType t) => type.value = t;
   void setKeyword(String k) => keyword.value = k;
 
-  /// 清除按钮:直接清 textController,listener 会自动同步 keyword
+  /// 清除按钮
   void clearKeyword() {
     textController.clear();
     keyword.value = '';
   }
 
-  /// 触发搜索
-  ///
-  /// - 空关键词 → 直接清空结果返回
-  /// - 调 SDK /search,根据 [type] 解析对应字段(目前只实现 song)
-  /// - 失败抛 [ApiException](已 SnackBar 提示),results 保留旧值
-  void search(String Keyword) async {
-    keyword.value = Keyword.trim();
-    final k = keyword.value;
+  /// 切换 tab:有 keyword 就自动重搜,空 keyword 直接清空对应结果
+  void setType(SearchType t) {
+    type.value = t;
+    final k = keyword.value.trim();
     if (k.isEmpty) {
-      results.clear();
+      _clearCurrent();
+    } else {
+      search(k);
+    }
+  }
+
+  void _clearCurrent() {
+    switch (type.value) {
+      case SearchType.song:
+        songResults.clear();
+      case SearchType.album:
+        albumResults.clear();
+      case SearchType.artist:
+        artistResults.clear();
+      case SearchType.playlist:
+        playlistResults.clear();
+    }
+  }
+
+  /// 触发搜索(只查当前 [type] 的结果)
+  void search(String keyword) async {
+    final k = keyword.trim();
+    this.keyword.value = k;
+    if (k.isEmpty) {
+      _clearCurrent();
       return;
     }
     isLoading.value = true;
@@ -91,7 +115,7 @@ class SearchController extends GetxController {
         (a) => a.search(k, type: t.typeId.toString(), limit: '30'),
         what: '搜索',
       );
-      results.assignAll(_parseResults(r.body, t));
+      _parseAndStore(r.body, t);
     } on ApiException catch (e) {
       errorMessage.value = e.message;
       Get.snackbar(
@@ -104,22 +128,46 @@ class SearchController extends GetxController {
     }
   }
 
-  /// 根据 type 从 SDK 返回的 body 里取对应列表
-  ///
-  /// 网易云搜索返回结构:body['result']['songs' / 'albums' / 'artists' / 'playlists']
-  List<Song> _parseResults(Map<String, dynamic> body, SearchType t) {
+  /// 按 type 分发到对应 RxList
+  void _parseAndStore(Map<String, dynamic> body, SearchType t) {
     final result = body['result'];
-    if (result is! Map) return const [];
+    if (result is! Map) return;
     final list = result[_resultKey(t)];
-    if (list is! List) return const [];
-    if (t == SearchType.song) {
-      return list
-          .whereType<Map>()
-          .map((m) => Song.fromNeteaseJson(Map<String, dynamic>.from(m)))
-          .toList();
+    if (list is! List) return;
+    switch (t) {
+      case SearchType.song:
+        songResults.assignAll(
+          list
+              .whereType<Map>()
+              .map((m) => Song.fromNeteaseJson(Map<String, dynamic>.from(m)))
+              .toList(),
+        );
+      case SearchType.album:
+        albumResults.assignAll(
+          list
+              .whereType<Map>()
+              .map((m) => Album.fromNeteaseJson(Map<String, dynamic>.from(m)))
+              .toList(),
+        );
+      case SearchType.artist:
+        artistResults.assignAll(
+          list
+              .whereType<Map>()
+              .map((m) => Artist.fromNeteaseJson(Map<String, dynamic>.from(m)))
+              .toList(),
+        );
+      case SearchType.playlist:
+        playlistResults.assignAll(
+          list
+              .whereType<Map>()
+              .map(
+                (m) => PlaylistSummary.fromNeteaseJson(
+                  Map<String, dynamic>.from(m),
+                ),
+              )
+              .toList(),
+        );
     }
-    // album / artist / playlist 类型目前只展示歌曲结果,后续 UI 加展示时再补
-    return const [];
   }
 
   static String _resultKey(SearchType t) => switch (t) {
@@ -128,6 +176,39 @@ class SearchController extends GetxController {
     SearchType.artist => 'artists',
     SearchType.playlist => 'playlists',
   };
+}
+
+/// 搜索结果里的歌单摘要(轻量,跟 LibraryController 的 PlaylistSummary
+/// 字段有重合但来源不同 —— 搜索结果没有 userId 等 user-only 字段,放一起会污染)
+class PlaylistSummary {
+  final String id;
+  final String name;
+  final String coverUrl;
+  final int trackCount;
+  final String creatorName;
+
+  const PlaylistSummary({
+    required this.id,
+    required this.name,
+    required this.coverUrl,
+    required this.trackCount,
+    required this.creatorName,
+  });
+
+  /// 网易云 /search?type=1000 返回的 `result.playlists[]` 元素:
+  /// - id, name, coverImgUrl, trackCount, creator.nickname
+  factory PlaylistSummary.fromNeteaseJson(Map<String, dynamic> json) {
+    final creator = json['creator'] is Map
+        ? Map<String, dynamic>.from(json['creator'] as Map)
+        : null;
+    return PlaylistSummary(
+      id: json['id'].toString(),
+      name: (json['name'] ?? '').toString(),
+      coverUrl: (json['coverImgUrl'] ?? '').toString(),
+      trackCount: (json['trackCount'] as int?) ?? 0,
+      creatorName: (creator?['nickname'] ?? '').toString(),
+    );
+  }
 }
 
 /// 搜索页 binding:跟 LibraryController / ArtistController / SongListController 同款

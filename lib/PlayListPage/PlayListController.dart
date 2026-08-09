@@ -96,11 +96,33 @@ class PlayListController extends GetxController {
     box.write(_currentIndexKey, currentIndex.value);
   }
 
-  /// 选中第 [index] 项
-  void selectIndex(int index) {
+  /// 选中第 [index] 项并播放
+  ///
+  /// - playlist 里已有 → 切 currentIndex + 通知 PlayerController.loadSong
+  /// - playlist 里没有 → 插入到末尾 → 切到末尾 → 加载
+  /// - 后者用得少(主要场景是各页面点歌,会走 playSong 新方法),保留兼容老调用
+  void selectIndex(int index) async {
     if (index < 0 || index >= playlist.length) return;
     currentIndex.value = index;
     _persist();
+    final song = playlist[index];
+    await Get.find<PlayerController>().loadSong(song);
+  }
+
+  /// 从外部(搜索/歌单/艺人)点歌的入口
+  ///
+  /// - [song] 已在 playlist → 只切 currentIndex + loadSong
+  /// - [song] 不在 → append 到末尾,currentIndex 指向它,loadSong
+  Future<void> playSong(Song song) async {
+    final idx = playlist.indexWhere((s) => s.id == song.id);
+    if (idx >= 0) {
+      currentIndex.value = idx;
+    } else {
+      playlist.add(song);
+      currentIndex.value = playlist.length - 1;
+    }
+    _persist();
+    await Get.find<PlayerController>().loadSong(song);
   }
 
   /// 删除第 [index] 项,并修正 [currentIndex] 使其继续指向"同一首歌"
@@ -128,15 +150,11 @@ class PlayListController extends GetxController {
 
     _persist();
 
-    // 联动 PlayerController:删的是当前播放 → 重置 progress / duration
+    // 联动 PlayerController:删的是当前播放 → 重置 progress / pause
     if (wasCurrent) {
       final player = Get.find<PlayerController>();
-      player.updatePosition(Duration.zero);
-      player.updateDuration(
-        playlist.isEmpty
-            ? Duration.zero
-            : playlist[currentIndex.value].duration,
-      );
+      player.seek(Duration.zero);
+      player.pause();
     }
   }
 }

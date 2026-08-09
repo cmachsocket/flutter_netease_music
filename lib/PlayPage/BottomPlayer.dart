@@ -4,20 +4,26 @@ import 'package:get/get.dart';
 
 import 'Player.dart';
 import 'PlayerController.dart';
+import '../models/Song.dart';
 import '../PlayListPage/PlayListPage.dart';
 import '../PlayListPage/PlayListController.dart';
 import '../ArtistPage/ArtistDetail.dart';
 import '../widgets/netease_image.dart';
 
-/// 底部 mini 播放器:全局共享 [PlayerController] 的 position / lyric
+/// 底部 mini 播放器
 ///
-/// 点击跳转到全屏 [Player] 页(不再需要 binding,PlayerController 已在 main 注入)
+/// - 数据来源:[PlayerController.currentSong](音视频状态)
+///           + [PlayListController.currentIndex](队列索引)
+/// - 进度条由 [PlayerController.position]/[duration] 驱动(just_audio stream 推)
+/// - 点击跳转到全屏 [Player] 页
+/// - 队列图标跳 [PlayListPage]
 class BottomPlayer extends StatelessWidget {
   const BottomPlayer({super.key});
 
   @override
   Widget build(BuildContext context) {
     final player = Get.find<PlayerController>();
+    final playlist = Get.find<PlayListController>();
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
@@ -32,24 +38,28 @@ class BottomPlayer extends StatelessWidget {
               flex: 3,
               child: Row(
                 children: [
-                  // 封面
-                  Image(
-                    image: neteaseNetworkImage(
-                      'https://cdn.jsdelivr.net/gh/cmachsocket/resources/avatar.png',
-                    ),
-                    fit: BoxFit.cover,
-                  ),
-                  //todo: bind to actual cover
+                  // 封面(从当前歌曲拿;无歌曲时退化占位)
+                  // 用 AspectRatio 1:1 + BoxFit.cover,让 Row 自身高度约束决定封面大小,
+                  // 不写死 48x48 —— 跟随主题 / 父容器高度走
+                  Obx(() {
+                    final song = player.currentSong.value;
+                    final child = song == null
+                        ? Container(color: scheme.surfaceContainerHigh)
+                        : Image(
+                            image: neteaseNetworkImage(song.coverUrl),
+                            fit: BoxFit.cover,
+                          );
+                    return AspectRatio(aspectRatio: 1, child: child);
+                  }),
                   // 标题 + 艺术家
                   Expanded(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        TextButton(
-                          onPressed: () {},
-                          child: Text(
-                            'Song Title',
+                        Obx(
+                          () => Text(
+                            player.currentSong.value?.title ?? '未在播放',
                             style: textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
@@ -57,45 +67,38 @@ class BottomPlayer extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        TextButton(
-                          onPressed: () {
-                            Get.to(
-                              () => ArtistDetail(artistId: "111"),
-                              binding: ArtistDetailBinding(artistId: "111"),
+                        Obx(
+                          () {
+                            final song = player.currentSong.value;
+                            return Text(
+                              song?.artist ?? '-',
+                              style: textTheme.bodySmall,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             );
                           },
-                          child: Text(
-                            'Artist Name',
-                            style: textTheme.bodySmall,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
                         ),
                       ],
                     ),
                   ),
-                  IconButton(icon: const Icon(Icons.shuffle), onPressed: () {}),
                   IconButton(
-                    icon: const Icon(Icons.favorite_border),
-                    onPressed: () {},
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.skip_previous),
-                    onPressed: () {},
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.play_arrow),
-                    onPressed: () {},
+                    icon: Obx(
+                      () => Icon(
+                        player.isPlaying.value
+                            ? Icons.pause
+                            : Icons.play_arrow,
+                      ),
+                    ),
+                    onPressed: player.togglePlay,
                   ),
                   IconButton(
                     icon: const Icon(Icons.skip_next),
-                    onPressed: () {},
+                    onPressed: () => _next(playlist),
                   ),
                   IconButton(
                     icon: const Icon(Icons.playlist_play),
-                    onPressed: () {
-                      Get.to(() => PlayListPage(), binding: PlayListBinding());
-                    },
+                    onPressed: () =>
+                        Get.to(() => PlayListPage(), binding: PlayListBinding()),
                   ),
                 ],
               ),
@@ -108,9 +111,8 @@ class BottomPlayer extends StatelessWidget {
                   //todo: bind to actual buffered
                   buffered: const Duration(seconds: 60),
                   total: player.duration.value,
-                  onSeek: player.updatePosition,
+                  onSeek: player.seek,
                   timeLabelLocation: TimeLabelLocation.sides,
-                  // 颜色全部跟主题走:进度条 = primary,底色 = onSurface 淡,缓冲 = primary 淡
                   progressBarColor: scheme.primary,
                   baseBarColor: scheme.onSurface.withValues(alpha: 0.3),
                   bufferedBarColor: scheme.primary.withValues(alpha: 0.3),
@@ -124,5 +126,12 @@ class BottomPlayer extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// 下一首:从队列里取下一首播放,队尾则跳回首首
+  void _next(PlayListController playlist) {
+    final next = playlist.currentIndex.value + 1;
+    if (next >= playlist.playlist.length) return;
+    playlist.selectIndex(next);
   }
 }

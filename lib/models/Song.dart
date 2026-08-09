@@ -47,24 +47,36 @@ class Song {
     duration: Duration(seconds: json['duration'] as int),
   );
 
-  /// 从网易云 /song/detail 返回的 JSON 解析
+  /// 从网易云返回的 song JSON 解析
   ///
-  /// 主要字段(参考 MUSICLIBRARY.md song_detail 返回说明):
+  /// **兼容两种 schema**:
+  /// - /song/detail、`/search` 返回的 songs[]、playlist_track_all 等大部分场景
+  /// - /search 用 `artists`(复数) + `album`(完整) + `duration`
+  /// - /song/detail 用 `ar`(简写) + `al`(简写) + `dt`
+  ///
+  /// 主要字段:
   /// - id: u64 / str
   /// - name: 标题
-  /// - ar: List<Map> 歌手列表(取第一个 name / id)
-  /// - al: Map 专辑(取 name / id / picUrl)
-  /// - dt: u64 歌曲时长(毫秒)
+  /// - 歌手列表: `ar` (list) 或 `artists` (list),取第一个 name / id
+  /// - 专辑: `al` 或 `album`,取 name / id / picUrl
+  /// - 时长(ms): `dt` 或 `duration`
   /// - fee: 0 免费 / 1 VIP / 8 非会员低音质
   factory Song.fromNeteaseJson(Map<String, dynamic> json) {
-    final artists = (json['ar'] as List?) ?? const [];
+    // 艺人列表:优先 ar,其次 artists
+    final arList = json['ar'] ?? json['artists'];
+    final artists = arList is List ? arList : const [];
     final firstArtist = artists.isNotEmpty
         ? Map<String, dynamic>.from(artists.first as Map)
         : null;
-    final albumMap = json['al'] is Map
-        ? Map<String, dynamic>.from(json['al'] as Map)
+    // 专辑:优先 al,其次 album
+    final albumRaw = json['al'] ?? json['album'];
+    final albumMap = albumRaw is Map
+        ? Map<String, dynamic>.from(albumRaw)
         : null;
-    final dt = json['dt'] is int ? json['dt'] as int : 0;
+    // 时长:优先 dt(毫秒),其次 duration(毫秒),都是毫秒数
+    final dt = json['dt'] is int
+        ? json['dt'] as int
+        : (json['duration'] is int ? json['duration'] as int : 0);
     return Song(
       id: json['id'].toString(),
       title: (json['name'] ?? '').toString(),

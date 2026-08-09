@@ -61,7 +61,7 @@ class _ArtistLink extends StatelessWidget {
     final id = song.artistId;
     final text = song.artist.isEmpty ? '未知艺人' : song.artist;
     if (id == null || id.isEmpty) {
-      return _ReadOnlyText(text: text, style: style);
+      return Flexible(child: _ReadOnlyText(text: text, style: style));
     }
     return Flexible(
       child: TextButton(
@@ -128,7 +128,9 @@ class _AlbumLink extends StatelessWidget {
   }
 }
 
-/// 纯文本(没有 ID 时降级显示)
+/// 纯文本(没有 ID 时降级显示)。**不包 Flexible** —— Flexible 由调用方
+/// (`_ArtistLink` / `_AlbumLink`) 统一加。Nested Flexible 会撞
+/// `Competing ParentDataWidgets` 断言。
 class _ReadOnlyText extends StatelessWidget {
   const _ReadOnlyText({required this.text, required this.style});
 
@@ -137,8 +139,6 @@ class _ReadOnlyText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Flexible(
-      child: Text(text, maxLines: 1, style: style, overflow: TextOverflow.ellipsis),
-    );
+    return Text(text, maxLines: 1, style: style, overflow: TextOverflow.ellipsis);
   }
 }

@@ -59,11 +59,7 @@ class LoginPage extends StatelessWidget {
                 onPressed:
                     controller.canSendCode ? controller.sendCode : null,
                 child: controller.isSendingCode.value
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
+                    ? const CircularProgressIndicator(strokeWidth: 2)
                     : Text(_sendCodeLabel(controller.countdown.value)),
               ),
             ),
@@ -74,11 +70,7 @@ class LoginPage extends StatelessWidget {
             () => ElevatedButton(
               onPressed: controller.canLogin ? controller.login : null,
               child: controller.isLoggingIn.value
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                  ? const CircularProgressIndicator(strokeWidth: 2)
                   : const Text('登录'),
             ),
           ),

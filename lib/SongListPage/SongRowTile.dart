@@ -25,16 +25,7 @@ class SongRowTile extends StatelessWidget {
     return ListTile(
       leading: _Cover(url: song.coverUrl),
       title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: LinkedDetailText(
-        song: Song(
-          id: "",
-          title: "",
-          artist: "",
-          album: "",
-          coverUrl: "",
-          duration: Duration.zero,
-        ), // TODO: 传入真实 song
-      ),
+      subtitle: LinkedDetailText(song: song),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

@@ -6,11 +6,13 @@ import 'package:get_storage/get_storage.dart';
 
 import 'AppShell.dart';
 import 'AppShellController.dart';
+import 'PlayPage/AudioPlayerService.dart';
 import 'PlayPage/PlayerController.dart';
 import 'sdk/netease_api.dart';
 import 'theme/AppTheme.dart';
 import 'theme/ThemeController.dart';
 import 'HomePage/HomeController.dart';
+import 'PlayListPage/PlayListController.dart';
 import 'widgets/netease_image.dart' show NeteaseHttpOverrides;
 
 Future<void> main() async {
@@ -25,7 +27,10 @@ Future<void> main() async {
   Get.lazyPut(() => ThemeController());
   Get.lazyPut(() => AppShellController());
   Get.lazyPut(() => PlayerController());
+  Get.lazyPut(() => PlayListController());
   Get.lazyPut<HomeController>(() => HomeController());
+  // just_audio 全局服务:启动时创建 AudioPlayer,跟 NeteaseApi 同款 GetxService
+  Get.put<AudioPlayerService>(AudioPlayerService(), permanent: true);
   // 网易云 SDK:创建 NeteaseCloudMusicApi 实例 + 恢复持久化 cookie
   // (必须在 GetStorage.init 之后)
   await initNeteaseApi();
