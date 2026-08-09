@@ -23,7 +23,7 @@ class SongRowTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: _Cover(url: song.coverUrl),
+      leading: AspectRatio(aspectRatio: 1.0, child: _Cover(url: song.coverUrl)),
       title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: LinkedDetailText(song: song),
       trailing: Row(

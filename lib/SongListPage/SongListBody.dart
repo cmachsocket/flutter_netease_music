@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/Song.dart';
 import 'SongRowTile.dart';
+import '../widgets/aspect_driven_grid.dart';
 
 /// 歌曲列表壳:loading / empty / error / 真实列表 四态合一
 ///
@@ -40,10 +41,14 @@ class SongListBody extends StatelessWidget {
     if (songs.isEmpty) {
       return const Center(child: Text('暂无歌曲'));
     }
-    return ListView.builder(
+    return AspectDrivenGrid(
       itemCount: songs.length,
+      maxColumns: 1,
+      baseColumns: 1,
+      childAspectRatio: 35.0,
       itemBuilder: (context, index) {
         final song = songs[index];
+
         return SongRowTile(
           song: song,
           onToggleFavorite: () => onToggleFavorite?.call(song),
