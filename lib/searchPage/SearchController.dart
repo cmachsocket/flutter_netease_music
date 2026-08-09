@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import '../models/Album.dart';
 import '../models/Song.dart';
 import '../ArtistPage/Artist.dart';
-import '../sdk/api_call.dart';
 import '../sdk/api_exception.dart';
 import '../sdk/netease_api.dart';
 

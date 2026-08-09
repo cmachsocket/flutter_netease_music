@@ -4,7 +4,6 @@ import 'package:flutter_lyric/flutter_lyric.dart';
 import 'package:get/get.dart';
 
 import '../models/Song.dart';
-import '../sdk/api_call.dart';
 import '../sdk/api_exception.dart';
 import '../sdk/netease_api.dart';
 import 'AudioPlayerService.dart';
@@ -120,8 +119,11 @@ class PlayerController extends GetxController {
       // 歌词加载(异步,不阻塞音频启动)
       unawaited(fetchLyric(song.id));
     } on ApiException catch (e) {
-      Get.snackbar('加载失败 (code ${e.code})', e.message,
-          snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        '加载失败 (code ${e.code})',
+        e.message,
+        snackPosition: SnackPosition.BOTTOM,
+      );
     } finally {
       isLoadingSong.value = false;
     }

@@ -48,6 +48,8 @@ dependencies:
   # 音频播放:just_audio 是核心引擎,audio_service 加锁屏/通知控制
   just_audio:
   audio_service:
+  just_audio_media_kit:  # substitute version number
+  media_kit_libs_linux:
 dev_dependencies:
   flutter_test:
     sdk: flutter

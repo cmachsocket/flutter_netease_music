@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 
 import 'Lyrics.dart';
 import 'PlayerController.dart';
-import '../models/Song.dart';
 import '../PlayListPage/PlayListPage.dart';
 import '../PlayListPage/PlayListController.dart';
 import '../widgets/linked_detail_text.dart';

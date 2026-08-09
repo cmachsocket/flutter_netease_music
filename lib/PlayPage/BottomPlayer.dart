@@ -4,10 +4,8 @@ import 'package:get/get.dart';
 
 import 'Player.dart';
 import 'PlayerController.dart';
-import '../models/Song.dart';
 import '../PlayListPage/PlayListPage.dart';
 import '../PlayListPage/PlayListController.dart';
-import '../ArtistPage/ArtistDetail.dart';
 import '../widgets/netease_image.dart';
 
 /// 底部 mini 播放器
@@ -67,26 +65,22 @@ class BottomPlayer extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        Obx(
-                          () {
-                            final song = player.currentSong.value;
-                            return Text(
-                              song?.artist ?? '-',
-                              style: textTheme.bodySmall,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            );
-                          },
-                        ),
+                        Obx(() {
+                          final song = player.currentSong.value;
+                          return Text(
+                            song?.artist ?? '-',
+                            style: textTheme.bodySmall,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          );
+                        }),
                       ],
                     ),
                   ),
                   IconButton(
                     icon: Obx(
                       () => Icon(
-                        player.isPlaying.value
-                            ? Icons.pause
-                            : Icons.play_arrow,
+                        player.isPlaying.value ? Icons.pause : Icons.play_arrow,
                       ),
                     ),
                     onPressed: player.togglePlay,
@@ -97,8 +91,10 @@ class BottomPlayer extends StatelessWidget {
                   ),
                   IconButton(
                     icon: const Icon(Icons.playlist_play),
-                    onPressed: () =>
-                        Get.to(() => PlayListPage(), binding: PlayListBinding()),
+                    onPressed: () => Get.to(
+                      () => PlayListPage(),
+                      binding: PlayListBinding(),
+                    ),
                   ),
                 ],
               ),

@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 
 /// just_audio 的全局单例 + 公共流
 ///
@@ -30,6 +31,11 @@ class AudioPlayerService extends GetxService {
   Future<void> pause() => player.pause();
   Future<void> stop() => player.stop();
   Future<void> seek(Duration position) => player.seek(position);
+  @override
+  void onInit() {
+    super.onInit();
+    JustAudioMediaKit.ensureInitialized();
+  }
 
   @override
   void onClose() {
