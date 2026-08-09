@@ -112,7 +112,10 @@ class _AlbumGridView extends StatelessWidget {
           subtitle: '${a.type.label} · ${a.songCount}首',
           imageUrl: a.coverUrl,
           onTap: () => Get.to(
-            () => SongListDetail(playlistId: 'album-${a.id}'),
+            () => SongListDetail(
+              playlistId: 'album-${a.id}',
+              displayTitle: a.name,
+            ),
             id: AppShell.shellNavigatorId,
             binding: SongListDetailBinding(playlistId: 'album-${a.id}'),
           ),
@@ -182,7 +185,7 @@ class _PlaylistGridView extends StatelessWidget {
           subtitle: '${p.creatorName} · ${p.trackCount}首',
           imageUrl: p.coverUrl,
           onTap: () => Get.to(
-            () => SongListDetail(playlistId: p.id),
+            () => SongListDetail(playlistId: p.id, displayTitle: p.name),
             id: AppShell.shellNavigatorId,
             binding: SongListDetailBinding(playlistId: p.id),
           ),

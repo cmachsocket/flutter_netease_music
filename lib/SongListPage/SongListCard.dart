@@ -44,7 +44,11 @@ class SongListCard extends StatelessWidget {
             Expanded(
               child: AspectRatio(
                 aspectRatio: 1,
-                child: Image.network(imageUrl ?? '', fit: BoxFit.cover, headers: neteaseImageHeaders),
+                child: Image.network(
+                  imageUrl ?? '',
+                  fit: BoxFit.cover,
+                  headers: neteaseImageHeaders,
+                ),
               ),
             ),
             ListTile(
@@ -75,7 +79,7 @@ class SongListCard extends StatelessWidget {
 
   void _defaultNavigate() {
     Get.to(
-      () => SongListDetail(playlistId: playlistId),
+      () => SongListDetail(playlistId: playlistId, displayTitle: title),
       id: AppShell.shellNavigatorId,
       binding: BindingsBuilder(() {
         Get.lazyPut<SongListController>(
@@ -108,11 +112,15 @@ class LineSongListCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: ListTile(
         onTap: () => Get.to(
-          () => SongListDetail(playlistId: playlistId),
+          () => SongListDetail(playlistId: playlistId, displayTitle: title),
           id: AppShell.shellNavigatorId,
           binding: SongListDetailBinding(playlistId: playlistId),
         ),
-        leading: Image.network(imageUrl ?? '', fit: BoxFit.cover, headers: neteaseImageHeaders),
+        leading: Image.network(
+          imageUrl ?? '',
+          fit: BoxFit.cover,
+          headers: neteaseImageHeaders,
+        ),
         title: Text(
           title ?? '',
           style: textTheme.bodySmall,

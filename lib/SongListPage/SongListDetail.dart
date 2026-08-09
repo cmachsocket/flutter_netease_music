@@ -10,9 +10,14 @@ import 'SongListController.dart';
 /// - 数据来自 [SongListController.songs],目前是 stub 假数据,后续接 musiclibrary SDK
 /// - 列表渲染走 [SongListBody] (→ 内部用 [SongRowTile]),业务侧零硬编码
 class SongListDetail extends StatelessWidget {
-  const SongListDetail({super.key, required this.playlistId});
+  const SongListDetail({
+    super.key,
+    required this.playlistId,
+    this.displayTitle,
+  });
 
   final String playlistId;
+  final String? displayTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +29,14 @@ class SongListDetail extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(),
           icon: const Icon(Icons.arrow_back),
         ),
-        title: Text('歌单 · $playlistId'),
+        title: Obx(() {
+          final remoteTitle = controller.title.value?.trim() ?? '';
+          final fallbackTitle = displayTitle?.trim() ?? '歌单';
+          final title = remoteTitle.isNotEmpty ? remoteTitle : fallbackTitle;
+          final isAlbum = playlistId.startsWith('album-');
+          final prefix = isAlbum ? '专辑' : '歌单';
+          return Text('$prefix · $title');
+        }),
       ),
       body: Obx(() {
         final list = controller.songs;
@@ -37,13 +49,17 @@ class SongListDetail extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      "歌单描述",
-                      style: textTheme.bodyMedium,
-                      maxLines: 4,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.left,
-                    ),
+                    child: Obx(() {
+                      final description =
+                          controller.description.value?.trim() ?? '';
+                      return Text(
+                        description.isEmpty ? '暂无描述' : description,
+                        style: textTheme.bodyMedium,
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.left,
+                      );
+                    }),
                   ),
                   Column(
                     mainAxisSize: MainAxisSize.min,
