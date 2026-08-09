@@ -39,6 +39,8 @@ enum SearchType {
 class SearchController extends GetxController {
   final Rx<SearchType> type = SearchType.song.obs;
 
+  final NeteaseApi api = Get.find<NeteaseApi>();
+
   /// TextField 的真实数据源 —— 必须显式绑给 [TextField.controller],
   /// 否则点清除按钮时 [TextField] 内部 state 复用了看不见的 TextEditingController,
   /// keyword 变空但输入框不会清空(看起来没反应)
@@ -107,7 +109,6 @@ class SearchController extends GetxController {
     }
     isLoading.value = true;
     errorMessage.value = null;
-    final api = Get.find<NeteaseApi>();
     final t = type.value;
     try {
       final r = await api.call(

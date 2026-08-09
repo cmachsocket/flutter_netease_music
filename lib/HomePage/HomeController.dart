@@ -12,6 +12,8 @@ class HomeController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxnString errorMessage = RxnString();
 
+  final NeteaseApi api = Get.find<NeteaseApi>();
+
   /// 推荐歌单卡片数据
   final RxList<PlaylistCard> recommended = <PlaylistCard>[].obs;
 
@@ -25,7 +27,6 @@ class HomeController extends GetxController {
   Future<void> load() async {
     isLoading.value = true;
     errorMessage.value = null;
-    final api = Get.find<NeteaseApi>();
     try {
       final r = await api.call(
         (a) => a.personalized(limit: '30'),

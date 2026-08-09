@@ -5,7 +5,7 @@ import 'package:get/get.dart';
 
 import '../models/Album.dart';
 import '../models/Song.dart';
-import '../PlayListPage/PlayListController.dart';
+import '../PlayListPage/PlayQueueService.dart';
 import '../sdk/api_exception.dart';
 import '../sdk/netease_api.dart';
 import 'Artist.dart';
@@ -19,6 +19,9 @@ class ArtistController extends GetxController {
 
   /// 路由传进来的艺人 ID
   final String artistId;
+
+  final NeteaseApi api = Get.find<NeteaseApi>();
+  final PlayQueueService queue = Get.find<PlayQueueService>();
 
   final Rxn<Artist> artist = Rxn<Artist>();
   final RxList<Album> albums = <Album>[].obs;
@@ -43,7 +46,6 @@ class ArtistController extends GetxController {
   Future<void> load() async {
     isLoading.value = true;
     errorMessage.value = null;
-    final api = Get.find<NeteaseApi>();
     final id = artistId;
     String? lastError;
 
@@ -117,6 +119,6 @@ class ArtistController extends GetxController {
   }
 
   void playSong(Song song) {
-    Get.find<PlayListController>().playSong(song);
+    queue.playSong(song);
   }
 }

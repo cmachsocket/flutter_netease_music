@@ -1,7 +1,7 @@
 import 'package:get/get.dart';
 
 import '../models/Song.dart';
-import '../PlayListPage/PlayListController.dart';
+import '../PlayListPage/PlayQueueService.dart';
 import '../sdk/api_exception.dart';
 import '../sdk/netease_api.dart';
 
@@ -16,6 +16,9 @@ class SongListController extends GetxController {
 
   /// 路由传进来的歌单 ID
   final String playlistId;
+
+  final NeteaseApi api = Get.find<NeteaseApi>();
+  final PlayQueueService queue = Get.find<PlayQueueService>();
 
   final RxList<Song> songs = <Song>[].obs;
   final RxBool isLoading = false.obs;
@@ -42,7 +45,6 @@ class SongListController extends GetxController {
   Future<void> load() async {
     isLoading.value = true;
     errorMessage.value = null;
-    final api = Get.find<NeteaseApi>();
     final id = playlistId;
     try {
       // 1. 拉歌单元信息(标题/封面/描述)
@@ -88,9 +90,14 @@ class SongListController extends GetxController {
     // TODO: 接 controller.toggleFavorite(songId);接 player 那边通知
   }
 
-  /// 播放:走 PlayListController.playSong(自动追加到队列末尾 + 加载到 just_audio)
-  void playSong(Song song) {
-    Get.find<PlayListController>().playSong(song);
+  /// 播放当前歌单里的某首歌:把整个歌单作为播放列表，再从这首开始播。
+  Future<void> playSong(Song song) {
+    return queue.playSongs(songs.toList(), startSong: song);
+  }
+
+  /// 播放整张歌单:从第一首开始。
+  Future<void> playAll() {
+    return queue.playSongs(songs.toList());
   }
 }
 

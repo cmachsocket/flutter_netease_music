@@ -84,3 +84,10 @@ class _Cover extends StatelessWidget {
     );
   }
 }
+
+class PlayListBinding extends Bindings {
+  @override
+  void dependencies() {
+    Get.lazyPut<PlayListController>(() => PlayListController());
+  }
+}

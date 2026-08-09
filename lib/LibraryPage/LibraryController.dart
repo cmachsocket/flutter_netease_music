@@ -19,6 +19,8 @@ class LibraryController extends GetxController {
   final RxInt tabIndex = 1.obs;
   Worker? _loginWorker;
 
+  final NeteaseApi api = Get.find<NeteaseApi>();
+
   // tab 1: 歌单
   final RxBool playlistsLoading = false.obs;
   final RxnString playlistsError = RxnString();
@@ -37,7 +39,6 @@ class LibraryController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    final api = Get.find<NeteaseApi>();
     _loginWorker = ever<bool>(api.loggedIn, (loggedIn) {
       if (loggedIn) {
         _loadVisibleTab();
@@ -72,7 +73,6 @@ class LibraryController extends GetxController {
     if (playlistsLoading.value) return;
     playlistsLoading.value = true;
     playlistsError.value = null;
-    final api = Get.find<NeteaseApi>();
     final uid = await _ensureUid(api);
     if (uid == null) {
       playlistsLoading.value = false;
@@ -107,7 +107,6 @@ class LibraryController extends GetxController {
     if (albumsLoading.value) return;
     albumsLoading.value = true;
     albumsError.value = null;
-    final api = Get.find<NeteaseApi>();
     try {
       final r = await api.call(
         (a) => a.album_sublist(limit: '50'),
@@ -139,7 +138,6 @@ class LibraryController extends GetxController {
     if (artistsLoading.value) return;
     artistsLoading.value = true;
     artistsError.value = null;
-    final api = Get.find<NeteaseApi>();
     try {
       final r = await api.call(
         (a) => a.user_follow_mixed(size: '50', cursor: '0', scene: '1'),

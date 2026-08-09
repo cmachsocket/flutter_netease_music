@@ -4,6 +4,7 @@ import 'package:flutter_lyric/flutter_lyric.dart';
 import 'package:get/get.dart';
 
 import '../models/Song.dart';
+import '../PlayListPage/PlayQueueService.dart';
 import '../sdk/api_exception.dart';
 import '../sdk/netease_api.dart';
 import 'AudioPlayerService.dart';
@@ -15,7 +16,7 @@ import 'AudioPlayerService.dart';
 /// - **进度**:订阅 [AudioPlayerService.positionStream] 写 [position];
 ///   订阅 [durationStream] 写 [duration](避免被 Player 那边 push 覆盖)
 /// - **歌词**:由 [fetchLyric] 主动拉 `/lyric`(TODO 后续切 lyric_new 拿逐字)
-///   失败 / 空 → 保持 sample LRC(占位不让 UI 空)
+///   失败 / 空 → lyric 留空,UI 显示"暂无歌词"
 /// - **切页**:左右滑切 cover / lyric(原有 UI 逻辑)
 class PlayerController extends GetxController {
   /// bitrate 默认 standard(128k = '128000')。
@@ -44,25 +45,25 @@ class PlayerController extends GetxController {
   // region 歌词
   final LyricController lyricController = LyricController();
   Worker? _positionWorker;
+  Worker? _queueIndexWorker;
+  Worker? _queuePlaylistWorker;
+  bool _queueSyncScheduled = false;
   // endregion
+
+  final NeteaseApi api = Get.find<NeteaseApi>();
+  final PlayQueueService queue = Get.find<PlayQueueService>();
 
   late final AudioPlayerService _audio;
   StreamSubscription<Duration>? _posSub;
   StreamSubscription<Duration?>? _durSub;
   StreamSubscription<bool>? _playingSub;
 
-  /// 占位 LRC(正式版由 fetchLyric 注入)
-  static const String _sampleLrc = '''
-[00:00.00]示例歌词第一行 - 欢迎使用
-[00:05.00]这是第二行歌词
-[00:10.00]第三行歌词在这里
-''';
-
   @override
   void onInit() {
     super.onInit();
     _audio = Get.find<AudioPlayerService>();
-    lyricController.loadLyric(_sampleLrc);
+    // 歌词留空 —— 由 [loadSong] 成功后调 [fetchLyric] 注入
+    lyricController.loadLyric('');
 
     // 订阅 just_audio 的 stream → 写 Rx
     _posSub = _audio.positionStream.listen((p) => position.value = p);
@@ -73,6 +74,15 @@ class PlayerController extends GetxController {
 
     // 进度推进 → 歌词高亮 + 自动滚动
     _positionWorker = ever<Duration>(position, lyricController.setProgress);
+
+    _queueIndexWorker = ever<int>(
+      queue.currentIndex,
+      (_) => _scheduleQueueSync(),
+    );
+    _queuePlaylistWorker = ever<List<Song>>(
+      queue.playlist,
+      (_) => _scheduleQueueSync(),
+    );
 
     // 点击歌词行 → seek
     lyricController.setOnTapLineCallback((Duration p) {
@@ -86,8 +96,40 @@ class PlayerController extends GetxController {
     _durSub?.cancel();
     _playingSub?.cancel();
     _positionWorker?.dispose();
+    _queueIndexWorker?.dispose();
+    _queuePlaylistWorker?.dispose();
     lyricController.dispose();
     super.onClose();
+  }
+
+  void _scheduleQueueSync() {
+    if (_queueSyncScheduled) return;
+    _queueSyncScheduled = true;
+    Future.microtask(() {
+      _queueSyncScheduled = false;
+      _syncQueueState();
+    });
+  }
+
+  void _syncQueueState() {
+    if (isLoadingSong.value) return;
+
+    if (queue.playlist.isEmpty) {
+      if (currentSong.value != null) {
+        currentSong.value = null;
+        seek(Duration.zero);
+        pause();
+      }
+      return;
+    }
+
+    final index = queue.currentIndex.value;
+    if (index < 0 || index >= queue.playlist.length) return;
+
+    final target = queue.playlist[index];
+    if (currentSong.value?.id == target.id) return;
+
+    unawaited(loadSong(target));
   }
 
   /// 加载并播放一首新歌
@@ -98,7 +140,6 @@ class PlayerController extends GetxController {
   Future<void> loadSong(Song song, {String bitrate = defaultBitrate}) async {
     if (isLoadingSong.value) return;
     isLoadingSong.value = true;
-    final api = Get.find<NeteaseApi>();
     try {
       final r = await api.call(
         (a) => a.song_url(song.id, br: bitrate),
@@ -141,13 +182,12 @@ class PlayerController extends GetxController {
   /// 拉歌词并灌进 lyricController
   ///
   /// - 调 /lyric(id) 拿 lrc 字段
-  /// - 失败 / 为空 → 保持 sample LRC,UI 不会空
+  /// - 失败 / 为空 → lyric 留空,UI 显示"暂无歌词"
   Future<void> fetchLyric(String songId) async {
-    final api = Get.find<NeteaseApi>();
     try {
       final r = await api.call((a) => a.lyric(songId), what: '取歌词');
       final lrc = (r.body['lrc']?['lyric'] as String?)?.toString() ?? '';
-      if (lrc.trim().isEmpty) return; // 保持 sample
+      if (lrc.trim().isEmpty) return;
       lyricController.loadLyric(lrc);
     } on ApiException {
       // 静默:歌词拿不到不影响播放

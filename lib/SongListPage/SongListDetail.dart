@@ -50,9 +50,7 @@ class SongListDetail extends StatelessWidget {
                     children: [
                       TextButton.icon(
                         icon: const Icon(Icons.play_arrow),
-                        onPressed: () {
-                          // TODO: 播放歌单
-                        },
+                        onPressed: controller.playAll,
                         label: Text(
                           '播放',
                           style: textTheme.bodyMedium,

@@ -8,11 +8,11 @@ import 'AppShell.dart';
 import 'AppShellController.dart';
 import 'PlayPage/AudioPlayerService.dart';
 import 'PlayPage/PlayerController.dart';
+import 'PlayListPage/PlayQueueService.dart';
 import 'sdk/netease_api.dart';
 import 'theme/AppTheme.dart';
 import 'theme/ThemeController.dart';
 import 'HomePage/HomeController.dart';
-import 'PlayListPage/PlayListController.dart';
 import 'widgets/netease_image.dart' show NeteaseHttpOverrides;
 
 Future<void> main() async {
@@ -27,7 +27,7 @@ Future<void> main() async {
   Get.lazyPut(() => ThemeController());
   Get.lazyPut(() => AppShellController());
   Get.lazyPut(() => PlayerController());
-  Get.lazyPut(() => PlayListController());
+  Get.put<PlayQueueService>(PlayQueueService(), permanent: true);
   Get.lazyPut<HomeController>(() => HomeController());
   // just_audio 全局服务:启动时创建 AudioPlayer,跟 NeteaseApi 同款 GetxService
   Get.put<AudioPlayerService>(AudioPlayerService(), permanent: true);

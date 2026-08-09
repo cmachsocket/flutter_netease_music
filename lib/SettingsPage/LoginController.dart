@@ -39,6 +39,8 @@ class LoginController extends GetxController {
   final RxBool isSendingCode = false.obs;
   final RxBool isLoggingIn = false.obs;
 
+  final NeteaseApi api = Get.find<NeteaseApi>();
+
   Timer? _timer;
 
   @override
@@ -78,7 +80,6 @@ class LoginController extends GetxController {
   void sendCode() async {
     if (!canSendCode) return;
     isSendingCode.value = true;
-    final api = Get.find<NeteaseApi>();
     final phoneStr = phone.value;
     try {
       // 同步阻塞调用;SDK 文档里也说 compute 会跨 isolate 拿 native handle
@@ -121,7 +122,6 @@ class LoginController extends GetxController {
   void login() async {
     if (!canLogin) return;
     isLoggingIn.value = true;
-    final api = Get.find<NeteaseApi>();
     final phoneStr = phone.value;
     final codeStr = code.value;
     try {
@@ -157,7 +157,7 @@ class LoginController extends GetxController {
   /// - 清 SDK cookie + GetStorage 持久化
   /// - SnackBar 提示
   void logout() {
-    Get.find<NeteaseApi>().logout();
+    api.logout();
     Get.snackbar('已退出', '本地登录态已清除', snackPosition: SnackPosition.BOTTOM);
   }
 }

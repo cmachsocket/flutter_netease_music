@@ -5,6 +5,7 @@ import 'Lyrics.dart';
 import 'PlayerController.dart';
 import '../PlayListPage/PlayListPage.dart';
 import '../PlayListPage/PlayListController.dart';
+import '../PlayListPage/PlayQueueService.dart';
 import '../widgets/linked_detail_text.dart';
 import '../widgets/netease_image.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
@@ -12,12 +13,13 @@ import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 class Player extends StatelessWidget {
   Player({super.key});
   final controller = Get.find<PlayerController>();
+  final playlist = Get.find<PlayListController>();
+  final queue = Get.find<PlayQueueService>();
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final playlist = Get.find<PlayListController>();
 
     return Scaffold(
       appBar: AppBar(
@@ -134,8 +136,7 @@ class Player extends StatelessWidget {
               ),
               IconButton(
                 icon: const Icon(Icons.playlist_play),
-                onPressed: () =>
-                    Get.to(() => PlayListPage(), binding: PlayListBinding()),
+                onPressed: () => Get.to(() => const PlayListPage()),
               ),
             ],
           ),
@@ -145,13 +146,13 @@ class Player extends StatelessWidget {
   }
 
   void _next(PlayListController playlist) {
-    final next = playlist.currentIndex.value + 1;
+    final next = queue.currentIndex.value + 1;
     if (next >= playlist.playlist.length) return;
     playlist.selectIndex(next);
   }
 
   void _prev(PlayListController playlist) {
-    final prev = playlist.currentIndex.value - 1;
+    final prev = queue.currentIndex.value - 1;
     if (prev < 0) return;
     playlist.selectIndex(prev);
   }
