@@ -58,7 +58,10 @@ class AppShell extends StatelessWidget {
       initialRoute: '/',
       onGenerateRoute: (settings) {
         if (settings.name == '/') {
-          return GetPageRoute(page: () => _content(i));
+          return GetPageRoute(
+            page: () => _content(i),
+            binding: _bindingForTab(i),
+          );
         }
         return null;
       },
