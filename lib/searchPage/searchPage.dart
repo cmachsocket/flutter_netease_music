@@ -215,10 +215,7 @@ class _ErrorView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Text('加载失败:$text', textAlign: TextAlign.center),
-      ),
+      child: Text('加载失败:$text', textAlign: TextAlign.center),
     );
   }
 }
@@ -232,10 +229,7 @@ class _HintView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Text(text, textAlign: TextAlign.center),
-      ),
+      child: Text(text, textAlign: TextAlign.center),
     );
   }
 }

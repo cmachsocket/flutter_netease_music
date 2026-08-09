@@ -87,14 +87,11 @@ class _LoginRequiredHint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Card(
-        child: ListTile(
-          leading: const Icon(Icons.login),
-          title: const Text('登录后查看我的歌单 / 专辑 / 艺人'),
-          subtitle: const Text('点底部「我」tab 进入设置 → 登录账号'),
-        ),
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.login),
+        title: const Text('登录后查看我的歌单 / 专辑 / 艺人'),
+        subtitle: const Text('点底部「我」tab 进入设置 → 登录账号'),
       ),
     );
   }
@@ -111,12 +108,9 @@ class _PlaylistsView extends StatelessWidget {
       }
       if (c.playlistsError.value != null) {
         return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              '加载失败:${c.playlistsError.value}',
-              textAlign: TextAlign.center,
-            ),
+          child: Text(
+            '加载失败:${c.playlistsError.value}',
+            textAlign: TextAlign.center,
           ),
         );
       }
@@ -152,12 +146,9 @@ class _AlbumsView extends StatelessWidget {
       }
       if (c.albumsError.value != null) {
         return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              '加载失败:${c.albumsError.value}',
-              textAlign: TextAlign.center,
-            ),
+          child: Text(
+            '加载失败:${c.albumsError.value}',
+            textAlign: TextAlign.center,
           ),
         );
       }
@@ -193,12 +184,9 @@ class _ArtistsView extends StatelessWidget {
       }
       if (c.artistsError.value != null) {
         return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              '加载失败:${c.artistsError.value}',
-              textAlign: TextAlign.center,
-            ),
+          child: Text(
+            '加载失败:${c.artistsError.value}',
+            textAlign: TextAlign.center,
           ),
         );
       }

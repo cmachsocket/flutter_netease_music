@@ -15,13 +15,10 @@ class HomePage extends StatelessWidget {
 
     return Column(
       children: [
-        // 推荐歌单标题
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text('推荐歌单', style: textTheme.titleLarge),
-          ),
+        // 推荐歌单标题 —— Align 让 Text 撑满宽度后靠左,不需要 padding
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Text('推荐歌单', style: textTheme.titleLarge),
         ),
 
         // 推荐歌单网格
@@ -45,12 +42,9 @@ class _RecommendedGrid extends StatelessWidget {
       }
       if (home.errorMessage.value != null) {
         return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              '加载失败:${home.errorMessage.value}',
-              textAlign: TextAlign.center,
-            ),
+          child: Text(
+            '加载失败:${home.errorMessage.value}',
+            textAlign: TextAlign.center,
           ),
         );
       }
