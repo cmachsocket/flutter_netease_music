@@ -6,6 +6,9 @@ import '../widgets/netease_image.dart' show neteaseImageHeaders;
 import 'SongListController.dart';
 import 'SongListDetail.dart';
 
+/// 整张歌单播放回调(返回 Future 但卡片场景 fire-and-forget)
+typedef PlayPlaylistCallback = Future<void> Function();
+
 /// 主页歌单卡片
 ///
 /// - [playlistId] 由调用方注入(主页 HomePage 把每天推荐/私人FM/推荐歌单的 ID 传进来)
@@ -21,6 +24,7 @@ class SongListCard extends StatelessWidget {
     this.subtitle,
     this.imageUrl,
     this.onTap,
+    this.onPlay,
   });
 
   final String playlistId;
@@ -30,6 +34,9 @@ class SongListCard extends StatelessWidget {
 
   /// 覆盖默认导航。null = 默认跳 SongListDetail
   final VoidCallback? onTap;
+
+  /// 覆盖默认播放(整张歌单)。null = 默认调 SongListController.playPlaylistById
+  final PlayPlaylistCallback? onPlay;
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +74,10 @@ class SongListCard extends StatelessWidget {
               trailing: IconButton(
                 icon: Icon(Icons.play_circle_fill_outlined),
                 onPressed: () {
-                  // TODO: 播放歌单
+                  final cb =
+                      onPlay ??
+                      () => SongListController.playPlaylistById(playlistId);
+                  cb(); // fire-and-forget
                 },
               ),
             ),
@@ -81,11 +91,7 @@ class SongListCard extends StatelessWidget {
     Get.to(
       () => SongListDetail(playlistId: playlistId, displayTitle: title),
       id: AppShell.shellNavigatorId,
-      binding: BindingsBuilder(() {
-        Get.lazyPut<SongListController>(
-          () => SongListController(playlistId: playlistId),
-        );
-      }),
+      binding: SongListDetailBinding(playlistId: playlistId),
     );
   }
 }
@@ -97,12 +103,16 @@ class LineSongListCard extends StatelessWidget {
     this.title,
     this.subtitle,
     this.imageUrl,
+    this.onPlay,
   });
 
   final String playlistId;
   final String? title;
   final String? subtitle;
   final String? imageUrl;
+
+  /// 覆盖默认播放(整张歌单)。null = 默认调 SongListController.playPlaylistById
+  final PlayPlaylistCallback? onPlay;
 
   @override
   Widget build(BuildContext context) {
@@ -136,7 +146,9 @@ class LineSongListCard extends StatelessWidget {
         trailing: IconButton(
           icon: Icon(Icons.play_circle_fill_outlined),
           onPressed: () {
-            // TODO: 播放歌单
+            final cb =
+                onPlay ?? () => SongListController.playPlaylistById(playlistId);
+            cb(); // fire-and-forget
           },
         ),
       ),

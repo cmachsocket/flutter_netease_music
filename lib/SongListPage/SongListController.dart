@@ -33,10 +33,15 @@ class SongListController extends GetxController {
   /// 歌单描述(从 playlist_detail 取)
   final RxnString description = RxnString();
 
+  /// 首次 [load] 完成的 future(由 [onInit] 赋值)
+  ///
+  /// 外部可以 `await c.ready` 同步等首屏数据(不重复触发 load)
+  late final Future<void> ready;
+
   @override
   void onInit() {
     super.onInit();
-    load();
+    ready = load();
   }
 
   /// 拉当前歌单 ([playlistId]) 的元信息 + 曲目
@@ -98,6 +103,22 @@ class SongListController extends GetxController {
   /// 播放整张歌单:从第一首开始。
   Future<void> playAll() {
     return queue.playSongs(songs.toList());
+  }
+
+  /// 按 [playlistId] 拉歌 + 整张播放
+  ///
+  /// 用于卡片"播放"按钮:不进入详情页直接播放整张歌单
+  ///
+  /// 临时 put 一个 [SongListController] 实例,等首屏 load 完 → 调 [playAll] → 销毁
+  static Future<void> playPlaylistById(String playlistId) async {
+    final tag = 'preview-$playlistId';
+    if (Get.isRegistered<SongListController>(tag: tag)) {
+      Get.delete<SongListController>(tag: tag);
+    }
+    final c = Get.put(SongListController(playlistId: playlistId), tag: tag);
+    await c.ready;
+    if (c.songs.isNotEmpty) await c.playAll();
+    Get.delete<SongListController>(tag: tag);
   }
 }
 
