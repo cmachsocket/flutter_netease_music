@@ -5,6 +5,9 @@ import 'package:get/get.dart';
 
 import '../sdk/api_exception.dart';
 import '../sdk/netease_api.dart';
+import '../services/liked_albums_service.dart';
+import '../services/liked_artists_service.dart';
+import '../services/liked_playlists_service.dart';
 
 /// Library 页 controller
 ///
@@ -20,6 +23,10 @@ class LibraryController extends GetxController {
   Worker? _loginWorker;
 
   final NeteaseApi api = Get.find<NeteaseApi>();
+  final LikedPlaylistsService _likedPlaylists =
+      Get.find<LikedPlaylistsService>();
+  final LikedAlbumsService _likedAlbums = Get.find<LikedAlbumsService>();
+  final LikedArtistsService _likedArtists = Get.find<LikedArtistsService>();
 
   // tab 1: 歌单
   final RxBool playlistsLoading = false.obs;
@@ -166,6 +173,57 @@ class LibraryController extends GetxController {
     } finally {
       artistsLoading.value = false;
     }
+  }
+
+  /// 查询某歌单 id 是否被当前用户收藏
+  ///
+  /// - 调用方**必须包 Obx**才能响应 likedPlaylistIds 变化
+  /// - 读 .value 触发 Obx 跟踪(contains 走内部 _value 不跟踪)
+  bool isPlaylistLiked(String playlistId) {
+    // ignore: invalid_use_of_protected_member
+    return _likedPlaylists.likedPlaylistIds.value.contains(playlistId);
+  }
+
+  /// toggle 收藏(转发到 LikedPlaylistsService)
+  void togglePlaylistLike(String playlistId) {
+    // ignore: discarded_futures
+    _likedPlaylists.toggle(playlistId);
+  }
+
+  /// 查询某专辑 id 是否被收藏
+  bool isAlbumLiked(String albumId) {
+    // ignore: invalid_use_of_protected_member
+    return _likedAlbums.likedAlbumIds.value.contains(albumId);
+  }
+
+  /// toggle 专辑收藏
+  void toggleAlbumLike(String albumId) {
+    // ignore: discarded_futures
+    _likedAlbums.toggle(albumId);
+  }
+
+  /// 查询某艺人 id 是否被关注
+  bool isArtistLiked(String artistId) {
+    // ignore: invalid_use_of_protected_member
+    return _likedArtists.likedArtistIds.value.contains(artistId);
+  }
+
+  /// toggle 关注 + 主动同步后端真值
+  ///
+  /// 在 LibraryPage 关注艺人列表的 card 首次 build 时,onFirstBuild 注入 syncSingle
+  /// (本 controller 不再负责卡片首次 build 触发,那是 widget 层职责)
+  void toggleArtistLike(String artistId) {
+    // ignore: discarded_futures
+    _likedArtists.toggle(artistId);
+  }
+
+  /// 主动同步单点艺人的后端关注状态
+  ///
+  /// LibraryPage 关注艺人列表 card 首次 build 时调一次
+  /// (Service 启动 hydrate 只拉 /artist/sublist 全量,单点 id 不在里面)
+  Future<void> syncArtistFollowState(String artistId) {
+    // ignore: discarded_futures
+    return _likedArtists.syncSingle(artistId);
   }
 
   /// 确保当前 uid 有缓存,没有就拉一次

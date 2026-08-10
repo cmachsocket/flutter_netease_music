@@ -75,10 +75,17 @@ class SongListDetail extends StatelessWidget {
                         ),
                       ),
                       TextButton.icon(
-                        icon: const Icon(Icons.favorite_border),
-                        onPressed: () {
-                          // TODO: 收藏歌单
-                        },
+                        icon: Obx(
+                          () => Icon(
+                            controller.isPlaylistFavorite()
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                            color: controller.isPlaylistFavorite()
+                                ? Theme.of(context).colorScheme.primary
+                                : null,
+                          ),
+                        ),
+                        onPressed: controller.togglePlaylistFavorite,
                         label: Text(
                           '收藏',
                           style: textTheme.bodyMedium,
@@ -97,6 +104,7 @@ class SongListDetail extends StatelessWidget {
                 errorMessage: controller.errorMessage.value,
                 onToggleFavorite: (song) => controller.toggleFavorite(song.id),
                 onPlay: controller.playSong,
+                isLiked: (song) => controller.isLiked(song.id),
               ),
             ),
           ],

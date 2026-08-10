@@ -1,13 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter_lyric/flutter_lyric.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:get/get.dart';
 
 import '../models/Song.dart';
-import '../PlayListPage/PlayQueueService.dart';
+import '../services/PlayQueueService.dart';
+import '../services/LikedSongsService.dart';
 import '../sdk/api_exception.dart';
 import '../sdk/netease_api.dart';
-import 'AudioPlayerService.dart';
+import '../services/AudioPlayerService.dart';
 
 /// 播放页统一控制器:进度 + 切页 + 歌词 + 实际音频加载
 ///
@@ -29,6 +31,7 @@ class PlayerController extends GetxController {
   // region 播放状态(由 AudioPlayer stream 推动)
   final Rx<Duration> position = Duration.zero.obs;
   final Rx<Duration> duration = const Duration(minutes: 3).obs;
+  final Rx<Duration> buffered = Duration.zero.obs;
   final RxBool isPlaying = false.obs;
 
   /// 当前播放的歌曲(null = 还没加载)
@@ -36,6 +39,11 @@ class PlayerController extends GetxController {
 
   /// 当前加载是否进行中(用来显示 loading 状态,避免重复触发)
   final RxBool isLoadingSong = false.obs;
+
+  /// 当前歌曲是否被喜欢(联动 currentSong + LikedSongsService.likedIds)
+  ///
+  /// UI 读 `controller.isLiked.value` 即可响应式刷新
+  final RxBool isLiked = false.obs;
   // endregion
 
   // region UI 切页
@@ -47,8 +55,12 @@ class PlayerController extends GetxController {
   Worker? _positionWorker;
   Worker? _queueIndexWorker;
   Worker? _queuePlaylistWorker;
+  Worker? _currentSongWorker;
+  Worker? _likedIdsWorker;
   bool _queueSyncScheduled = false;
   // endregion
+
+  final LikedSongsService _likedService = Get.find<LikedSongsService>();
 
   final NeteaseApi api = Get.find<NeteaseApi>();
   final PlayQueueService queue = Get.find<PlayQueueService>();
@@ -56,7 +68,9 @@ class PlayerController extends GetxController {
   late final AudioPlayerService _audio;
   StreamSubscription<Duration>? _posSub;
   StreamSubscription<Duration?>? _durSub;
+  StreamSubscription<Duration>? _bufSub;
   StreamSubscription<bool>? _playingSub;
+  StreamSubscription<PlayerState>? _stateSub;
 
   @override
   void onInit() {
@@ -70,7 +84,10 @@ class PlayerController extends GetxController {
     _durSub = _audio.durationStream.listen((d) {
       if (d != null) duration.value = d;
     });
+    _bufSub = _audio.bufferedPositionStream.listen((b) => buffered.value = b);
     _playingSub = _audio.playingStream.listen((p) => isPlaying.value = p);
+    // 播完一首 → 自动切下一首
+    _stateSub = _audio.playerStateStream.listen(_onPlayerState);
 
     // 进度推进 → 歌词高亮 + 自动滚动
     _positionWorker = ever<Duration>(position, lyricController.setProgress);
@@ -84,6 +101,13 @@ class PlayerController extends GetxController {
       (_) => _scheduleQueueSync(),
     );
 
+    // 当前歌 + likedIds 联动 → isLiked
+    _currentSongWorker = ever<Song?>(currentSong, (_) => _refreshIsLiked());
+    _likedIdsWorker = ever<Set<String>>(
+      _likedService.likedIds,
+      (_) => _refreshIsLiked(),
+    );
+
     // 点击歌词行 → seek
     lyricController.setOnTapLineCallback((Duration p) {
       _audio.seek(p);
@@ -94,12 +118,28 @@ class PlayerController extends GetxController {
   void onClose() {
     _posSub?.cancel();
     _durSub?.cancel();
+    _bufSub?.cancel();
     _playingSub?.cancel();
+    _stateSub?.cancel();
     _positionWorker?.dispose();
     _queueIndexWorker?.dispose();
     _queuePlaylistWorker?.dispose();
+    _currentSongWorker?.dispose();
+    _likedIdsWorker?.dispose();
     lyricController.dispose();
     super.onClose();
+  }
+
+  /// 播完一首 → 自动切下一首
+  ///
+  /// - 只看 `processingState == completed`(自然结束;手动 seek 不会触发这个)
+  /// - 队尾 → 不动,UI 保持最后一首已播完状态
+  /// - 通过 `queue.selectIndex(next)` 触发 `_syncQueueState` → 自动 loadSong
+  void _onPlayerState(PlayerState state) {
+    if (state.processingState != ProcessingState.completed) return;
+    final next = queue.currentIndex.value + 1;
+    if (next >= queue.playlist.length) return;
+    queue.selectIndex(next);
   }
 
   void _scheduleQueueSync() {
@@ -200,7 +240,23 @@ class PlayerController extends GetxController {
   void togglePlay() => isPlaying.value ? pause() : play();
   void seek(Duration p) => _audio.seek(p);
   void switchPage() => centerIndex.value = centerIndex.value == 0 ? 1 : 0;
+
+  /// toggle 当前歌曲的喜欢状态
+  ///
+  /// - 转发给 [LikedSongsService],UI 不用直接接触 service
+  /// - 没有当前歌曲时是 no-op
+  void toggleFavorite() {
+    final song = currentSong.value;
+    if (song == null) return;
+    // ignore: discarded_futures
+    _likedService.toggle(song.id);
+  }
   // endregion
+
+  void _refreshIsLiked() {
+    final song = currentSong.value;
+    isLiked.value = song != null && _likedService.likedIds.contains(song.id);
+  }
 }
 
 /// 启动时注册(在 main.dart 里调)

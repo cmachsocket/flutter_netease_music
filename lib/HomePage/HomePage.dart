@@ -52,7 +52,7 @@ class _RecommendedGrid extends StatelessWidget {
         return const Center(child: Text('暂无推荐'));
       }
       return AspectDrivenGrid(
-        childAspectRatio: 0.8,
+        childAspectRatio: 0.75,
         minColumns: 2,
         itemCount: home.recommended.length,
         itemBuilder: (context, index) {

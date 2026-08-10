@@ -16,6 +16,7 @@ class SongListBody extends StatelessWidget {
     this.errorMessage,
     this.onToggleFavorite,
     this.onPlay,
+    this.isLiked,
   });
 
   final List<Song> songs;
@@ -23,6 +24,9 @@ class SongListBody extends StatelessWidget {
   final String? errorMessage;
   final void Function(Song)? onToggleFavorite;
   final void Function(Song)? onPlay;
+
+  /// 查询某首 song 是否被喜欢(由 controller 提供,内部读 Rx)
+  final bool Function(Song)? isLiked;
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +49,8 @@ class SongListBody extends StatelessWidget {
       itemCount: songs.length,
       maxColumns: 1,
       baseColumns: 1,
-      childAspectRatio: 35.0,
+      gapRatio: 0.02,
+      childAspectRatio: 30.0,
       itemBuilder: (context, index) {
         final song = songs[index];
 
@@ -53,6 +58,7 @@ class SongListBody extends StatelessWidget {
           song: song,
           onToggleFavorite: () => onToggleFavorite?.call(song),
           onPlay: () => onPlay?.call(song),
+          isLiked: () => isLiked?.call(song) ?? false,
         );
       },
     );

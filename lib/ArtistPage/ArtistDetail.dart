@@ -97,6 +97,11 @@ class _ArtistHeader extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             TextButton.icon(
+              onPressed: controller.playAll,
+              icon: const Icon(Icons.play_arrow),
+              label: const Text('播放全部'),
+            ),
+            TextButton.icon(
               onPressed: controller.toggleFollow,
               icon: Obx(
                 () => Icon(
@@ -105,16 +110,7 @@ class _ArtistHeader extends StatelessWidget {
                       : Icons.favorite_border,
                 ),
               ),
-              label: Obx(
-                () => Text(controller.isFollowing.value ? '已关注' : '关注'),
-              ),
-            ),
-            TextButton.icon(
-              onPressed: () {
-                // TODO: 播放该艺人所有歌曲(遍历 songs 入队)
-              },
-              icon: const Icon(Icons.play_arrow),
-              label: const Text('播放全部'),
+              label: Text(controller.isFollowing.value ? '已关注' : '关注'),
             ),
           ],
         ),
@@ -166,6 +162,7 @@ class _SectionContent extends StatelessWidget {
             isLoading: false,
             onToggleFavorite: (song) => controller.toggleFavorite(song.id),
             onPlay: controller.playSong,
+            isLiked: (song) => controller.isLiked(song.id),
           );
         default:
           return const Center(child: Text('未知视图'));
@@ -182,14 +179,16 @@ class _SectionContent extends StatelessWidget {
 class _AlbumsSection extends StatelessWidget {
   const _AlbumsSection({required this.albums});
   final List<Album> albums;
-
   @override
   Widget build(BuildContext context) {
+    final controller = Get.find<ArtistController>();
     if (albums.isEmpty) {
       return const Center(child: Text('暂无专辑'));
     }
     return AspectDrivenGrid(
       itemCount: albums.length,
+      childAspectRatio: 0.75,
+      minColumns: 2,
       itemBuilder: (context, index) {
         final album = albums[index];
         return SongListCard(
@@ -197,6 +196,8 @@ class _AlbumsSection extends StatelessWidget {
           title: album.name,
           subtitle: '${album.type.label} · ${album.songCount}首',
           imageUrl: album.coverUrl,
+          isLiked: () => controller.isAlbumLiked(album.id),
+          onToggleFavorite: () => controller.toggleAlbumFavorite(album.id),
         );
       },
     );

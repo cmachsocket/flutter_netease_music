@@ -8,6 +8,9 @@ import '../models/Song.dart';
 import '../ArtistPage/Artist.dart';
 import '../sdk/api_exception.dart';
 import '../sdk/netease_api.dart';
+import '../services/liked_albums_service.dart';
+import '../services/liked_artists_service.dart';
+import '../services/liked_playlists_service.dart';
 
 /// 网易云搜索 type 参数(参考 netease_cloud_music_api /search 接口)
 ///
@@ -197,10 +200,7 @@ class SearchController extends GetxController {
     if (snapshot.isEmpty) return;
     final ids = snapshot.map((s) => s.id).join(',');
     try {
-      final r = await api.call(
-        (a) => a.song_detail(ids),
-        what: '补单曲封面',
-      );
+      final r = await api.call((a) => a.song_detail(ids), what: '补单曲封面');
       final songs = r.body['songs'];
       if (songs is! List) return;
       // 按 songId → 真 coverUrl 建索引
@@ -244,6 +244,38 @@ class SearchController extends GetxController {
     } on ApiException {
       // 补图失败不阻塞搜索结果,UI 走 SongRowTile._Cover 空 URL 占位
     }
+  }
+
+  bool isAlbumLiked(String albumId) =>
+      // ignore: invalid_use_of_protected_member
+      Get.find<LikedAlbumsService>().likedAlbumIds.value.contains(albumId);
+
+  bool isArtistLiked(String artistId) =>
+      // ignore: invalid_use_of_protected_member
+      Get.find<LikedArtistsService>().likedArtistIds.value.contains(artistId);
+
+  bool isPlaylistLiked(String playlistId) =>
+      // ignore: invalid_use_of_protected_member
+      Get.find<LikedPlaylistsService>().likedPlaylistIds.value.contains(playlistId);
+
+  void toggleAlbumLike(String albumId) {
+    // ignore: discarded_futures
+    Get.find<LikedAlbumsService>().toggle(albumId);
+  }
+
+  void toggleArtistLike(String artistId) {
+    // ignore: discarded_futures
+    Get.find<LikedArtistsService>().toggle(artistId);
+  }
+
+  void togglePlaylistLike(String playlistId) {
+    // ignore: discarded_futures
+    Get.find<LikedPlaylistsService>().toggle(playlistId);
+  }
+
+  void syncArtistLike(String artistId) {
+    // ignore: discarded_futures
+    Get.find<LikedArtistsService>().syncSingle(artistId);
   }
 }
 

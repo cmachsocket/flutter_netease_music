@@ -9,6 +9,9 @@ import 'SongListDetail.dart';
 /// 整张歌单播放回调(返回 Future 但卡片场景 fire-and-forget)
 typedef PlayPlaylistCallback = Future<void> Function();
 
+/// 查询目标资源是否被喜欢/收藏/关注
+typedef IsLikedGetter = bool Function();
+
 /// 主页歌单卡片
 ///
 /// - [playlistId] 由调用方注入(主页 HomePage 把每天推荐/私人FM/推荐歌单的 ID 传进来)
@@ -25,6 +28,8 @@ class SongListCard extends StatelessWidget {
     this.imageUrl,
     this.onTap,
     this.onPlay,
+    this.isLiked,
+    this.onToggleFavorite,
   });
 
   final String playlistId;
@@ -38,6 +43,18 @@ class SongListCard extends StatelessWidget {
   /// 覆盖默认播放(整张歌单)。null = 默认调 SongListController.playPlaylistById
   final PlayPlaylistCallback? onPlay;
 
+  /// 查询当前 [playlistId] 是否被喜欢/收藏/关注
+  ///
+  /// - **必须在 Obx 内调用**才能响应 likedXxxIds 变化
+  /// - widget 不直接 Get.find service,调用方注入响应式查询
+  final IsLikedGetter? isLiked;
+
+  /// 点击 ♥ 触发的操作
+  ///
+  /// - 调用方决定调哪个 service 的 toggle
+  /// - widget 内 fire-and-forget,不 await
+  final VoidCallback? onToggleFavorite;
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -48,16 +65,15 @@ class SongListCard extends StatelessWidget {
         onTap: onTap ?? _defaultNavigate,
         child: Column(
           children: [
-            Expanded(
-              child: AspectRatio(
-                aspectRatio: 1,
-                child: Image.network(
-                  imageUrl ?? '',
-                  fit: BoxFit.cover,
-                  headers: neteaseImageHeaders,
-                ),
+            AspectRatio(
+              aspectRatio: 1,
+              child: Image.network(
+                imageUrl ?? '',
+                fit: BoxFit.cover,
+                headers: neteaseImageHeaders,
               ),
             ),
+
             ListTile(
               title: Text(
                 title ?? '',
@@ -71,14 +87,24 @@ class SongListCard extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              trailing: IconButton(
-                icon: Icon(Icons.play_circle_fill_outlined),
-                onPressed: () {
-                  final cb =
-                      onPlay ??
-                      () => SongListController.playPlaylistById(playlistId);
-                  cb(); // fire-and-forget
-                },
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _LikeButton(
+                    isLiked: isLiked,
+                    onToggleFavorite: onToggleFavorite,
+                    playlistId: playlistId,
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.play_circle_fill_outlined),
+                    onPressed: () {
+                      final cb =
+                          onPlay ??
+                          () => SongListController.playPlaylistById(playlistId);
+                      cb(); // fire-and-forget
+                    },
+                  ),
+                ],
               ),
             ),
           ],
@@ -153,5 +179,51 @@ class LineSongListCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// 歌单/专辑/艺人卡片的 ♥ 按钮
+///
+/// - **widget 不接触 service**:所有状态查询 / 操作都走 [SongListCard] 注入的 callback
+/// - widget 内部 Obx 包 [isLiked] 调用 → 响应 likedXxxIds 变化
+/// - 首次 build 时调 [onFirstBuild](典型场景:艺人卡片主动同步关注状态)
+class _LikeButton extends StatelessWidget {
+  const _LikeButton({
+    required this.playlistId,
+    required this.isLiked,
+    required this.onToggleFavorite,
+  });
+
+  final String playlistId;
+  final IsLikedGetter? isLiked;
+  final VoidCallback? onToggleFavorite;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    // 没 isLiked callback 时直接静态 IconButton ——不包 Obx
+    // (包 Obx 但体内不读 Rx 会报 "improper use of GetX")
+    if (isLiked == null) {
+      return IconButton(
+        icon: const Icon(Icons.favorite_border),
+        onPressed: () {
+          onToggleFavorite?.call();
+        },
+        tooltip: '收藏',
+      );
+    }
+    return Obx(() {
+      final liked = isLiked?.call() ?? false;
+      return IconButton(
+        icon: Icon(
+          liked ? Icons.favorite : Icons.favorite_border,
+          color: liked ? scheme.primary : null,
+        ),
+        onPressed: () {
+          onToggleFavorite?.call();
+        },
+        tooltip: liked ? '取消收藏' : '收藏',
+      );
+    });
   }
 }

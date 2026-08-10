@@ -1,13 +1,16 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:get/get.dart';
 
 import '../models/Album.dart';
 import '../models/Song.dart';
-import '../PlayListPage/PlayQueueService.dart';
+import '../services/PlayQueueService.dart';
 import '../sdk/api_exception.dart';
 import '../sdk/netease_api.dart';
+import '../services/liked_albums_service.dart';
+import '../services/liked_artists_service.dart';
+import '../services/LikedSongsService.dart';
 import 'Artist.dart';
 
 /// 艺人页 controller
@@ -22,6 +25,8 @@ class ArtistController extends GetxController {
 
   final NeteaseApi api = Get.find<NeteaseApi>();
   final PlayQueueService queue = Get.find<PlayQueueService>();
+  final LikedSongsService _likedService = Get.find<LikedSongsService>();
+  final LikedArtistsService _likedArtists = Get.find<LikedArtistsService>();
 
   final Rxn<Artist> artist = Rxn<Artist>();
   final RxList<Album> albums = <Album>[].obs;
@@ -68,9 +73,23 @@ class ArtistController extends GetxController {
         // —— 在调用方解包,不让 model 吃两种 schema
         final raw = r.body['artist'];
         if (raw is Map) {
-          artist.value = Artist.fromNeteaseJson(
-            Map<String, dynamic>.from(raw),
-          );
+          final m = Map<String, dynamic>.from(raw);
+          artist.value = Artist.fromNeteaseJson(m);
+          // /artists 响应里 artist 项有 `followed`(bool)字段——优先用后端真值
+          final followed = m['followed'];
+          if (followed is bool) {
+            isFollowing.value = followed;
+          }
+          // 临时调试:打印首项所有顶层 key + artist 项所有 key,定位为什么 followed 不生效
+          if (kDebugMode) {
+            // ignore: avoid_print
+            print(
+              '[ArtistController] /artists raw top-level keys = '
+              '${r.body.keys.toList()}, artist item keys = ${m.keys.toList()}, '
+              'followed raw value = ${m['followed']} (${m['followed'].runtimeType}), '
+              'artist.id = $artistId',
+            );
+          }
         }
       }),
       safeRun('拉艺人专辑', () async {
@@ -118,14 +137,45 @@ class ArtistController extends GetxController {
   void setView(int index) => viewIndex.value = index;
 
   void toggleFollow() {
+    // 乐观更新本地状态(纯 UI 反映,后端 toggle 交由 service)
     isFollowing.toggle();
+    // ignore: discarded_futures
+    _likedArtists.toggle(artistId);
   }
 
   void toggleFavorite(String songId) {
-    // TODO: 接 PlayListController 持久化 + 联动 PlayerController
+    // ignore: discarded_futures
+    _likedService.toggle(songId);
+  }
+
+  /// 查询某首歌是否被喜欢(同 SongListController)
+  ///
+  /// - 读 .value 触发 Obx 跟踪(contains 走内部 _value 不跟踪)
+  bool isLiked(String songId) =>
+      // ignore: invalid_use_of_protected_member
+      _likedService.likedIds.value.contains(songId);
+
+  /// 查询当前艺人是否已关注
+  bool isArtistLiked() => isFollowing.value;
+
+  /// 查询某张专辑是否被收藏
+  ///
+  /// - 读 .value 触发 Obx 跟踪
+  bool isAlbumLiked(String albumId) =>
+      // ignore: invalid_use_of_protected_member
+      Get.find<LikedAlbumsService>().likedAlbumIds.value.contains(albumId);
+
+  void toggleAlbumFavorite(String albumId) {
+    // ignore: discarded_futures
+    Get.find<LikedAlbumsService>().toggle(albumId);
   }
 
   void playSong(Song song) {
     queue.playSong(song);
+  }
+
+  /// 播放该艺人所有歌曲(把当前已加载的 songs 全部入队)
+  void playAll() {
+    queue.playSongs(songs.toList());
   }
 }

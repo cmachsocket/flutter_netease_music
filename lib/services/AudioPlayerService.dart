@@ -5,7 +5,8 @@ import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 /// just_audio 的全局单例 + 公共流
 ///
 /// - **持有** [AudioPlayer] 实例(整个 app 共用,跟 [NeteaseApi] 同款 GetxService)
-/// - **暴露** [positionStream] / [durationStream] / [playingStream] 给 controller 订阅
+/// - **暴露** [positionStream] / [durationStream] / [playingStream] /
+///   [bufferedPositionStream] / [playerStateStream] 给 controller 订阅
 /// - **API** 走 `setUrl(url)` 加载流(URL 是从 /song/url 拿到的临时 mp3 直链),
 ///   不要传 NetEase API SDK 的 Song 对象,保持 AudioPlayer 跟业务解耦
 ///
@@ -21,8 +22,14 @@ class AudioPlayerService extends GetxService {
   /// 当前歌曲总时长 stream
   Stream<Duration?> get durationStream => player.durationStream;
 
+  /// 已缓冲位置 stream(给 ProgressBar 的 buffered 字段)
+  Stream<Duration> get bufferedPositionStream => player.bufferedPositionStream;
+
   /// 是否正在播放 stream
   Stream<bool> get playingStream => player.playingStream;
+
+  /// 播放器状态 stream —— processingState 变 completed 时触发自动切下一首
+  Stream<PlayerState> get playerStateStream => player.playerStateStream;
 
   /// 加载一首新歌(URL 是 /song/url 返回的临时 mp3 直链)
   Future<void> setUrl(String url) => player.setUrl(url);

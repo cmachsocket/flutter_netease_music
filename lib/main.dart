@@ -6,9 +6,13 @@ import 'package:get_storage/get_storage.dart';
 
 import 'AppShell.dart';
 import 'AppShellController.dart';
-import 'PlayPage/AudioPlayerService.dart';
-import 'PlayListPage/PlayQueueService.dart';
+import 'services/AudioPlayerService.dart';
+import 'services/PlayQueueService.dart';
 import 'sdk/netease_api.dart';
+import 'services/LikedSongsService.dart';
+import 'services/liked_albums_service.dart';
+import 'services/liked_artists_service.dart';
+import 'services/liked_playlists_service.dart';
 import 'theme/AppTheme.dart';
 import 'theme/ThemeController.dart';
 import 'widgets/netease_image.dart' show NeteaseHttpOverrides;
@@ -26,6 +30,11 @@ Future<void> main() async {
   // 网易云 SDK:创建 NeteaseCloudMusicApi 实例 + 恢复持久化 cookie
   // (必须在 GetStorage.init 之后)
   await initNeteaseApi();
+  // LikedSongsService 依赖 NeteaseApi(调 /likelist / /like),必须 NeteaseApi 注册后才能 put
+  Get.put<LikedSongsService>(LikedSongsService(), permanent: true);
+  Get.put<LikedAlbumsService>(LikedAlbumsService(), permanent: true);
+  Get.put<LikedArtistsService>(LikedArtistsService(), permanent: true);
+  Get.put<LikedPlaylistsService>(LikedPlaylistsService(), permanent: true);
   runApp(const FlutterNeteaseMusicApp());
 }
 

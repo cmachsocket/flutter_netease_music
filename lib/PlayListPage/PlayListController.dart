@@ -1,7 +1,7 @@
 import 'package:get/get.dart';
 
 import '../models/Song.dart';
-import 'PlayQueueService.dart';
+import '../services/PlayQueueService.dart';
 
 /// 播放列表页的 controller
 ///

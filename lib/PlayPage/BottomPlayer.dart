@@ -78,6 +78,24 @@ class BottomPlayer extends StatelessWidget {
                       ],
                     ),
                   ),
+                  Obx(() {
+                    final song = player.currentSong.value;
+                    return IconButton(
+                      icon: Icon(
+                        player.isLiked.value
+                            ? Icons.favorite
+                            : Icons.favorite_border,
+                        color: player.isLiked.value ? scheme.primary : null,
+                      ),
+                      onPressed: song == null ? null : player.toggleFavorite,
+                      tooltip:
+                          player.isLiked.value ? '取消喜欢' : '喜欢',
+                    );
+                  }),
+                  IconButton(
+                    icon: const Icon(Icons.skip_previous),
+                    onPressed: () => _prev(playlist),
+                  ),
                   IconButton(
                     icon: Obx(
                       () => Icon(
@@ -86,6 +104,7 @@ class BottomPlayer extends StatelessWidget {
                     ),
                     onPressed: player.togglePlay,
                   ),
+
                   IconButton(
                     icon: const Icon(Icons.skip_next),
                     onPressed: () => _next(playlist),
@@ -105,8 +124,7 @@ class BottomPlayer extends StatelessWidget {
               child: Obx(
                 () => ProgressBar(
                   progress: player.position.value,
-                  //todo: bind to actual buffered
-                  buffered: const Duration(seconds: 60),
+                  buffered: player.buffered.value,
                   total: player.duration.value,
                   onSeek: player.seek,
                   timeLabelLocation: TimeLabelLocation.sides,
@@ -126,6 +144,12 @@ class BottomPlayer extends StatelessWidget {
   }
 
   /// 下一首:从队列里取下一首播放,队尾则跳回首首
+  void _prev(PlayListController playlist) {
+    final prev = playlist.currentIndex.value - 1;
+    if (prev < 0) return;
+    playlist.selectIndex(prev);
+  }
+
   void _next(PlayListController playlist) {
     final next = playlist.currentIndex.value + 1;
     if (next >= playlist.playlist.length) return;

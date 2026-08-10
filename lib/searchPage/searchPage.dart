@@ -111,6 +111,8 @@ class _AlbumGridView extends StatelessWidget {
           title: a.name,
           subtitle: '${a.type.label} · ${a.songCount}首',
           imageUrl: a.coverUrl,
+          isLiked: () => c.isAlbumLiked(a.id),
+          onToggleFavorite: () => c.toggleAlbumLike(a.id),
           onTap: () => Get.to(
             () => SongListDetail(
               playlistId: 'album-${a.id}',
@@ -149,6 +151,8 @@ class _ArtistGridView extends StatelessWidget {
           title: a.name,
           subtitle: '${a.albumCount}张专辑 · ${a.songCount}首歌',
           imageUrl: a.photoUrl,
+          isLiked: () => c.isArtistLiked(a.id),
+          onToggleFavorite: () => c.toggleArtistLike(a.id),
           onTap: () => Get.to(
             () => ArtistDetail(artistId: a.id),
             id: AppShell.shellNavigatorId,
@@ -184,6 +188,8 @@ class _PlaylistGridView extends StatelessWidget {
           title: p.name,
           subtitle: '${p.creatorName} · ${p.trackCount}首',
           imageUrl: p.coverUrl,
+          isLiked: () => c.isPlaylistLiked(p.id),
+          onToggleFavorite: () => c.togglePlaylistLike(p.id),
           onTap: () => Get.to(
             () => SongListDetail(playlistId: p.id, displayTitle: p.name),
             id: AppShell.shellNavigatorId,

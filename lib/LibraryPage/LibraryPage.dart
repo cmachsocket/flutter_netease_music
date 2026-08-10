@@ -119,7 +119,7 @@ class _PlaylistsView extends StatelessWidget {
       }
       return AspectDrivenGrid(
         minColumns: 2,
-        childAspectRatio: 0.8,
+        childAspectRatio: 0.75,
         itemCount: c.playlists.length,
         itemBuilder: (context, index) {
           final p = c.playlists[index];
@@ -128,6 +128,8 @@ class _PlaylistsView extends StatelessWidget {
             title: p.name,
             subtitle: '${p.trackCount} 首',
             imageUrl: p.picUrl,
+            isLiked: () => c.isPlaylistLiked(p.id),
+            onToggleFavorite: () => c.togglePlaylistLike(p.id),
           );
         },
       );
@@ -157,7 +159,7 @@ class _AlbumsView extends StatelessWidget {
       }
       return AspectDrivenGrid(
         minColumns: 2,
-        childAspectRatio: 0.8,
+        childAspectRatio: 0.75,
         itemCount: c.albums.length,
         itemBuilder: (context, index) {
           final a = c.albums[index];
@@ -166,6 +168,8 @@ class _AlbumsView extends StatelessWidget {
             title: a.name,
             subtitle: a.artist,
             imageUrl: a.picUrl,
+            isLiked: () => c.isAlbumLiked(a.id),
+            onToggleFavorite: () => c.toggleAlbumLike(a.id),
           );
         },
       );
@@ -195,7 +199,7 @@ class _ArtistsView extends StatelessWidget {
       }
       return AspectDrivenGrid(
         minColumns: 3,
-        childAspectRatio: 0.8,
+        childAspectRatio: 0.78,
         itemCount: c.artists.length,
         itemBuilder: (context, index) {
           final a = c.artists[index];
@@ -204,6 +208,8 @@ class _ArtistsView extends StatelessWidget {
             title: a.name,
             subtitle: '',
             imageUrl: a.picUrl,
+            isLiked: () => c.isArtistLiked(a.id),
+            onToggleFavorite: () => c.toggleArtistLike(a.id),
             onTap: () => Get.to(
               () => ArtistDetail(artistId: a.id),
               id: AppShell.shellNavigatorId,

@@ -5,7 +5,7 @@ import 'Lyrics.dart';
 import 'PlayerController.dart';
 import '../PlayListPage/PlayListPage.dart';
 import '../PlayListPage/PlayListController.dart';
-import '../PlayListPage/PlayQueueService.dart';
+import '../services/PlayQueueService.dart';
 import '../widgets/linked_detail_text.dart';
 import '../widgets/netease_image.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
@@ -133,10 +133,21 @@ class Player extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               IconButton(icon: const Icon(Icons.shuffle), onPressed: () {}),
-              IconButton(
-                icon: const Icon(Icons.favorite_border),
-                onPressed: () {},
-              ),
+              Obx(() {
+                final song = controller.currentSong.value;
+                return IconButton(
+                  icon: Icon(
+                    controller.isLiked.value
+                        ? Icons.favorite
+                        : Icons.favorite_border,
+                    color: controller.isLiked.value
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
+                  ),
+                  onPressed: song == null ? null : controller.toggleFavorite,
+                  tooltip: controller.isLiked.value ? '取消喜欢' : '喜欢',
+                );
+              }),
               IconButton(
                 icon: const Icon(Icons.playlist_play),
                 onPressed: () => Get.to(() => const PlayListPage()),

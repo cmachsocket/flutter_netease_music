@@ -1,7 +1,10 @@
 import 'package:get/get.dart';
 
 import '../models/Song.dart';
-import '../PlayListPage/PlayQueueService.dart';
+import '../services/LikedSongsService.dart';
+import '../services/liked_albums_service.dart';
+import '../services/liked_playlists_service.dart';
+import '../services/PlayQueueService.dart';
 import '../sdk/api_exception.dart';
 import '../sdk/netease_api.dart';
 
@@ -19,6 +22,9 @@ class SongListController extends GetxController {
 
   final NeteaseApi api = Get.find<NeteaseApi>();
   final PlayQueueService queue = Get.find<PlayQueueService>();
+  final LikedSongsService _likedService = Get.find<LikedSongsService>();
+  final LikedAlbumsService _likedAlbums = Get.find<LikedAlbumsService>();
+  final LikedPlaylistsService _likedPlaylists = Get.find<LikedPlaylistsService>();
 
   final RxList<Song> songs = <Song>[].obs;
   final RxBool isLoading = false.obs;
@@ -44,44 +50,25 @@ class SongListController extends GetxController {
     ready = load();
   }
 
-  /// 拉当前歌单 ([playlistId]) 的元信息 + 曲目
+  /// 拉当前 ([playlistId]) 的元信息 + 曲目
   ///
-  /// 两个调用并行(互不依赖):detail 拿标题/封面,track_all 拿完整曲目
+  /// **id 形态**:
+  /// - 普通歌单:`纯数字`,走 `/playlist/detail` + `/playlist/track/all`
+  /// - 专辑:`'album-<id>'` 前缀(由调用方拼,见 [SongListCard] / [linked_detail_text]),
+  ///   走 `/album?id=<id>`(一次性拿全:album 项 + songs 数组)
+  ///
+  /// 为什么 1 个 controller 接两种 id:
+  /// - 详情页 UI 完全一致,业务字段(title/coverUrl/description/songs)走同一套 Rx
+  /// - 差异化只在拉数据阶段,所以分流放在 controller 里不放在 widget
   Future<void> load() async {
     isLoading.value = true;
     errorMessage.value = null;
     final id = playlistId;
     try {
-      // 1. 拉歌单元信息(标题/封面/描述)
-      try {
-        final detail = await api.call(
-          (a) => a.playlist_detail(id),
-          what: '拉歌单详情',
-        );
-        final playlist = detail.body['playlist'];
-        if (playlist is Map) {
-          final p = Map<String, dynamic>.from(playlist);
-          title.value = (p['name'] ?? '').toString();
-          coverUrl.value = (p['coverImgUrl'] ?? '').toString();
-          description.value = (p['description'] ?? '').toString();
-        }
-      } on ApiException {
-        // 元信息失败不影响曲目展示,继续往下走
-      }
-
-      // 2. 拉所有曲目(track_all 而非 detail.tracks,后者只返前 1000 首)
-      final tracks = await api.call(
-        (a) => a.playlist_track_all(id),
-        what: '拉歌单曲目',
-      );
-      final songsList = tracks.body['songs'];
-      if (songsList is List) {
-        songs.assignAll(
-          songsList
-              .whereType<Map>()
-              .map((m) => Song.fromNeteaseJson(Map<String, dynamic>.from(m)))
-              .toList(),
-        );
+      if (id.startsWith(_albumPrefix)) {
+        await _loadAlbum(id.substring(_albumPrefix.length));
+      } else {
+        await _loadPlaylist(id);
       }
     } on ApiException catch (e) {
       errorMessage.value = e.message;
@@ -90,9 +77,111 @@ class SongListController extends GetxController {
     }
   }
 
-  /// 喜爱切换(占位)。后续可挂 [RxSet<String>] 持久化 + 联动 PlayListController 真正切换
+  static const String _albumPrefix = 'album-';
+
+  /// 歌单分支:`/playlist/detail`(元信息) + `/playlist/track/all`(曲目)
+  ///
+  /// - 元信息允许失败(只丢标题/封面,不影响曲目展示)
+  Future<void> _loadPlaylist(String id) async {
+    // 1. 元信息(标题/封面/描述)
+    try {
+      final detail = await api.call(
+        (a) => a.playlist_detail(id),
+        what: '拉歌单详情',
+      );
+      final playlist = detail.body['playlist'];
+      if (playlist is Map) {
+        final p = Map<String, dynamic>.from(playlist);
+        title.value = (p['name'] ?? '').toString();
+        coverUrl.value = (p['coverImgUrl'] ?? '').toString();
+        description.value = (p['description'] ?? '').toString();
+      }
+    } on ApiException {
+      // 元信息失败不影响曲目展示
+    }
+
+    // 2. 拉所有曲目(track_all 而非 detail.tracks,后者只返前 1000 首)
+    final tracks = await api.call(
+      (a) => a.playlist_track_all(id),
+      what: '拉歌单曲目',
+    );
+    final songsList = tracks.body['songs'];
+    if (songsList is List) {
+      songs.assignAll(
+        songsList
+            .whereType<Map>()
+            .map((m) => Song.fromNeteaseJson(Map<String, dynamic>.from(m)))
+            .toList(),
+      );
+    }
+  }
+
+  /// 专辑分支:`/album?id=X`(响应同时含 album 项 + songs 数组,一次拿全)
+  Future<void> _loadAlbum(String id) async {
+    final r = await api.call(
+      (a) => a.album(id),
+      what: '拉专辑内容',
+    );
+    final albumMap = r.body['album'];
+    if (albumMap is Map) {
+      final a = Map<String, dynamic>.from(albumMap);
+      title.value = (a['name'] ?? '').toString();
+      coverUrl.value = (a['picUrl'] ?? '').toString();
+      description.value = (a['description'] ?? '').toString();
+    }
+    final songsList = r.body['songs'];
+    if (songsList is List) {
+      songs.assignAll(
+        songsList
+            .whereType<Map>()
+            .map((m) => Song.fromNeteaseJson(Map<String, dynamic>.from(m)))
+            .toList(),
+      );
+    }
+  }
+
+  /// 喜爱切换 → 走全局 [LikedSongsService](乐观更新 + 后端持久化)
   void toggleFavorite(String songId) {
-    // TODO: 接 controller.toggleFavorite(songId);接 player 那边通知
+    // ignore: discarded_futures
+    _likedService.toggle(songId);
+  }
+
+  /// 查询某首歌是否被喜欢
+  ///
+  /// - 调用方**必须包 Obx**才能响应 likedIds 变化
+  /// - 转发到 [LikedSongsService.likedIds](RxSet)的 contains 查询
+  /// - 读 .value 触发 Obx 跟踪(contains 走内部 _value 不跟踪)
+  bool isLiked(String songId) =>
+      // ignore: invalid_use_of_protected_member
+      _likedService.likedIds.value.contains(songId);
+
+  /// toggle 当前 playlistId 的收藏(按 [playlistId] 前缀分流)
+  ///
+  /// - `'album-<id>'` → [LikedAlbumsService]
+  /// - 纯数字 → [LikedPlaylistsService]
+  /// - controller 是"playlistId 是什么"唯一知道的地方,widget 不用分流
+  void togglePlaylistFavorite() {
+    if (playlistId.startsWith(_albumPrefix)) {
+      // ignore: discarded_futures
+      _likedAlbums.toggle(playlistId.substring(_albumPrefix.length));
+    } else {
+      // ignore: discarded_futures
+      _likedPlaylists.toggle(playlistId);
+    }
+  }
+
+  /// 查询当前 playlistId 是否被收藏
+  ///
+  /// - 调用方**必须包 Obx**才能响应 likedXxxIds 变化
+  bool isPlaylistFavorite() {
+    if (playlistId.startsWith(_albumPrefix)) {
+      // ignore: invalid_use_of_protected_member
+      return _likedAlbums.likedAlbumIds.value.contains(
+        playlistId.substring(_albumPrefix.length),
+      );
+    }
+    // ignore: invalid_use_of_protected_member
+    return _likedPlaylists.likedPlaylistIds.value.contains(playlistId);
   }
 
   /// 播放当前歌单里的某首歌:把整个歌单作为播放列表，再从这首开始播。
