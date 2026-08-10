@@ -43,9 +43,10 @@ class BottomPlayer extends StatelessWidget {
                     final song = player.currentSong.value;
                     final child = song == null
                         ? Container(color: scheme.surfaceContainerHigh)
-                        : Image(
-                            image: neteaseNetworkImage(song.coverUrl),
+                        : Image.network(
+                            song.coverUrl,
                             fit: BoxFit.cover,
+                            headers: neteaseImageHeaders,
                           );
                     return AspectRatio(aspectRatio: 1, child: child);
                   }),

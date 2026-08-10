@@ -78,10 +78,13 @@ class Player extends StatelessWidget {
                         aspectRatio: 1,
                         child: Obx(() {
                           final song = controller.currentSong.value;
-                          return Image(
-                            image: neteaseNetworkImage(song?.coverUrl ?? ''),
-                            fit: BoxFit.cover,
-                          );
+                          return song?.coverUrl == null
+                              ? Icon(Icons.music_note)
+                              : Image.network(
+                                  song?.coverUrl ?? "",
+                                  fit: BoxFit.cover,
+                                  headers: neteaseImageHeaders,
+                                );
                         }),
                       ),
                       const Lyrics(),

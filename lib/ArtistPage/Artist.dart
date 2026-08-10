@@ -36,7 +36,7 @@ class Artist {
   /// - albumSize: 专辑数
   /// - fans: 粉丝数(可能不存在,如 /artist/album 返回的 summary)
   factory Artist.fromNeteaseJson(Map<String, dynamic> json) {
-    final pic = json['picUrl'] ?? json['img1v1Url'] ?? '';
+    final pic = json['picUrl'] ?? '';
     return Artist(
       id: json['id'].toString(),
       name: (json['name'] ?? '').toString(),

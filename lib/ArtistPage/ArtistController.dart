@@ -63,8 +63,15 @@ class ArtistController extends GetxController {
         debugPrint(
           '[ArtistController] /artists raw body = ${jsonEncode(r.body)}',
         );
-        final m = r.body;
-        if (m.isNotEmpty) artist.value = Artist.fromNeteaseJson(m);
+        // /artists 响应是 {artist:{...}, hotSongs:[...]} 外层包了 artist
+        // search 接口的 artists[] 项才是直接 artist(无 wrap),两种 schema 不同
+        // —— 在调用方解包,不让 model 吃两种 schema
+        final raw = r.body['artist'];
+        if (raw is Map) {
+          artist.value = Artist.fromNeteaseJson(
+            Map<String, dynamic>.from(raw),
+          );
+        }
       }),
       safeRun('拉艺人专辑', () async {
         final r = await api.call((a) => a.artist_album(id), what: '拉艺人专辑');

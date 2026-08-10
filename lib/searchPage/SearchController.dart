@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/widgets.dart' show TextEditingController;
 import 'package:get/get.dart';
 
@@ -142,6 +144,9 @@ class SearchController extends GetxController {
               .map((m) => Song.fromNeteaseJson(Map<String, dynamic>.from(m)))
               .toList(),
         );
+        // 单曲封面补图:search 接口 album 项只有 picId(数字),没 picUrl(URL)。
+        // 批量调 /song/detail?ids=... 一次性拿所有歌的真 coverUrl 回填。
+        unawaited(_enrichSongCovers());
       case SearchType.album:
         albumResults.assignAll(
           list
@@ -176,6 +181,70 @@ class SearchController extends GetxController {
     SearchType.artist => 'artists',
     SearchType.playlist => 'playlists',
   };
+
+  /// 单曲封面补图
+  ///
+  /// - **背景**:`/search?type=1` 返回的 songs[].album 只给 `picId`(数字),
+  ///   不给 `picUrl`(URL);`Image.network("数字串")` 解析 URI 失败 → 占位
+  /// - **方案**:批量调 `/song/detail?ids=id1,id2,...`(一次 API 拿全),
+  ///   响应里 songs[].album.picUrl 是真 URL,按 songId 回填
+  /// - **回填方式**:Song.coverUrl 是 `final`,不可变 → 重建 Song 对象 + assignAll
+  /// - **失败处理**:catch 后静默(补图失败不阻塞搜索结果,UI 走占位)
+  /// - **竞争**:补图回调时如果用户已经切走/清空,byId 跟当前 songResults 对不上,
+  ///   按 id 匹配不上就不动 → 安全
+  Future<void> _enrichSongCovers() async {
+    final snapshot = songResults.toList();
+    if (snapshot.isEmpty) return;
+    final ids = snapshot.map((s) => s.id).join(',');
+    try {
+      final r = await api.call(
+        (a) => a.song_detail(ids),
+        what: '补单曲封面',
+      );
+      final songs = r.body['songs'];
+      if (songs is! List) return;
+      // 按 songId → 真 coverUrl 建索引
+      final byId = <String, String>{};
+      for (final raw in songs) {
+        if (raw is! Map) continue;
+        final m = Map<String, dynamic>.from(raw);
+        final sid = m['id']?.toString();
+        if (sid == null) continue;
+        final al = m['al'] ?? m['album'];
+        if (al is! Map) continue;
+        final picUrl = (Map<String, dynamic>.from(al)['picUrl'] ?? '')
+            .toString();
+        if (picUrl.isNotEmpty) byId[sid] = picUrl;
+      }
+      if (byId.isEmpty) return;
+      // 按当前 songResults 重建(若 songResults 已被换走,以当前为准,旧 id 跳过)
+      final updated = <Song>[];
+      var changed = false;
+      for (final s in songResults) {
+        final newCover = byId[s.id];
+        if (newCover != null && newCover != s.coverUrl) {
+          updated.add(
+            Song(
+              id: s.id,
+              title: s.title,
+              artist: s.artist,
+              artistId: s.artistId,
+              album: s.album,
+              albumId: s.albumId,
+              coverUrl: newCover,
+              duration: s.duration,
+            ),
+          );
+          changed = true;
+        } else {
+          updated.add(s);
+        }
+      }
+      if (changed) songResults.assignAll(updated);
+    } on ApiException {
+      // 补图失败不阻塞搜索结果,UI 走 SongRowTile._Cover 空 URL 占位
+    }
+  }
 }
 
 /// 搜索结果里的歌单摘要(轻量,跟 LibraryController 的 PlaylistSummary

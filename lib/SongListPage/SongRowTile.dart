@@ -47,6 +47,10 @@ class SongRowTile extends StatelessWidget {
 }
 
 /// 列表封面:复用网络图,失败时退化为 M3 标准 surface 色块 + 音符图标
+///
+/// 空 URL 直接走占位(不调 Image.network,避免空 URI 解析异常):
+/// - search 接口 song 项里 album 只有 picId(数字),没 picUrl(URL)
+/// - Song.coverUrl 为空是预期的,占位 Container 反而更干净
 class _Cover extends StatelessWidget {
   const _Cover({required this.url});
   final String url;
@@ -54,15 +58,17 @@ class _Cover extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final placeholder = Container(
+      color: scheme.surfaceContainerHigh,
+      alignment: Alignment.center,
+      child: Icon(Icons.music_note, color: scheme.onSurfaceVariant),
+    );
+    if (url.isEmpty) return placeholder;
     return Image.network(
       url,
       fit: BoxFit.cover,
       headers: neteaseImageHeaders,
-      errorBuilder: (_, _, _) => Container(
-        color: scheme.surfaceContainerHigh,
-        alignment: Alignment.center,
-        child: Icon(Icons.music_note, color: scheme.onSurfaceVariant),
-      ),
+      errorBuilder: (_, _, _) => placeholder,
     );
   }
 }
