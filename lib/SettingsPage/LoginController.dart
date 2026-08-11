@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart' show TextEditingController;
-import 'package:flutter_netease_music/sdk/musiclibrary/music_library.dart';
+import 'package:musiclibrary/music_library.dart';
 import 'package:get/get.dart';
 
 import '../sdk/api_call.dart';
