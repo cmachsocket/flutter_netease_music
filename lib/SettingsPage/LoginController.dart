@@ -19,7 +19,7 @@ import '../sdk/netease_api.dart';
 class LoginController extends GetxController {
   // 业务常量集中放这里(单一来源,View 也引用)
   static const int phoneLength = 11;
-  static const int codeLength = 6;
+  static const int codeLength = 4;
   static const int countdownSeconds = 60;
   static const Duration tickInterval = Duration(seconds: 1);
 
