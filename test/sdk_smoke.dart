@@ -1,7 +1,9 @@
-import 'package:flutter_netease_music/sdk/musiclibrary/music_library.dart';
+import 'package:musiclibrary/music_library.dart';
+
 void main() {
   final api = NeteaseCloudMusicApi(
-    libraryDir: '/home/cmach_socket/projects/flutter_netease_music/build/linux/x64/debug/bundle/lib',
+    libraryDir:
+        '/home/cmach_socket/projects/flutter_netease_music/build/linux/x64/debug/bundle/lib',
   );
   final r = api.search('周杰伦', type: '1', limit: '3');
   print('status=${r.status} body.code=${r.body['code']}');

@@ -1,4 +1,4 @@
-import 'package:flutter_netease_music/sdk/musiclibrary/music_library.dart';
+import 'package:musiclibrary/music_library.dart';
 
 /// Smoke test:游客 cookie + login_cellphone 流程
 ///

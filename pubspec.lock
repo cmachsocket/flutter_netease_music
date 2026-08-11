@@ -411,11 +411,9 @@ packages:
   musiclibrary:
     dependency: "direct main"
     description:
-      path: "src/dart"
-      ref: HEAD
-      resolved-ref: "3f24eae7a52ac3ec448d1d9aaa11b411ccec37ae"
-      url: "https://github.com/2061360308/NeteaseCloudMusic_PythonSDK.git"
-    source: git
+      path: "packages/musiclibrary"
+      relative: true
+    source: path
     version: "0.0.1"
   nested:
     dependency: transitive

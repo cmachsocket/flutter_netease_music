@@ -1,5 +1,4 @@
-import 'package:flutter_netease_music/sdk/musiclibrary/music_library.dart';
-
+import 'package:musiclibrary/music_library.dart';
 import 'api_exception.dart';
 
 /// 调用一次后端接口 + 业务检查
@@ -36,10 +35,7 @@ Future<MusicResponse> apiCall(
 /// 此时只看 HTTP status。
 void checkResponse(MusicResponse r, {String? hint}) {
   if (r.status != 200) {
-    throw ApiException(
-      r.status,
-      '${hint ?? "请求"} 失败 (HTTP ${r.status})',
-    );
+    throw ApiException(r.status, '${hint ?? "请求"} 失败 (HTTP ${r.status})');
   }
   final bodyCode = r.body['code'];
   if (bodyCode is int && bodyCode != 200) {

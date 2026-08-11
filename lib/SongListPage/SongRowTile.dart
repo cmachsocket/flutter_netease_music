@@ -34,6 +34,7 @@ class SongRowTile extends StatelessWidget {
       leading: AspectRatio(aspectRatio: 1.0, child: _Cover(url: song.coverUrl)),
       title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: LinkedDetailText(song: song),
+      onTap: onPlay,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

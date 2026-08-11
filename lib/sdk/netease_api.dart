@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show kDebugMode;
-import 'package:flutter_netease_music/sdk/musiclibrary/music_library.dart';
+import 'package:musiclibrary/music_library.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 
@@ -23,7 +23,9 @@ class NeteaseApi extends GetxService {
   static const _uidStorageKey = 'netease_uid_v1';
 
   /// 网易云 API 实例(同步阻塞 FFI)
-  final NeteaseCloudMusicApi raw = NeteaseCloudMusicApi(libraryDir: _resolveLibraryDir());
+  final NeteaseCloudMusicApi raw = NeteaseCloudMusicApi(
+    libraryDir: _resolveLibraryDir(),
+  );
 
   /// 登录态(响应式,UI 可 Obx 监听)
   ///
@@ -104,7 +106,9 @@ class NeteaseApi extends GetxService {
       if (uid == null || uid <= 0) {
         if (kDebugMode) {
           // ignore: avoid_print
-          print('[NeteaseApi] fetchCurrentUid: unexpected body shape ${r.body}');
+          print(
+            '[NeteaseApi] fetchCurrentUid: unexpected body shape ${r.body}',
+          );
         }
         return;
       }
@@ -145,10 +149,7 @@ class NeteaseApi extends GetxService {
   /// 也会继续尝试 captcha(回到老路径,最坏情况跟之前一样被云盾挡)
   Future<void> applyAnonymousCookie() async {
     try {
-      final r = await apiCall(
-        () => raw.register_anonimous(),
-        what: '游客登录',
-      );
+      final r = await apiCall(() => raw.register_anonimous(), what: '游客登录');
       // 两个位置可能携带 cookie:
       // 1. Set-Cookie header(成功响应常见路径,parseCookieString 提取)
       // 2. body.cookie JSON 数组(["NMTID=...","NMSCVT=..."],失败响应也常见)
@@ -271,6 +272,5 @@ extension NeteaseApiCall on NeteaseApi {
   Future<MusicResponse> call(
     MusicResponse Function(NeteaseCloudMusicApi api) fn, {
     String? what,
-  }) =>
-      apiCall(() => fn(raw), what: what);
+  }) => apiCall(() => fn(raw), what: what);
 }

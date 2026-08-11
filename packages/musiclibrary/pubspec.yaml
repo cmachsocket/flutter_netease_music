@@ -1,0 +1,44 @@
+name: musiclibrary
+description: Dart FFI bindings for MusicLibrary - access NetEase Cloud Music and KuGou Music APIs.
+homepage: https://github.com/2061360308/MusicLibrary
+version: 0.0.1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.3.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  ffi: ^2.1.2
+
+topics:
+  - music
+  - netease
+  - kugou
+  - api
+  - music-library
+
+keywords:
+  - music
+  - netease
+  - kugou
+  - api
+  - ffi
+  - library
+
+license: MIT
+
+# 可选：添加详细 README.md 路径
+# documentation: README.md
+
+# 可选：添加分类
+category: Multimedia
+
+# 可选：添加平台支持
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  windows:
