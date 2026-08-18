@@ -1,0 +1,3 @@
+[submodule "MusicLibrary"]
+	path = MusicLibrary
+	url = https://github.com/cmachsocket/MusicLibrary

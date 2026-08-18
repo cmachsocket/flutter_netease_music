@@ -35,10 +35,19 @@ license: MIT
 # 可选：添加分类
 category: Multimedia
 
-# 可选：添加平台支持
-platforms:
-  android:
-  ios:
-  linux:
-  macos:
-  windows:
+# 平台支持 - flutter 工具链通过 flutter.plugin.platforms 识别 plugin
+# Android: 自带 NDK native build (packages/musiclibrary/android/)
+# 其他平台: dart-only,复用预编译的 .so (Linux 用 packages/../linux/native_libraries/)
+flutter:
+  plugin:
+    platforms:
+      android:
+        ffiPlugin: true
+      ios:
+        ffiPlugin: true
+      linux:
+        ffiPlugin: true
+      macos:
+        ffiPlugin: true
+      windows:
+        ffiPlugin: true

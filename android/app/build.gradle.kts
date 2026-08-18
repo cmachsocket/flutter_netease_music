@@ -1,13 +1,11 @@
 plugins {
     id("com.android.application")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
     namespace = "com.example.flutter_netease_music"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -15,20 +13,19 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.flutter_netease_music"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
+    // native build 不在这里做——交给 packages/musiclibrary/ plugin 的
+    // android/build.gradle.kts + CMakeLists.txt 处理,Flutter 工具链会自动
+    // 把 plugin 生成的 .so 打包进 APK。
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
         }
     }
@@ -42,4 +39,9 @@ kotlin {
 
 flutter {
     source = "../.."
+    // 注意: FlutterExtension.ndkVersion 是 val (SDK 里写死的 28.2.13676358),
+    // 不能在 app 这边 override。
+    // jni plugin 用 `ndkVersion flutter.ndkVersion` 会拿到 28.2。
+    // 当前依赖 jni 的 path_provider_android 2.3.x 必须用 NDK 28.2。
+    // 临时 fix: dependency_overrides 锁 path_provider_android 到 2.2.23 (不用 jni)。
 }
