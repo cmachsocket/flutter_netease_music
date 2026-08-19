@@ -7,6 +7,10 @@ android {
     namespace = "com.example.flutter_netease_music"
     compileSdk = flutter.compileSdkVersion
 
+    // 强制覆盖 Flutter SDK 写死的 ndkVersion=28.2.13676358,
+    // 用系统里已有的 29.0.14206865(避免自动下载/无写权限)。
+    ndkVersion = "29.0.14206865"
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -39,9 +43,9 @@ kotlin {
 
 flutter {
     source = "../.."
-    // 注意: FlutterExtension.ndkVersion 是 val (SDK 里写死的 28.2.13676358),
-    // 不能在 app 这边 override。
-    // jni plugin 用 `ndkVersion flutter.ndkVersion` 会拿到 28.2。
-    // 当前依赖 jni 的 path_provider_android 2.3.x 必须用 NDK 28.2。
-    // 临时 fix: dependency_overrides 锁 path_provider_android 到 2.2.23 (不用 jni)。
+    // Flutter SDK 内部的 ndkVersion val=28.2.13676358 在 android{} 块里通过
+    // ndkVersion = "29.0.14206865" 显式 override。本地/CI 走 gradle.properties 里的
+    // android.ndkVersion,SDK 自动下载对应版本(android.builder.sdkDownload=true)。
+    // jni plugin (path_provider_android 2.3.x) 用 `ndkVersion flutter.ndkVersion`
+    // 拿到的是 override 后的 29,不需降版本。
 }
