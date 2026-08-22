@@ -5,10 +5,10 @@ packages:
     dependency: transitive
     description:
       name: archive
-      sha256: a96e8b390886ee8abb49b7bd3ac8df6f451c621619f52a26e815fdcf568959ff
+      sha256: be169cf6ac481e052c4538715d88841d567150dfe1df38aaec76461a4e7b39f2
       url: "https://pub.flutter-io.cn"
     source: hosted
-    version: "4.0.9"
+    version: "4.1.0"
   async:
     dependency: transitive
     description:
@@ -85,10 +85,10 @@ packages:
     dependency: transitive
     description:
       name: code_assets
-      sha256: bf394f466ba9205f1812a0433b392d6af280f155f56651eda7c18cc32ed493b8
+      sha256: cfd4f5f575a49c5f10ca856e9846073f1e6c3ee94912377eea5f6cefc5272941
       url: "https://pub.flutter-io.cn"
     source: hosted
-    version: "1.2.1"
+    version: "2.0.0"
   collection:
     dependency: transitive
     description:
@@ -252,10 +252,10 @@ packages:
     dependency: transitive
     description:
       name: image
-      sha256: "6300175e00616bbc832e2fc91bfa4d776af5402c81c7151bee6905bb08473c52"
+      sha256: "1976370a4df3091bb0f72409c187ad1f9132a818bc6b95ca59c0bae1c75c688e"
       url: "https://pub.flutter-io.cn"
     source: hosted
-    version: "4.9.1"
+    version: "4.9.2"
   js:
     dependency: transitive
     description:
@@ -379,11 +379,9 @@ packages:
   musiclibrary:
     dependency: "direct main"
     description:
-      path: "src/dart"
-      ref: HEAD
-      resolved-ref: "66eeab5c49bac7d599a42417dfaefabdcc2ef90b"
-      url: "https://github.com/2061360308/NeteaseCloudMusic_PythonSDK.git"
-    source: git
+      path: "NeteaseCloudMusic_PythonSDK/src/dart"
+      relative: true
+    source: path
     version: "0.0.1"
   nested:
     dependency: transitive
@@ -397,10 +395,10 @@ packages:
     dependency: transitive
     description:
       name: objective_c
-      sha256: b7fb95a6d9a4f009edd63dc5ac69f07420b23a16161c6dd8660290b59c602e8e
+      sha256: ad56fd53a78ff6b1472fa59ff2a4e8b8ccabafc586fc263a1dfad0b99b5553e3
       url: "https://pub.flutter-io.cn"
     source: hosted
-    version: "9.5.0"
+    version: "9.6.0"
   path:
     dependency: transitive
     description:
@@ -457,14 +455,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "2.3.0"
-  petitparser:
-    dependency: transitive
-    description:
-      name: petitparser
-      sha256: "91bd59303e9f769f108f8df05e371341b15d59e995e6806aefab827b58336675"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "7.0.2"
   platform:
     dependency: transitive
     description:
@@ -702,14 +692,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "1.1.0"
-  xml:
-    dependency: transitive
-    description:
-      name: xml
-      sha256: "67f0aff7be013d107995e9b75bf4e7f2c3ef2dfdb2c8e68024bba0a7fd5756a4"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "7.0.1"
   yaml:
     dependency: transitive
     description:
