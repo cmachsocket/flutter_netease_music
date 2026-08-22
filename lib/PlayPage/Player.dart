@@ -14,7 +14,6 @@ class Player extends StatelessWidget {
   Player({super.key});
   final controller = Get.find<PlayerController>();
   final playlist = Get.find<PlayListController>();
-  final queue = Get.find<PlayQueueService>();
 
   @override
   Widget build(BuildContext context) {
@@ -113,7 +112,7 @@ class Player extends StatelessWidget {
             children: [
               IconButton(
                 icon: const Icon(Icons.skip_previous),
-                onPressed: () => _prev(playlist),
+                onPressed: _gotoPrev,
               ),
               Obx(
                 () => IconButton(
@@ -125,14 +124,22 @@ class Player extends StatelessWidget {
               ),
               IconButton(
                 icon: const Icon(Icons.skip_next),
-                onPressed: () => _next(playlist),
+                onPressed: _gotoNext,
               ),
             ],
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              IconButton(icon: const Icon(Icons.shuffle), onPressed: () {}),
+              Obx(() {
+                // 三模式循环: sequential → shuffle → repeatOne → sequential
+                final m = playlist.mode.value;
+                return IconButton(
+                  icon: Icon(_modeIcon(m)),
+                  tooltip: _modeTooltip(m),
+                  onPressed: () => playlist.setMode(_nextMode(m)),
+                );
+              }),
               Obx(() {
                 final song = controller.currentSong.value;
                 return IconButton(
@@ -159,15 +166,59 @@ class Player extends StatelessWidget {
     );
   }
 
-  void _next(PlayListController playlist) {
-    final next = queue.currentIndex.value + 1;
-    if (next >= playlist.playlist.length) return;
+  void _gotoNext() {
+    final next = playlist.nextIndex();
+    if (next < 0) return;
     playlist.selectIndex(next);
+    // repeatOne: nextIndex 返回同一首 → _syncQueueState 不会 reload,
+    // 手动 seek 到 0 重启播放
+    if (playlist.mode.value == PlayMode.repeatOne) {
+      controller.seek(Duration.zero);
+      controller.play();
+    }
   }
 
-  void _prev(PlayListController playlist) {
-    final prev = queue.currentIndex.value - 1;
+  void _gotoPrev() {
+    final prev = playlist.prevIndex();
     if (prev < 0) return;
     playlist.selectIndex(prev);
+    if (playlist.mode.value == PlayMode.repeatOne) {
+      controller.seek(Duration.zero);
+      controller.play();
+    }
+  }
+
+  /// 顺/乱/单 三模式循环 (sequential → shuffle → repeatOne → sequential)
+  static PlayMode _nextMode(PlayMode m) {
+    switch (m) {
+      case PlayMode.sequential:
+        return PlayMode.shuffle;
+      case PlayMode.shuffle:
+        return PlayMode.repeatOne;
+      case PlayMode.repeatOne:
+        return PlayMode.sequential;
+    }
+  }
+
+  static IconData _modeIcon(PlayMode m) {
+    switch (m) {
+      case PlayMode.sequential:
+        return Icons.repeat;
+      case PlayMode.shuffle:
+        return Icons.shuffle;
+      case PlayMode.repeatOne:
+        return Icons.repeat_one;
+    }
+  }
+
+  static String _modeTooltip(PlayMode m) {
+    switch (m) {
+      case PlayMode.sequential:
+        return '顺序播放';
+      case PlayMode.shuffle:
+        return '随机播放';
+      case PlayMode.repeatOne:
+        return '单曲循环';
+    }
   }
 }

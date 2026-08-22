@@ -6,6 +6,7 @@ import 'Player.dart';
 import 'PlayerController.dart';
 import '../PlayListPage/PlayListPage.dart';
 import '../PlayListPage/PlayListController.dart';
+import '../services/PlayQueueService.dart';
 import '../widgets/netease_image.dart';
 
 /// 底部 mini 播放器
@@ -94,7 +95,7 @@ class BottomPlayer extends StatelessWidget {
                   }),
                   IconButton(
                     icon: const Icon(Icons.skip_previous),
-                    onPressed: () => _prev(playlist),
+                    onPressed: () => _gotoPrev(playlist, player),
                   ),
                   IconButton(
                     icon: Obx(
@@ -107,7 +108,7 @@ class BottomPlayer extends StatelessWidget {
 
                   IconButton(
                     icon: const Icon(Icons.skip_next),
-                    onPressed: () => _next(playlist),
+                    onPressed: () => _gotoNext(playlist, player),
                   ),
                   IconButton(
                     icon: const Icon(Icons.playlist_play),
@@ -143,16 +144,25 @@ class BottomPlayer extends StatelessWidget {
     );
   }
 
-  /// 下一首:从队列里取下一首播放,队尾则跳回首首
-  void _prev(PlayListController playlist) {
-    final prev = playlist.currentIndex.value - 1;
-    if (prev < 0) return;
-    playlist.selectIndex(prev);
+  /// 下一首:走 [PlayQueueService.nextIndex],由它决定 sequential/shuffle/repeatOne
+  void _gotoNext(PlayListController playlist, PlayerController player) {
+    final next = playlist.nextIndex();
+    if (next < 0) return;
+    playlist.selectIndex(next);
+    if (playlist.mode.value == PlayMode.repeatOne) {
+      player.seek(Duration.zero);
+      player.play();
+    }
   }
 
-  void _next(PlayListController playlist) {
-    final next = playlist.currentIndex.value + 1;
-    if (next >= playlist.playlist.length) return;
-    playlist.selectIndex(next);
+  /// 上一首:走 [PlayQueueService.prevIndex]
+  void _gotoPrev(PlayListController playlist, PlayerController player) {
+    final prev = playlist.prevIndex();
+    if (prev < 0) return;
+    playlist.selectIndex(prev);
+    if (playlist.mode.value == PlayMode.repeatOne) {
+      player.seek(Duration.zero);
+      player.play();
+    }
   }
 }

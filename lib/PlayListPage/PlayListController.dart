@@ -12,8 +12,12 @@ class PlayListController extends GetxController {
 
   RxList<Song> get playlist => queue.playlist;
   RxInt get currentIndex => queue.currentIndex;
+  Rx<PlayMode> get mode => queue.mode;
 
   void selectIndex(int index) => queue.selectIndex(index);
+  void setMode(PlayMode m) => queue.setMode(m);
+  int nextIndex() => queue.nextIndex();
+  int prevIndex() => queue.prevIndex();
   Future<void> playSong(Song song) => queue.playSong(song);
   Future<void> playSongs(List<Song> songs, {Song? startSong}) =>
       queue.playSongs(songs, startSong: startSong);
