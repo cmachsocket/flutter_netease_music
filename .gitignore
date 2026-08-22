@@ -46,3 +46,7 @@ app.*.map.json
 /android/app/release
 /android/build
 /android/.gradle
+
+# Note: /android/.gradle is Gradle's local cache dir.
+# DO NOT add android/gradlew{,bat} or android/gradle/wrapper/ here — those
+# are the Gradle wrapper and MUST be committed (see android/gradle/wrapper/).
