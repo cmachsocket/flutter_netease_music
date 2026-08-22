@@ -7,7 +7,7 @@ import '../models/Song.dart';
 
 /// 播放模式
 ///
-/// - [sequential]: 顺序播放, 队尾停
+/// - [sequential]: 顺序循环, 队尾 → 跳回首首(双向都 wrap, 跟常用播放器一致)
 /// - [shuffle]:    乱序播放, 不重复抽到同一首直到 playlist 全部播过一轮
 /// - [repeatOne]:  单曲循环, 播完当前首自动重播(不走 next)
 enum PlayMode {
@@ -105,7 +105,7 @@ class PlayQueueService extends GetxService {
 
   /// 计算"下一首要播的索引"
   ///
-  /// - **sequential**: currentIndex + 1, 队尾返回 -1 (让 UI/Controller 知道没歌了)
+  /// - **sequential**: currentIndex + 1, 队尾 wrap 回 0 (顺序循环)
   /// - **shuffle**:    从未播过的歌里随机抽; 全部播过一轮 → 清空轮询重来
   /// - **repeatOne**:  当前首, 不变 —— Controller 走 reload-current-song 路径
   ///
@@ -114,8 +114,7 @@ class PlayQueueService extends GetxService {
     if (playlist.isEmpty) return -1;
     switch (mode.value) {
       case PlayMode.sequential:
-        final n = currentIndex.value + 1;
-        return n < playlist.length ? n : -1;
+        return (currentIndex.value + 1) % playlist.length;
       case PlayMode.shuffle:
         return _nextShuffleIndex();
       case PlayMode.repeatOne:
@@ -125,7 +124,7 @@ class PlayQueueService extends GetxService {
 
   /// 计算"上一首要播的索引"
   ///
-  /// - **sequential**: currentIndex - 1, 队首返回 0 (回到队首不 -1)
+  /// - **sequential**: currentIndex - 1, 队首 wrap 到队尾 (双向循环对称)
   /// - **shuffle**:    同 next, 随机抽
   /// - **repeatOne**:  当前首, 不变
   int prevIndex() {
@@ -133,7 +132,7 @@ class PlayQueueService extends GetxService {
     switch (mode.value) {
       case PlayMode.sequential:
         final p = currentIndex.value - 1;
-        return p < 0 ? 0 : p;
+        return p < 0 ? playlist.length - 1 : p;
       case PlayMode.shuffle:
         return _nextShuffleIndex();
       case PlayMode.repeatOne:

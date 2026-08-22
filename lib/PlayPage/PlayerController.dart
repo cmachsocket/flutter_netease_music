@@ -135,10 +135,10 @@ class PlayerController extends GetxController {
   /// - 只看 `processingState == completed`(自然结束;手动 seek 不会触发这个)
   /// - **走 [PlayQueueService.nextIndex]** —— 模式(sequential/shuffle/repeatOne)
   ///   全在 service 里算, 这里只负责"查索引 → selectIndex → 触发 _syncQueueState"
-  /// - sequential 队尾 / playlist 为空 → 返回 -1, 不动(UI 保持最后一首已播完状态)
+  /// - sequential 模式下走顺序循环(队尾 wrap 到 0), service 永远返回有效索引
+  ///   (除非 playlist 为空)
   /// - repeatOne → 同一首, service 自己处理(本函数选回当前 index → _syncQueueState
-  ///   看到 currentSong.id == target.id 早退, 但 _audio.play() 会在 setUrl 之外
-  ///   需要重启; 见 [loadSong] 的特殊路径)
+  ///   看到 currentSong.id == target.id 早退, 这里手动 seek + play 重启)
   void _onPlayerState(PlayerState state) {
     if (state.processingState != ProcessingState.completed) return;
     final next = queue.nextIndex();
