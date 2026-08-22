@@ -51,16 +51,16 @@ jobs:
           channel: stable
           flutter-version: 3.47.0
 
-      - name: Check gradlew exists
+      - name: Ensure gradlew is executable
         run: |
+          # Wrapper files (gradlew, gradlew.bat, gradle-wrapper.jar) must be committed
+          # to the repo. If this step fails with "No such file", commit them.
+          # See: https://docs.gradle.org/current/userguide/gradle_wrapper.html
           if [ ! -f android/gradlew ]; then
-            echo "::error::android/gradlew missing -- wrapper not committed"
+            echo "::error::android/gradlew missing — wrapper not committed. Run 'gradle wrapper' locally and commit android/gradlew{,bat} + android/gradle/wrapper/gradle-wrapper.jar."
             exit 1
           fi
-          ls -la android/gradlew
-
-      - name: Fix gradlew executable bit
-        run: chmod +x android/gradlew
+          chmod +x android/gradlew
 
       - name: Write local.properties
         run: |
