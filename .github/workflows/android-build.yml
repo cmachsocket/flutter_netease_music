@@ -128,15 +128,35 @@ jobs:
         run: flutter pub get
 
       - name: Build debug APK
-        working-directory: android
-        run: ./gradlew :app:assembleDebug --stacktrace
+        # 2026-08-24 优化: 原来 4 ABI 全编 + debug symbol 完整输出 = 178MB。
+        # 改成只出 arm64-v8a split APK:
+        #   - --target-platform=android-arm64 限制 Flutter Dart AOT engine (libapp.so)
+        #     只编 arm64。
+        #   - --split-per-abi 让 AGP splits 拆出单 ABI APK。
+        # 注: FlutterPlugin 只 hook application module, plugin (library module, 如
+        # musiclibrary) 仍按 plugin 自己的 defaultConfig 编全部 ABI .so。但 splits 在
+        # 打包阶段只挑目标 ABI 进 APK, 最终 APK 仍是单 ABI。
+        # release build 保留 4 ABI: 去掉 --target-platform 保留 --split-per-abi
+        # (产 4 个 split APK, 每个含一个 ABI)。
+        working-directory: .
+        run: |
+          flutter build apk \
+            --debug \
+            --target-platform=android-arm64 \
+            --split-per-abi \
+            --build-name=1.0.0 \
+            --build-number=1 \
+            --no-tree-shake-icons
 
-      # 路径说明: android/build.gradle.kts 里 rootProject.layout.buildDirectory.dir("../../build")
-      # 把 APK 输出移到 <repo-root>/build/app/outputs/apk/debug/ (不是 android/app/build/)。
-      # Gradle 报 problems report 的路径也是 <repo-root>/build/reports/...。
+      # 路径说明: AGP splits-per-abi + debug buildType 产出
+      #   <repo-root>/build/app/outputs/apk/debug/app-arm64-v8a-debug.apk
+      # (命名规则: <module>-<abi>-<buildType>.apk, 见 AGP docs configure-apk-splits)。
+      # 之前误写成 app-arm64-v8a.apk, verify step 找不到文件。
+      # android/build.gradle.kts 里 rootProject.layout.buildDirectory.dir("../../build")
+      # 把 build/ 移到仓库根。
       - name: Verify native libs in APK
         run: |
-          APK="build/app/outputs/apk/debug/app-debug.apk"
+          APK="build/app/outputs/apk/debug/app-arm64-v8a-debug.apk"
           if [ ! -f "$APK" ]; then
             echo "::error::APK not found at $APK"
             exit 1
@@ -149,7 +169,7 @@ jobs:
         id: prep
         run: |
           mkdir -p release-artifacts
-          cp build/app/outputs/apk/debug/app-debug.apk release-artifacts/
+          cp build/app/outputs/apk/debug/app-arm64-v8a-debug.apk release-artifacts/
           cd release-artifacts
           sha256sum *.apk > SHA256SUMS
 
