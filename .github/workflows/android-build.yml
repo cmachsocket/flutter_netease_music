@@ -51,6 +51,51 @@ jobs:
           channel: stable
           flutter-version: 3.47.0
 
+      # ============ MusicLibrary JS bundle 生成 ============
+      # MusicLibrary/bundle/c/{kugou,ncm}_music_api_bundle.c 是 gitignored 的
+      # (见 MusicLibrary/.gitignore), 不入库。CI runner 必须在 gradle build 前本地生成。
+      # 这俩 bundle 是 plugin native build 的 source list 之一 (MusicLibrary CMakeLists):
+      #   add_library(ncm_music_api_static STATIC EXCLUDE_FROM_ALL ${...} bundle/c/ncm_music_api_bundle.c)
+      # 缺文件 -> CMake 报错。
+      #
+      # 链路 (跟 MusicLibrary 自身 release CI 一样, .github/workflows/build-release.yml):
+      #   1. node scripts/pull_ncm.js          # 从 npm 拉 binaryify v4.29.0 解压到 NeteaseCloudMusicApi/
+      #   2. pnpm install --frozen-lockfile     # 装 webpack/babel/terser 等 dev deps
+      #   3. npx webpack                       # 跑 webpack (webpack.config.js 同时 build kugou+ncm)
+      #      -> done hook 自动调 js_to_header() 生成 bundle/c/*.c
+      - name: Setup Node.js for MusicLibrary bundle build
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
+      - name: Cache MusicLibrary pnpm dependencies
+        uses: actions/cache@v4
+        with:
+          path: MusicLibrary/node_modules
+          key: ${{ runner.os }}-ml-pnpm-${{ hashFiles('MusicLibrary/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-ml-pnpm-
+
+      - name: Generate MusicLibrary JS bundle
+        working-directory: MusicLibrary
+        run: |
+          set -euo pipefail
+          echo "--- pull NCM module from npm ---"
+          node scripts/pull_ncm.js
+          echo "--- install JS build deps ---"
+          pnpm install --frozen-lockfile
+          echo "--- run webpack (generates bundle/c/*.c via done hook) ---"
+          npx webpack --mode=production
+          echo "--- verify ---"
+          test -f bundle/c/ncm_music_api_bundle.c || { echo "::error::bundle/c/ncm_music_api_bundle.c missing"; exit 1; }
+          test -f bundle/c/kugou_music_api_bundle.c || { echo "::error::bundle/c/kugou_music_api_bundle.c missing"; exit 1; }
+          echo "bundle generated: $(ls -la bundle/c/*.c | awk '{print $5, $9}')"
+
       - name: Ensure gradlew is executable
         run: |
           # Wrapper files (gradlew, gradlew.bat, gradle-wrapper.jar) must be committed
