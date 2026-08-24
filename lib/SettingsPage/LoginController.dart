@@ -82,6 +82,11 @@ class LoginController extends GetxController {
     isSendingCode.value = true;
     final phoneStr = phone.value;
     try {
+      // 2026-08-25: 跟 login() 一样, 先拉访客 session cookie (NMTID/NMSCVT)。
+      // 不拉的话网易云云盾对裸 IP 直连返 502
+      // 桌面 SDK 调用路径或者网络环境不同, 用户实测说"只在安卓不能发送")。
+      // applyAnonymousCookie 内部 try/catch, 失败不阻断主流程 (参考 login())。
+      await api.applyAnonymousCookie();
       // 同步阻塞调用;SDK 文档里也说 compute 会跨 isolate 拿 native handle
       apiCall(
         () => api.raw.captcha_sent(phoneStr, ctcode: '86'),
