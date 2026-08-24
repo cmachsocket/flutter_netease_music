@@ -41,6 +41,11 @@ class NeteaseApi extends GetxService {
   /// 启动初始化:从 GetStorage 读 cookie + 登录标记灌进 SDK
   ///
   /// 必须在 `GetStorage.init()` 之后调用
+  ///
+  /// 2026-08-25: 未登录且本地也没保存访客 cookie 时,启动阶段主动拉一次
+  /// `applyAnonymousCookie()` 拿 NMTID/NMSCVT 访客 session,避免后续 /captcha/sent
+  /// / /login/cellphone 被云盾返 502 (裸 IP 风控)。仅调用一次,持久化进 GetStorage,
+  /// 下次启动从 cache 读, 不重复请求。
   Future<void> init() async {
     if (kDebugMode) {
       // ignore: avoid_print
@@ -62,6 +67,12 @@ class NeteaseApi extends GetxService {
         for (final e in toApply.entries) e.key.toString(): e.value.toString(),
       };
       raw.set_cookie(cookies);
+    }
+    // 未登录 且 本地没缓存 anonymous cookie: 主动拉一次,
+    // 拿到 NMTID/NMSCVT 走后续风控路子 (applyAnonymousCookie 内部 try/catch,
+    // 拉失败也不阻断启动, 退到老路径最坏被云盾挡)。
+    if (!loggedIn.value && (savedAnon == null || savedAnon.isEmpty)) {
+      await applyAnonymousCookie();
     }
   }
 
