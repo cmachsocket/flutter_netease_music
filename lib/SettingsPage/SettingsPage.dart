@@ -51,16 +51,11 @@ class Settings extends StatelessWidget {
                   : Icons.account_circle_outlined,
             ),
             title: Text(api.loggedIn.value ? '已登录' : '登录账号'),
-            subtitle: Text(
-              api.loggedIn.value
-                  ? '本地登录态已保存,点击退出'
-                  : '手机号 + 验证码',
-            ),
+            subtitle: Text(api.loggedIn.value ? '本地登录态已保存,点击退出' : '手机号 + 验证码'),
             trailing: api.loggedIn.value
                 ? const Icon(Icons.logout)
                 : const Icon(Icons.chevron_right),
-            onTap: () =>
-                api.loggedIn.value ? _doLogout() : _openLogin(),
+            onTap: () => api.loggedIn.value ? _doLogout() : _openLogin(),
           ),
         ),
       ],
