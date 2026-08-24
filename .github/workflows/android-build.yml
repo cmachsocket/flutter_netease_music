@@ -63,6 +63,17 @@ jobs:
       #   2. pnpm install --frozen-lockfile     # 装 webpack/babel/terser 等 dev deps
       #   3. npx webpack                       # 跑 webpack (webpack.config.js 同时 build kugou+ncm)
       #      -> done hook 自动调 js_to_header() 生成 bundle/c/*.c
+      #
+      # pnpm 版本: pnpm-lock.yaml 是 9.0 格式, 必须用 pnpm 9+ 才能读。MusicLibrary
+      # 自身 CI 锁 pnpm 8 是过时的, 这里钉 pnpm 9。
+      #
+      # 已知问题: MusicLibrary/pnpm-lock.yaml 是 pnpm 8 转 pnpm 9 时生成的 broken state,
+      # importers 段缺 `terser-webpack-plugin` (package.json 有但 lockfile 没记录)。
+      # pnpm 9 + --frozen-lockfile 会报 "specifiers don't match"。用 --no-frozen-lockfile
+      # 绕开, 让 pnpm 根据 package.json 自动补齐 lockfile。lockfile 变更不 commit 进父仓库
+      # (.gitignore? no, gitignored 不可能 — lockfile 是 tracked 的, 但 build artifact 不会
+      # commit, 所以 lockfile 漂移仍发生, 不会被修复 — 这是 MusicLibrary 自身维护问题,
+      # 不影响本次 build)。
       - name: Setup Node.js for MusicLibrary bundle build
         uses: actions/setup-node@v4
         with:
@@ -71,15 +82,15 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 8
+          version: 9
 
       - name: Cache MusicLibrary pnpm dependencies
         uses: actions/cache@v4
         with:
           path: MusicLibrary/node_modules
-          key: ${{ runner.os }}-ml-pnpm-${{ hashFiles('MusicLibrary/pnpm-lock.yaml') }}
+          key: ${{ runner.os }}-ml-pnpm-v9-${{ hashFiles('MusicLibrary/pnpm-lock.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-ml-pnpm-
+            ${{ runner.os }}-ml-pnpm-v9-
 
       - name: Generate MusicLibrary JS bundle
         working-directory: MusicLibrary
@@ -88,7 +99,8 @@ jobs:
           echo "--- pull NCM module from npm ---"
           node scripts/pull_ncm.js
           echo "--- install JS build deps ---"
-          pnpm install --frozen-lockfile
+          # --no-frozen-lockfile: 见 step 注释, lockfile 是 broken state
+          pnpm install --no-frozen-lockfile
           echo "--- run webpack (generates bundle/c/*.c via done hook) ---"
           npx webpack --mode=production
           echo "--- verify ---"
