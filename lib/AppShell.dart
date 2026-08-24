@@ -97,7 +97,19 @@ class AppShell extends StatelessWidget {
     return Obx(() {
       final i = tab.index.value.clamp(0, 3);
       return Scaffold(
-        body: _responsiveBody(i),
+        // 2026-08-25: 用 SafeArea 包 body, Flutter UI 不越过状态栏 / 底部
+        // navigation bar。bottomNavigationBar 本身 Scaffold 会自动避开底部, 这里
+        // 跟之前的 MainActivity.setDecorFitsSystemWindows(true) 一起确保非全屏:
+        // - setDecorFitsSystemWindows: Android 不强制 edge-to-edge, 状态栏/导航栏
+        //   保留系统位置
+        // - SafeArea: Flutter UI 进一步避开状态栏/导航栏的高度, 避免画到系统栏下
+        // top/bottom true (BottomNavigationBar 本身 Scaffold 避开 bottom, 这里
+        // bottom=true 是冗余防御, 设了不出问题)。
+        body: SafeArea(
+          top: true,
+          bottom: true,
+          child: _responsiveBody(i),
+        ),
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: i,
           onTap: (j) {
