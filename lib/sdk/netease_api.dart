@@ -167,10 +167,24 @@ class NeteaseApi extends GetxService {
       final cookies = <String, String>{};
       cookies.addAll(parseCookieString(r.cookies));
       _mergeBodyCookies(r.body['cookie'], cookies);
-      if (cookies.isEmpty) return;
+      // 2026-08-25: 加诊断日志。网易云返 200 但 body 里可能没有 cookie 字段,
+      // 静默 return 让上层以为成功了, 后续请求带不上 NMTID/NMSCVT 还是要被云盾返 502。
+      // 启动阶段 print, 用户下次跑能在 logcat 里看到。
+      if (cookies.isEmpty) {
+        if (kDebugMode) {
+          // ignore: avoid_print
+          print('[NeteaseApi] applyAnonymousCookie: register_anonimous 返 200 但没拿到 cookie '
+              '(body.keys=${r.body.keys.toList()}, status=${r.status})');
+        }
+        return;
+      }
       raw.set_cookie(cookies);
       final box = GetStorage();
       box.write(_anonCookieStorageKey, cookies);
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('[NeteaseApi] applyAnonymousCookie OK: 拿到 ${cookies.keys.toList()}');
+      }
     } catch (e) {
       if (kDebugMode) {
         // ignore: avoid_print

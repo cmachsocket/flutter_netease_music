@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_netease_music/PlayPage/BottomPlayer.dart';
 import 'package:get/get.dart';
 import 'package:responsive_builder/responsive_builder.dart';
+import 'package:keyboard_insets/keyboard_insets.dart';
 
 import 'HomePage/HomePage.dart';
 import 'LibraryPage/LibraryController.dart';
@@ -105,7 +106,7 @@ class AppShell extends StatelessWidget {
         // - SafeArea: Flutter UI 进一步避开状态栏/导航栏的高度, 避免画到系统栏下
         // top/bottom true (BottomNavigationBar 本身 Scaffold 避开 bottom, 这里
         // bottom=true 是冗余防御, 设了不出问题)。
-        body: SafeArea(
+        body: PersistentSafeArea(
           top: true,
           bottom: true,
           child: _responsiveBody(i),

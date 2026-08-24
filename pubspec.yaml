@@ -48,6 +48,7 @@ dependencies:
   audio_service:
   just_audio_media_kit:  # substitute version number
   media_kit_libs_linux:
+  keyboard_insets:
 dev_dependencies:
   flutter_test:
     sdk: flutter
