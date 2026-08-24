@@ -12,6 +12,15 @@
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
+            <!-- 2026-08-24: 退出 Android 15 (API 35) 默认 edge-to-edge 强制。
+                 用户的明确需求: 不要全屏, 保留系统状态栏/导航栏在原位,
+                 Flutter UI 在系统栏下方绘制 (传统 Android 风格)。
+                 没这个 meta-data 的话 Android 15+ 会强制 edge-to-edge,
+                 Flutter UI 占满全屏, 系统栏用透明背景覆盖在 Flutter UI 上,
+                 看起来"全屏应用"。-->
+            <meta-data
+                android:name="androidx.window.WindowOptOutEdgeToEdgeEnforcement"
+                android:value="true" />
             <!-- Specifies an Android theme to apply to this Activity as soon as
                  the Android process has started. This theme is visible to the user
                  while the Flutter UI initializes. After that, this theme continues
