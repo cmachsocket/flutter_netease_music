@@ -6,7 +6,7 @@ import 'package:responsive_builder/responsive_builder.dart';
 import 'HomePage/HomePage.dart';
 import 'LibraryPage/LibraryController.dart';
 import 'LibraryPage/LibraryPage.dart';
-import 'SettingsPage/SettingsPage.dart';
+import 'SettingsPage/SettingsPage.dart' show Settings, SettingsPageBinding;
 import 'AppShellController.dart';
 import 'searchPage/searchPage.dart';
 import 'searchPage/SearchController.dart' show SearchPageBinding;
@@ -47,6 +47,8 @@ class AppShell extends StatelessWidget {
         return SearchPageBinding();
       case 2:
         return LibraryBinding();
+      case 3:
+        return SettingsPageBinding();
     }
     return HomePageBinding();
   }
