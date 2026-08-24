@@ -4,3 +4,4 @@
 [submodule "NeteaseCloudMusic_PythonSDK"]
 	path = NeteaseCloudMusic_PythonSDK
 	url = https://github.com/cmachsocket/NeteaseCloudMusic_PythonSDK.git
+	branch = shared_build
