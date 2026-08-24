@@ -131,9 +131,12 @@ jobs:
         working-directory: android
         run: ./gradlew :app:assembleDebug --stacktrace
 
+      # 路径说明: android/build.gradle.kts 里 rootProject.layout.buildDirectory.dir("../../build")
+      # 把 APK 输出移到 <repo-root>/build/app/outputs/apk/debug/ (不是 android/app/build/)。
+      # Gradle 报 problems report 的路径也是 <repo-root>/build/reports/...。
       - name: Verify native libs in APK
         run: |
-          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          APK="build/app/outputs/apk/debug/app-debug.apk"
           if [ ! -f "$APK" ]; then
             echo "::error::APK not found at $APK"
             exit 1
@@ -146,7 +149,7 @@ jobs:
         id: prep
         run: |
           mkdir -p release-artifacts
-          cp android/app/build/outputs/apk/debug/app-debug.apk release-artifacts/
+          cp build/app/outputs/apk/debug/app-debug.apk release-artifacts/
           cd release-artifacts
           sha256sum *.apk > SHA256SUMS
 
