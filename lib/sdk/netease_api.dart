@@ -236,8 +236,11 @@ class NeteaseApi extends GetxService {
         final t = p.trim();
         final eq = t.indexOf('=');
         if (eq <= 0) continue;
-        final key = t.substring(0, eq).trim();
+        var key = t.substring(0, eq).trim();
         final value = t.substring(eq + 1).trim();
+        // 清洗 key 首尾非法字符(如 cookie 串里莫名出现的 '[')。
+        key = key.replaceAll(RegExp(r'^[^A-Za-z0-9_]+'), '');
+        key = key.replaceAll(RegExp(r'[^A-Za-z0-9_]+$'), '');
         // 跳过属性名(不含 = 或 key 看起来像属性)
         if (key.isEmpty) continue;
         // 大写开头的属性名(Expires/Path/HttpOnly 等)跳过

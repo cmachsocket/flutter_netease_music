@@ -18,7 +18,13 @@ class HomePage extends StatelessWidget {
         // 推荐歌单标题 —— Align 让 Text 撑满宽度后靠左,不需要 padding
         Align(
           alignment: Alignment.centerLeft,
-          child: Text('推荐歌单', style: textTheme.titleLarge),
+          child: ListTile(
+            title: Text('推荐歌单', style: textTheme.titleLarge),
+            trailing: IconButton(
+              icon: Icon(Icons.refresh),
+              onPressed: home.load,
+            ),
+          ),
         ),
 
         // 推荐歌单网格

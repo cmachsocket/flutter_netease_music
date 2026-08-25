@@ -78,7 +78,7 @@ class SongListCard extends StatelessWidget {
               title: Text(
                 title ?? '',
                 style: textTheme.bodySmall,
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
               subtitle: Text(

@@ -194,8 +194,14 @@ class PlayerController extends GetxController {
         (a) => a.song_url(song.id, br: bitrate),
         what: '取播放 URL',
       );
-      final url = _extractFirstUrl(r.body);
-      if (url == null || url.isEmpty) {
+      final httpUrl = _extractFirstUrl(r.body) ?? "";
+      late String url;
+      if (httpUrl.startsWith('http://')) {
+        url = httpUrl.replaceFirst('http://', 'https://');
+      } else {
+        url = httpUrl;
+      }
+      if (url.isEmpty) {
         Get.snackbar(
           '无法播放',
           '${song.title} 取不到播放 URL(可能是 VIP / 版权)',
@@ -203,6 +209,7 @@ class PlayerController extends GetxController {
         );
         return;
       }
+
       currentSong.value = song;
       await _audio.setUrl(url);
       await _audio.play();
