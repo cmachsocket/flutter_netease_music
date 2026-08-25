@@ -40,13 +40,13 @@ class SongRowTile extends StatelessWidget {
         children: [
           Text(song.durationLabel),
           IconButton(
-            icon: Obx(() {
+            icon: () {
               final liked = isLiked?.call() ?? false;
               return Icon(
                 liked ? Icons.favorite : Icons.favorite_border,
                 color: liked ? Theme.of(context).colorScheme.primary : null,
               );
-            }),
+            }(),
             onPressed: onToggleFavorite,
             tooltip: '喜爱',
           ),
