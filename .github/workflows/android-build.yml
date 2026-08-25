@@ -51,62 +51,12 @@ jobs:
           channel: stable
           flutter-version: 3.47.0
 
-      # ============ MusicLibrary JS bundle 生成 ============
-      # MusicLibrary/bundle/c/{kugou,ncm}_music_api_bundle.c 是 gitignored 的
-      # (见 MusicLibrary/.gitignore), 不入库。CI runner 必须在 gradle build 前本地生成。
-      # 这俩 bundle 是 plugin native build 的 source list 之一 (MusicLibrary CMakeLists):
-      #   add_library(ncm_music_api_static STATIC EXCLUDE_FROM_ALL ${...} bundle/c/ncm_music_api_bundle.c)
-      # 缺文件 -> CMake 报错。
-      #
-      # 链路 (跟 MusicLibrary 自身 release CI 一样, .github/workflows/build-release.yml):
-      #   1. node scripts/pull_ncm.js          # 从 npm 拉 binaryify v4.29.0 解压到 NeteaseCloudMusicApi/
-      #   2. pnpm install --frozen-lockfile     # 装 webpack/babel/terser 等 dev deps
-      #   3. npx webpack                       # 跑 webpack (webpack.config.js 同时 build kugou+ncm)
-      #      -> done hook 自动调 js_to_header() 生成 bundle/c/*.c
-      #
-      # pnpm 版本: pnpm-lock.yaml 是 9.0 格式, 必须用 pnpm 9+ 才能读。MusicLibrary
-      # 自身 CI 锁 pnpm 8 是过时的, 这里钉 pnpm 9。
-      #
-      # 已知问题: MusicLibrary/pnpm-lock.yaml 是 pnpm 8 转 pnpm 9 时生成的 broken state,
-      # importers 段缺 `terser-webpack-plugin` (package.json 有但 lockfile 没记录)。
-      # pnpm 9 + --frozen-lockfile 会报 "specifiers don't match"。用 --no-frozen-lockfile
-      # 绕开, 让 pnpm 根据 package.json 自动补齐 lockfile。lockfile 变更不 commit 进父仓库
-      # (.gitignore? no, gitignored 不可能 — lockfile 是 tracked 的, 但 build artifact 不会
-      # commit, 所以 lockfile 漂移仍发生, 不会被修复 — 这是 MusicLibrary 自身维护问题,
-      # 不影响本次 build)。
-      - name: Setup Node.js for MusicLibrary bundle build
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Cache MusicLibrary pnpm dependencies
-        uses: actions/cache@v4
-        with:
-          path: MusicLibrary/node_modules
-          key: ${{ runner.os }}-ml-pnpm-v9-${{ hashFiles('MusicLibrary/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-ml-pnpm-v9-
-
-      - name: Generate MusicLibrary JS bundle
-        working-directory: MusicLibrary
-        run: |
-          set -euo pipefail
-          echo "--- pull NCM module from npm ---"
-          node scripts/pull_ncm.js
-          echo "--- install JS build deps ---"
-          # --no-frozen-lockfile: 见 step 注释, lockfile 是 broken state
-          pnpm install --no-frozen-lockfile
-          echo "--- run webpack (generates bundle/c/*.c via done hook) ---"
-          npx webpack --mode=production
-          echo "--- verify ---"
-          test -f bundle/c/ncm_music_api_bundle.c || { echo "::error::bundle/c/ncm_music_api_bundle.c missing"; exit 1; }
-          test -f bundle/c/kugou_music_api_bundle.c || { echo "::error::bundle/c/kugou_music_api_bundle.c missing"; exit 1; }
-          echo "bundle generated: $(ls -la bundle/c/*.c | awk '{print $5, $9}')"
+      # 2026-08-25: 不再现场编译 MusicLibrary 原生库。
+      # Android plugin (NeteaseCloudMusic_PythonSDK/src/dart/android) 改为预编译嵌入:
+      # jniLibs/<abi>/{libncm_music_api,libkugou_music_api,libengine,libqjs,libcurl}.so
+      # 已 commit 进 plugin git (4 ABI × 5 个 = 20 个文件), AGP 默认 jniLibs 自动打包进 APK。
+      # 之前需要 webpack + pnpm install + 现场 NDK 编译那 4 个 step 已废弃。
+      # 也不再需要 bundle/c/*.c, 也不再需要 ./gradlew assembleDebug 现场编译。
 
       - name: Ensure gradlew is executable
         run: |
