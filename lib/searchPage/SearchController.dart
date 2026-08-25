@@ -8,6 +8,8 @@ import '../models/Song.dart';
 import '../ArtistPage/Artist.dart';
 import '../sdk/api_exception.dart';
 import '../sdk/netease_api.dart';
+import '../services/LikedSongsService.dart';
+import '../services/PlayQueueService.dart';
 import '../services/liked_albums_service.dart';
 import '../services/liked_artists_service.dart';
 import '../services/liked_playlists_service.dart';
@@ -45,6 +47,8 @@ class SearchController extends GetxController {
   final Rx<SearchType> type = SearchType.song.obs;
 
   final NeteaseApi api = Get.find<NeteaseApi>();
+  final PlayQueueService queue = Get.find<PlayQueueService>();
+  final LikedSongsService _likedService = Get.find<LikedSongsService>();
 
   /// TextField 的真实数据源 —— 必须显式绑给 [TextField.controller],
   /// 否则点清除按钮时 [TextField] 内部 state 复用了看不见的 TextEditingController,
@@ -276,6 +280,29 @@ class SearchController extends GetxController {
   void syncArtistLike(String artistId) {
     // ignore: discarded_futures
     Get.find<LikedArtistsService>().syncSingle(artistId);
+  }
+
+  /// 单曲点赞/收藏转发(搜索结果的 SongListBody 需要)
+  ///
+  /// 跟 SongListController.toggleFavorite 同语义,走全局 [LikedSongsService]
+  void toggleFavorite(String songId) {
+    // ignore: discarded_futures
+    _likedService.toggle(songId);
+  }
+
+  /// 查询单曲点赞状态(同 SongListController.isLiked)
+  ///
+  /// 调用方需要包 Obx 才能响应 likedIds 变化
+  bool isLiked(String songId) =>
+      // ignore: invalid_use_of_protected_member
+      _likedService.likedIds.value.contains(songId);
+
+  /// 播放搜索结果里的某首歌
+  ///
+  /// 跟 SongListController.playSong 同语义:把当前搜索结果当作播放队列,
+  /// 从这首开始播放。搜索结果有限 (limit 30)。
+  Future<void> playSong(Song song) {
+    return queue.playSongs(songResults.toList(), startSong: song);
   }
 }
 

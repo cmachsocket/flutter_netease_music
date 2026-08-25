@@ -211,10 +211,14 @@ class PlayerController extends GetxController {
       }
 
       currentSong.value = song;
+
+      // 先拉歌词(同步 FFI,通常很快),避免与 ExoPlayer 首次初始化竞争。
+      // Android 首次点播放时若歌词请求在 play() 之后异步发起,可能因时序
+      // 竞态拿不到歌词;这里改为提前 await,保证第一次播放就有歌词。
+      await fetchLyric(song.id);
+
       await _audio.setUrl(url);
       await _audio.play();
-      // 歌词加载(异步,不阻塞音频启动)
-      unawaited(fetchLyric(song.id));
     } on ApiException catch (e) {
       Get.snackbar(
         '加载失败 (code ${e.code})',

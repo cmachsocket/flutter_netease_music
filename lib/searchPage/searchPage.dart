@@ -82,7 +82,15 @@ class _SongView extends StatelessWidget {
       if (c.songResults.isEmpty) {
         return _HintView(text: '没有匹配 "${c.keyword.value}" 的单曲');
       }
-      return SongListBody(songs: c.songResults.toList(), isLoading: false);
+      return SongListBody(
+        songs: c.songResults.toList(),
+        isLoading: false,
+        // 单曲列表要可播放 + 可点赞;不传 onPlay/onToggleFavorite 时
+        // SongRowTile 的 IconButton.onPressed 是 null,点击不响应。
+        onPlay: c.playSong,
+        onToggleFavorite: (song) => c.toggleFavorite(song.id),
+        isLiked: (song) => c.isLiked(song.id),
+      );
     });
   }
 }

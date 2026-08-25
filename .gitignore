@@ -50,3 +50,6 @@ app.*.map.json
 # Note: /android/.gradle is Gradle's local cache dir.
 # DO NOT add android/gradlew{,bat} or android/gradle/wrapper/ here — those
 # are the Gradle wrapper and MUST be committed (see android/gradle/wrapper/).
+
+# Widget Preview related
+.widget_preview/
