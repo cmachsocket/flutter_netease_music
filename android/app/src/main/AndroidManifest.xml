@@ -55,4 +55,4 @@
     <!-- 媒体访问权限 -->
     <!-- 网络(SDK /search /song/url 等全部需要) -->
     <uses-permission android:name="android.permission.INTERNET" />
-</manifest>s
+</manifest>
