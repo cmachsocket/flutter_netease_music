@@ -8,6 +8,7 @@ import '../widgets/aspect_driven_grid.dart';
 import '../widgets/netease_image.dart';
 import 'Artist.dart';
 import 'ArtistController.dart';
+import '../models/default.dart';
 
 /// 艺人详情页
 ///
@@ -185,19 +186,26 @@ class _AlbumsSection extends StatelessWidget {
     if (albums.isEmpty) {
       return const Center(child: Text('暂无专辑'));
     }
-    return AspectDrivenGrid(
-      itemCount: albums.length,
-      childAspectRatio: 0.75,
-      minColumns: 2,
-      itemBuilder: (context, index) {
-        final album = albums[index];
-        return SongListCard(
-          playlistId: 'album-${album.id}',
-          title: album.name,
-          subtitle: '${album.type.label} · ${album.songCount}首',
-          imageUrl: album.coverUrl,
-          isLiked: () => controller.isAlbumLiked(album.id),
-          onToggleFavorite: () => controller.toggleAlbumFavorite(album.id),
+    return OrientationBuilder(
+      builder: (context, orientation) {
+        final aspectRatio = orientation == Orientation.portrait
+            ? DefaultValues.portraitGridChildAspectRatio
+            : DefaultValues.landscopeGridChildAspectRatio;
+        return AspectDrivenGrid(
+          itemCount: albums.length,
+          childAspectRatio: aspectRatio,
+          minColumns: DefaultValues.gridMinColumns,
+          itemBuilder: (context, index) {
+            final album = albums[index];
+            return SongListCard(
+              playlistId: 'album-${album.id}',
+              title: album.name,
+              subtitle: '${album.type.label} · ${album.songCount}首',
+              imageUrl: album.coverUrl,
+              isLiked: () => controller.isAlbumLiked(album.id),
+              onToggleFavorite: () => controller.toggleAlbumFavorite(album.id),
+            );
+          },
         );
       },
     );

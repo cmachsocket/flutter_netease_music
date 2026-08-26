@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
+import 'package:responsive_builder/responsive_builder.dart';
 import '../AppShell.dart';
 import '../widgets/netease_image.dart' show neteaseImageHeaders;
 import 'SongListController.dart';
@@ -87,24 +87,28 @@ class SongListCard extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _LikeButton(
-                    isLiked: isLiked,
-                    onToggleFavorite: onToggleFavorite,
-                    playlistId: playlistId,
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.play_circle_fill_outlined),
-                    onPressed: () {
-                      final cb =
-                          onPlay ??
-                          () => SongListController.playPlaylistById(playlistId);
-                      cb(); // fire-and-forget
-                    },
-                  ),
-                ],
+              trailing: OrientationLayoutBuilder(
+                landscape: (_) => Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _LikeButton(
+                      isLiked: isLiked,
+                      onToggleFavorite: onToggleFavorite,
+                      playlistId: playlistId,
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.play_circle_fill_outlined),
+                      onPressed: () {
+                        final cb =
+                            onPlay ??
+                            () =>
+                                SongListController.playPlaylistById(playlistId);
+                        cb(); // fire-and-forget
+                      },
+                    ),
+                  ],
+                ),
+                portrait: (_) => SizedBox.shrink(),
               ),
             ),
           ],

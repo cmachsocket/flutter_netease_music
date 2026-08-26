@@ -7,6 +7,7 @@ import '../SongListPage/SongListCard.dart';
 import '../sdk/netease_api.dart';
 import '../widgets/aspect_driven_grid.dart';
 import 'LibraryController.dart';
+import '../models/default.dart';
 
 /// 我的 tab 内容
 ///
@@ -117,19 +118,26 @@ class _PlaylistsView extends StatelessWidget {
       if (c.playlists.isEmpty) {
         return const Center(child: Text('暂无歌单'));
       }
-      return AspectDrivenGrid(
-        minColumns: 2,
-        childAspectRatio: 0.75,
-        itemCount: c.playlists.length,
-        itemBuilder: (context, index) {
-          final p = c.playlists[index];
-          return SongListCard(
-            playlistId: p.id,
-            title: p.name,
-            subtitle: '${p.trackCount} 首',
-            imageUrl: p.picUrl,
-            isLiked: () => c.isPlaylistLiked(p.id),
-            onToggleFavorite: () => c.togglePlaylistLike(p.id),
+      return OrientationBuilder(
+        builder: (context, orientation) {
+          final aspectRatio = orientation == Orientation.portrait
+              ? DefaultValues.portraitGridChildAspectRatio
+              : DefaultValues.landscopeGridChildAspectRatio;
+          return AspectDrivenGrid(
+            childAspectRatio: aspectRatio,
+            minColumns: DefaultValues.gridMinColumns,
+            itemCount: c.playlists.length,
+            itemBuilder: (context, index) {
+              final p = c.playlists[index];
+              return SongListCard(
+                playlistId: p.id,
+                title: p.name,
+                subtitle: '${p.trackCount} 首',
+                imageUrl: p.picUrl,
+                isLiked: () => c.isPlaylistLiked(p.id),
+                onToggleFavorite: () => c.togglePlaylistLike(p.id),
+              );
+            },
           );
         },
       );
@@ -158,8 +166,6 @@ class _AlbumsView extends StatelessWidget {
         return const Center(child: Text('暂无订阅专辑'));
       }
       return AspectDrivenGrid(
-        minColumns: 2,
-        childAspectRatio: 0.75,
         itemCount: c.albums.length,
         itemBuilder: (context, index) {
           final a = c.albums[index];

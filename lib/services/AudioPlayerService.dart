@@ -32,15 +32,30 @@ class AudioPlayerService extends GetxService {
   Stream<PlayerState> get playerStateStream => player.playerStateStream;
 
   /// 加载一首新歌(URL 是 /song/url 返回的临时 mp3 直链)
-  Future<void> setUrl(String url) => player.setUrl(url);
+  Future<void> setUrl(String url) async {
+    await player.setUrl(url);
+  }
 
-  Future<void> play() => player.play();
-  Future<void> pause() => player.pause();
-  Future<void> stop() => player.stop();
-  Future<void> seek(Duration position) => player.seek(position);
+  Future<void> play() async {
+    await player.play();
+  }
+
+  Future<void> pause() async {
+    await player.pause();
+  }
+
+  Future<void> stop() async {
+    await player.stop();
+  }
+
+  Future<void> seek(Duration position) async {
+    await player.seek(position);
+  }
   @override
   void onInit() {
     super.onInit();
+    // MediaKit 初始化是同步阻塞,放在 service onInit 里完成。
+    // 后续 setUrl/play 直接用,不需要再 await ready(竞态源)。
     JustAudioMediaKit.ensureInitialized();
   }
 

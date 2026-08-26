@@ -48,7 +48,9 @@ dependencies:
   audio_service:
   just_audio_media_kit:  # substitute version number
   media_kit_libs_linux:
+  media_kit_libs_windows_audio:
   keyboard_insets:
+  meta:
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -102,9 +104,6 @@ flutter:
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
 
-# 临时锁定 path_provider_android 到 2.2.23 (最后一个不依赖 jni 的版本)
-# 原因: jni 1.0.3 的 build.gradle 写死 ndkVersion flutter.ndkVersion,
-# Flutter SDK 默认 (28.2.13676358) 在我们 SDK 里没装,build configure 阶段就 fail。
-# 等 jni 升级修复 / 装 NDK 28.2 后再放开。
+
 dependency_overrides:
-  path_provider_android: 2.2.23
+  path_provider_android:

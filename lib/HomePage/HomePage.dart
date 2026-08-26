@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../SongListPage/SongListCard.dart';
 import '../widgets/aspect_driven_grid.dart';
 import 'HomeController.dart';
+import '../models/default.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -57,17 +58,24 @@ class _RecommendedGrid extends StatelessWidget {
       if (home.recommended.isEmpty) {
         return const Center(child: Text('暂无推荐'));
       }
-      return AspectDrivenGrid(
-        childAspectRatio: 0.75,
-        minColumns: 2,
-        itemCount: home.recommended.length,
-        itemBuilder: (context, index) {
-          final card = home.recommended[index];
-          return SongListCard(
-            playlistId: card.id,
-            title: card.name,
-            subtitle: '',
-            imageUrl: card.picUrl,
+      return OrientationBuilder(
+        builder: (context, orientation) {
+          final aspectRatio = orientation == Orientation.portrait
+              ? DefaultValues.portraitGridChildAspectRatio
+              : DefaultValues.landscopeGridChildAspectRatio;
+          return AspectDrivenGrid(
+            childAspectRatio: aspectRatio,
+            minColumns: DefaultValues.gridMinColumns,
+            itemCount: home.recommended.length,
+            itemBuilder: (context, index) {
+              final card = home.recommended[index];
+              return SongListCard(
+                playlistId: card.id,
+                title: card.name,
+                subtitle: '',
+                imageUrl: card.picUrl,
+              );
+            },
           );
         },
       );

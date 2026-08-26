@@ -75,19 +75,14 @@ class AppShell extends StatelessWidget {
   /// - portrait:Navigator 用 Expanded 吃剩余高度,BottomPlay 自身高度
   /// - landscape:Navigator flex=4,BottomPlay flex=1(横屏播放器按比例拉大)
   static Widget _responsiveBody(int i) {
-    return OrientationLayoutBuilder(
-      portrait: (_) => Column(
-        children: [
-          Expanded(flex: 6, child: _navigator(i)),
-          const Expanded(flex: 1, child: BottomPlayer()),
-        ],
-      ),
-      landscape: (_) => Column(
-        children: [
-          Expanded(flex: 5, child: _navigator(i)),
-          const Expanded(flex: 1, child: BottomPlayer()),
-        ],
-      ),
+    return Column(
+      children: [
+        OrientationLayoutBuilder(
+          portrait: (_) => Expanded(flex: 6, child: _navigator(i)),
+          landscape: (_) => Expanded(flex: 5, child: _navigator(i)),
+        ),
+        const Expanded(flex: 1, child: BottomPlayer()),
+      ],
     );
   }
 
