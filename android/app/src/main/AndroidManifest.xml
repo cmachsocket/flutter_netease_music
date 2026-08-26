@@ -1,10 +1,27 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- audio_service: 后台播放所需权限
+         - WAKE_LOCK: 音频解码时保持 CPU
+         - FOREGROUND_SERVICE: 前台服务(Android 8+ 必需)
+         - FOREGROUND_SERVICE_MEDIA_PLAYBACK: Android 14 (API 34) 强制要求, 必须声明
+           foregroundServiceType="mediaPlayback" 才能在后台启动前台服务 -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- 媒体访问权限 -->
+    <!-- 网络(SDK /search /song/url 等全部需要) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:label="flutter_netease_music"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <!-- audio_service: 主 Activity 必须改名为 AudioServiceActivity
+             (或者自定义 Activity 继承 AudioServiceActivity / AudioServiceFragmentActivity)
+             原因:audio_service 用 FlutterEngine cache 共享给前台服务,
+             AudioServiceActivity 负责正确建立 engine binding -->
         <activity
-            android:name=".MainActivity"
+            android:name="com.ryanheise.audioservice.AudioServiceActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:taskAffinity=""
@@ -34,6 +51,30 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
+        <!-- audio_service: 前台服务声明
+             - foregroundServiceType="mediaPlayback" 是 Android 14+ 强制的,
+               否则 ForegroundServiceStartNotAllowedException
+             - exported="true": Android 12+ 强制要求(凡带 intent-filter 都必须显式声明)
+             - tools:ignore="Instantiatable": 抑制 AGP 的"该服务可被实例化" lint 警告 -->
+        <service android:name="com.ryanheise.audioservice.AudioService"
+            android:foregroundServiceType="mediaPlayback"
+            android:exported="true"
+            tools:ignore="Instantiatable">
+            <intent-filter>
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
+
+        <!-- audio_service: 媒体按钮接收器 (耳机/蓝牙按键) -->
+        <receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver"
+            android:exported="true"
+            tools:ignore="Instantiatable">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
@@ -51,8 +92,4 @@
             <data android:mimeType="text/plain"/>
         </intent>
     </queries>
-
-    <!-- 媒体访问权限 -->
-    <!-- 网络(SDK /search /song/url 等全部需要) -->
-    <uses-permission android:name="android.permission.INTERNET" />
 </manifest>

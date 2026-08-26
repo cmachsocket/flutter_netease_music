@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  audio_service: 通知栏 like 按钮的 vector drawable 必须保留,
+  R8 默认会丢掉"无 Activity 引用"的 drawable, 这里显式 keep。
+  如果未来引入自己的 drawable 资源, 把这行扩展成
+  tools:keep="@drawable/ic_favorite,@drawable/ic_favorite_border,@drawable/..."。
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_favorite,@drawable/ic_favorite_border" />

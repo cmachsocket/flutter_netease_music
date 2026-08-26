@@ -141,10 +141,32 @@ class PlayerController extends GetxController {
   ///   看到 currentSong.id == target.id 早退, 这里手动 seek + play 重启)
   void _onPlayerState(PlayerState state) {
     if (state.processingState != ProcessingState.completed) return;
-    final next = queue.nextIndex();
-    if (next < 0) return;
-    queue.selectIndex(next);
-    // repeatOne: 同一首 → _syncQueueState 会早退, 这里手动重 seek + play
+    next();
+  }
+
+  /// 公开 next() —— 锁屏/通知"下一首"按钮走这里
+  ///
+  /// - 委托 [PlayQueueService.nextIndex] 算索引 + [queue.selectIndex] 触发 _syncQueueState 加载
+  /// - audio_service 的 PlaybackService 也会调这个 (锁屏按 next 时 app 不一定在前台)
+  /// - repeatOne 模式: 同首重播,不走切歌
+  void next() {
+    final n = queue.nextIndex();
+    if (n < 0) return;
+    queue.selectIndex(n);
+    if (queue.mode.value == PlayMode.repeatOne) {
+      _audio.seek(Duration.zero);
+      _audio.play();
+    }
+  }
+
+  /// 公开 prev() —— 锁屏/通知"上一首"按钮走这里
+  ///
+  /// - sequential 模式下走反向循环(队首 wrap 到队尾), service 永远返回有效索引
+  /// - shuffle / repeatOne: 同 next 的语义
+  void prev() {
+    final p = queue.prevIndex();
+    if (p < 0) return;
+    queue.selectIndex(p);
     if (queue.mode.value == PlayMode.repeatOne) {
       _audio.seek(Duration.zero);
       _audio.play();
