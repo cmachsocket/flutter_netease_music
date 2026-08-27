@@ -54,11 +54,14 @@ class Player extends StatelessWidget {
       floatingActionButton: FloatingActionButton(
         onPressed: controller.switchPage,
         child: Obx(
-          () => Icon(
-            controller.centerIndex.value == CenterPage.cover.index
-                ? Icons.music_note
-                : Icons.lyrics,
-          ),
+          () {
+            // exhaustive switch: enum 加新 page 时编译器报错,不会走错 icon
+            final icon = switch (controller.center.value) {
+              CenterPage.cover => Icons.music_note,
+              CenterPage.lyric => Icons.lyrics,
+            };
+            return Icon(icon);
+          },
         ),
       ),
       body: Column(
@@ -71,7 +74,7 @@ class Player extends StatelessWidget {
                 onLongPress: controller.switchPage,
                 child: Center(
                   child: IndexedStack(
-                    index: controller.centerIndex.value,
+                    index: controller.center.value.index,
                     alignment: Alignment.center,
                     children: [
                       AspectRatio(

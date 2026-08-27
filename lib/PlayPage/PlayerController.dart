@@ -49,7 +49,11 @@ class PlayerController extends GetxController {
   // endregion
 
   // region UI 切页
-  final RxInt centerIndex = CenterPage.cover.index.obs;
+  /// 中央区域当前页 (封面 / 歌词)
+  ///
+  /// **不用裸 int** —— enum 在编译期挡住外部 `.value = 99` 这种垃圾值,
+  /// switch 也带 exhaustiveness 检查(加新 page 时漏 case 编译器报错)。
+  final Rx<CenterPage> center = CenterPage.cover.obs;
   // endregion
 
   // region 歌词
@@ -283,10 +287,13 @@ class PlayerController extends GetxController {
   void pause() => _audio.pause();
   void togglePlay() => isPlaying.value ? pause() : play();
   void seek(Duration p) => _audio.seek(p);
-  void switchPage() =>
-      centerIndex.value = centerIndex.value == CenterPage.cover.index
-      ? CenterPage.lyric.index
-      : CenterPage.cover.index;
+  void switchPage() {
+    // exhaustive switch: enum 加新 page 时编译器报错,不会静默走错分支
+    center.value = switch (center.value) {
+      CenterPage.cover => CenterPage.lyric,
+      CenterPage.lyric => CenterPage.cover,
+    };
+  }
 
   /// toggle 当前歌曲的喜欢状态
   ///
