@@ -150,6 +150,20 @@ class PlayerController extends GetxController {
     next();
   }
 
+  /// 公开 selectIndex(int) —— PlayListPage 等"点队列里某一首"走这里
+  ///
+  /// - **不依赖 ever worker**:`selectIndex` 改 currentIndex 后,只有值真的变了
+  ///   `ever<int>` 才会触发，点当前 currentIndex 时不会触发 → 永远没反应。
+  /// - 手动调一次 [_scheduleQueueSync] 解决:`_syncQueueState` 内部有
+  ///   `currentSong.id == target.id` 早退守卫,如果是同一首就早退(不会重播);
+  ///   不同首就 loadSong。
+  /// - 从 GetStorage 恢复的场景下,currentIndex 已经指向一首但 currentSong=null
+  ///   (从来没加载过),_syncQueueState 会发现 `null != target.id` → 调 loadSong ✅
+  void selectIndex(int index) {
+    queue.selectIndex(index);
+    _scheduleQueueSync();
+  }
+
   /// 公开 next() —— 锁屏/通知"下一首"按钮走这里
   ///
   /// - 委托 [PlayQueueService.nextIndex] 算索引 + [queue.selectIndex] 触发 _syncQueueState 加载

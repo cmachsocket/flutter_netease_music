@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../widgets/song_cover.dart';
+import '../SongListPage/SongListBody.dart';
 import 'PlayListController.dart';
 
 /// 播放列表页
 ///
-/// - 数据来自 [PlayListController.playlist]
-/// - 复用 [ListTile]:封面尺寸 / padding / 行距全部走 M3 默认,业务侧零硬编码
-/// - 当前选中项用 ListTile.selected + selectedTileColor 高亮
+/// - 数据来自 [PlayListController.playlist] (RxList,外面套 Obx 才会响应)
+/// - 复用 [SongListBody] 默认 [SongRowTile] (fav + play 双按钮)
+/// - 喜爱 / 不喜爱走 [PlayListController.isLiked] / [PlayListController.toggleFavorite]
+///   (委托到全局 [LikedSongsService])
 class PlayListPage extends StatelessWidget {
   const PlayListPage({super.key});
 
@@ -30,38 +31,20 @@ class PlayListPage extends StatelessWidget {
           title: const Text('播放列表'),
         ),
         body: Obx(() {
-          final list = controller.playlist;
-          final selected = controller.currentIndex.value;
-          return ListView.builder(
-            itemCount: list.length,
-            itemBuilder: (context, index) {
-              final song = list[index];
-              return ListTile(
-                selected: index == selected,
-                onTap: () => controller.selectIndex(index),
-                leading: SongCover(url: song.coverUrl),
-                title: Text(
-                  song.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Text(
-                  '${song.artist} - ${song.album}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(song.durationLabel),
-                    IconButton(
-                      icon: const Icon(Icons.delete),
-                      onPressed: () => controller.removeSong(index),
-                    ),
-                  ],
-                ),
-              );
+          // playlist / likedIds 变化都会触发整个列表重建
+          // SongRowTile 内部 Obx 进一步控制 fav button 精细重建
+          return SongListBody(
+            songs: controller.playlist.toList(),
+            isLoading: false,
+            // SongListBody.onPlay 收 Song；controller.selectIndex 收 int
+            onPlay: (song) {
+              final list = controller.playlist;
+              final i = list.indexWhere((s) => s.id == song.id);
+              if (i >= 0) controller.selectIndex(i);
             },
+            // 喜爱 / 不喜爱 (isLiked 内部读 likedIds.value → Obx 跟踪)
+            isLiked: (song) => controller.isLiked(song.id),
+            onToggleFavorite: (song) => controller.toggleFavorite(song.id),
           );
         }),
       ),

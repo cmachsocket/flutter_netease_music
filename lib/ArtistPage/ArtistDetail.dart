@@ -25,49 +25,42 @@ class ArtistDetail extends StatelessWidget {
   final controller = Get.find<ArtistController>();
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
-        Navigator.of(context).pop();
-        return;
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.arrow_back),
-          ),
-          title: Obx(
-            () => Text('艺人 · ${controller.artist.value?.name ?? artistId}'),
-          ),
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.arrow_back),
         ),
-        body: Obx(() {
-          // 顶层加载 / 错误:仅在 artist 元信息还没出来时生效
-          // (songs / albums 是同一个 load() 一次性 assign 的,这里 atomic)
-          if (controller.isLoading.value && controller.artist.value == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final err = controller.errorMessage.value;
-          if (err != null && controller.artist.value == null) {
-            final scheme = Theme.of(context).colorScheme;
-            return Center(
-              child: Text('加载失败: $err', style: TextStyle(color: scheme.error)),
-            );
-          }
-          final artist = controller.artist.value;
-          if (artist == null) {
-            return const Center(child: Text('找不到该艺人'));
-          }
-
-          return Column(
-            children: [
-              _ArtistHeader(artist: artist),
-              _SectionSwitcher(controller: controller),
-              Expanded(child: _SectionContent(controller: controller)),
-            ],
-          );
-        }),
+        title: Obx(
+          () => Text('艺人 · ${controller.artist.value?.name ?? artistId}'),
+        ),
       ),
+      body: Obx(() {
+        // 顶层加载 / 错误:仅在 artist 元信息还没出来时生效
+        // (songs / albums 是同一个 load() 一次性 assign 的,这里 atomic)
+        if (controller.isLoading.value && controller.artist.value == null) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final err = controller.errorMessage.value;
+        if (err != null && controller.artist.value == null) {
+          final scheme = Theme.of(context).colorScheme;
+          return Center(
+            child: Text('加载失败: $err', style: TextStyle(color: scheme.error)),
+          );
+        }
+        final artist = controller.artist.value;
+        if (artist == null) {
+          return const Center(child: Text('找不到该艺人'));
+        }
+
+        return Column(
+          children: [
+            _ArtistHeader(artist: artist),
+            _SectionSwitcher(controller: controller),
+            Expanded(child: _SectionContent(controller: controller)),
+          ],
+        );
+      }),
     );
   }
 }
