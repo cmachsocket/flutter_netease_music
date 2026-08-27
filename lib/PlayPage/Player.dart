@@ -8,7 +8,7 @@ import '../PlayListPage/PlayListController.dart';
 import '../services/PlayQueueService.dart';
 import '../widgets/linked_detail_text.dart';
 import '../widgets/netease_image.dart';
-import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
+import 'MusicProgressbar.dart';
 
 class Player extends StatelessWidget {
   Player({super.key});
@@ -17,7 +17,6 @@ class Player extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
@@ -93,20 +92,13 @@ class Player extends StatelessWidget {
               ),
             ),
           ),
-          Obx(
-            () => ProgressBar(
-              progress: controller.position.value,
-              buffered: const Duration(seconds: 60),
-              total: controller.duration.value,
-              onSeek: controller.seek,
-              progressBarColor: scheme.primary,
-              baseBarColor: scheme.onSurface.withValues(alpha: 0.3),
-              bufferedBarColor: scheme.primary.withValues(alpha: 0.3),
-              thumbColor: scheme.primary,
-              thumbGlowColor: scheme.primary.withValues(alpha: 0.4),
-              timeLabelTextStyle: textTheme.bodySmall,
-            ),
-          ),
+        ],
+      ),
+
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          MusicProgressBar(),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [

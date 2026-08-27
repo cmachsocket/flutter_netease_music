@@ -46,7 +46,7 @@ class LoginPage extends StatelessWidget {
             ],
             decoration: const InputDecoration(
               labelText: '验证码',
-              hintText: '请输入 6 位验证码',
+              hintText: '请输入验证码',
               prefixIcon: Icon(Icons.lock_outline),
             ),
           ),
@@ -56,8 +56,7 @@ class LoginPage extends StatelessWidget {
             () => Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                onPressed:
-                    controller.canSendCode ? controller.sendCode : null,
+                onPressed: controller.canSendCode ? controller.sendCode : null,
                 child: controller.isSendingCode.value
                     ? const CircularProgressIndicator(strokeWidth: 2)
                     : Text(_sendCodeLabel(controller.countdown.value)),

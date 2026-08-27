@@ -90,59 +90,61 @@ class AppShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final tab = Get.find<AppShellController>();
 
-    return Obx(() {
-      final i = tab.index.value.clamp(0, 3);
-      return Scaffold(
-        // 2026-08-25: 用 SafeArea 包 body, Flutter UI 不越过状态栏 / 底部
-        // navigation bar。bottomNavigationBar 本身 Scaffold 会自动避开底部, 这里
-        // 跟之前的 MainActivity.setDecorFitsSystemWindows(true) 一起确保非全屏:
-        // - setDecorFitsSystemWindows: Android 不强制 edge-to-edge, 状态栏/导航栏
-        //   保留系统位置
-        // - SafeArea: Flutter UI 进一步避开状态栏/导航栏的高度, 避免画到系统栏下
-        // top/bottom true (BottomNavigationBar 本身 Scaffold 避开 bottom, 这里
-        // bottom=true 是冗余防御, 设了不出问题)。
-        body: PersistentSafeArea(
-          top: true,
-          bottom: true,
-          child: _responsiveBody(i),
-        ),
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: i,
-          onTap: (j) {
-            if (j == i) return;
-            tab.change(j);
-            // 用 GetX 的导航 API 推到 shell 自己的 navigator
-            Get.to(
-              () => _content(j.clamp(0, 3)),
-              binding: _bindingForTab(j.clamp(0, 3)),
-              id: shellNavigatorId,
-            );
-          },
-          type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.explore_outlined),
-              activeIcon: Icon(Icons.explore),
-              label: '发现',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.search_outlined),
-              activeIcon: Icon(Icons.search),
-              label: '搜索',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.library_music_outlined),
-              activeIcon: Icon(Icons.library_music),
-              label: '我的',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings_outlined),
-              activeIcon: Icon(Icons.settings),
-              label: '设置',
-            ),
-          ],
-        ),
-      );
-    });
+    return PersistentSafeArea(
+      top: true,
+      bottom: true,
+      handleObserver: true,
+      child: Obx(() {
+        final i = tab.index.value.clamp(0, 3);
+        return Scaffold(
+          // 2026-08-25: 用 SafeArea 包 body, Flutter UI 不越过状态栏 / 底部
+          // navigation bar。bottomNavigationBar 本身 Scaffold 会自动避开底部, 这里
+          // 跟之前的 MainActivity.setDecorFitsSystemWindows(true) 一起确保非全屏:
+          // - setDecorFitsSystemWindows: Android 不强制 edge-to-edge, 状态栏/导航栏
+          //   保留系统位置
+          // - SafeArea: Flutter UI 进一步避开状态栏/导航栏的高度, 避免画到系统栏下
+          // top/bottom true (BottomNavigationBar 本身 Scaffold 避开 bottom, 这里
+          // bottom=true 是冗余防御, 设了不出问题)。
+          body: _responsiveBody(i),
+
+          bottomNavigationBar: BottomNavigationBar(
+            currentIndex: i,
+            onTap: (j) {
+              if (j == i) return;
+              tab.change(j);
+              // 用 GetX 的导航 API 推到 shell 自己的 navigator
+              Get.to(
+                () => _content(j.clamp(0, 3)),
+                binding: _bindingForTab(j.clamp(0, 3)),
+                id: shellNavigatorId,
+              );
+            },
+            type: BottomNavigationBarType.fixed,
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.explore_outlined),
+                activeIcon: Icon(Icons.explore),
+                label: '发现',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.search_outlined),
+                activeIcon: Icon(Icons.search),
+                label: '搜索',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.library_music_outlined),
+                activeIcon: Icon(Icons.library_music),
+                label: '我的',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.settings_outlined),
+                activeIcon: Icon(Icons.settings),
+                label: '设置',
+              ),
+            ],
+          ),
+        );
+      }),
+    );
   }
 }

@@ -55,8 +55,19 @@ class SearchController extends GetxController {
   /// keyword 变空但输入框不会清空(看起来没反应)
   final TextEditingController textController = TextEditingController();
 
-  /// 当前输入框的关键词
+  /// 当前输入框的关键词 (TextField onChanged 同步,只反映输入框文本)
+  ///
+  /// **不要**用这个判"是否搜过"——用户键入字符 keyword 就变,但还没提交。
+  /// 判"搜过"请用 [submittedKeyword](只有 search() 调用时才写)。
   final RxString keyword = ''.obs;
+
+  /// 已提交的关键词(search() 调用时写入)
+  ///
+  /// - 跟 [keyword] 解耦:TextField 实时输入不影响结果视图,
+  ///   只有回车/点搜索图标触发的 search() 才更新它
+  /// - 切 tab 用这个判断要不要自动重搜(旧结果跨 type 不能复用,但同 keyword 重搜是 O(1))
+  /// - 判"未搜过"用 `submittedKeyword.value.isEmpty` —— 避开"键入几个字符但没提交"的陷阱
+  final RxString submittedKeyword = ''.obs;
 
   /// 4 份结果(切 tab 不丢;只有同 type 才覆盖)
   final RxList<Song> songResults = <Song>[].obs;
@@ -82,9 +93,14 @@ class SearchController extends GetxController {
   void clearKeyword() {
     textController.clear();
     keyword.value = '';
+    submittedKeyword.value = '';   // 同步清提交状态,UI 回"输入关键词"提示
+    _clearCurrent();
   }
 
   /// 切换 tab:有 keyword 就自动重搜,空 keyword 直接清空对应结果
+  ///
+  /// 读 [keyword](输入框文本)而非 [submittedKeyword]——用户键入了字但没提交,
+  /// 切 tab 时按输入框内容重搜,符合"用户期望"。
   void setType(SearchType t) {
     type.value = t;
     final k = keyword.value.trim();
@@ -114,8 +130,10 @@ class SearchController extends GetxController {
     this.keyword.value = k;
     if (k.isEmpty) {
       _clearCurrent();
+      submittedKeyword.value = '';   // 清空提交状态 → UI 走"输入关键词"提示
       return;
     }
+    submittedKeyword.value = k;       // 提交后才写,UI 判"搜过"才看这个
     isLoading.value = true;
     errorMessage.value = null;
     final t = type.value;

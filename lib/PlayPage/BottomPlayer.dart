@@ -1,4 +1,4 @@
-import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
+import 'MusicProgressbar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -8,6 +8,8 @@ import '../PlayListPage/PlayListPage.dart';
 import '../PlayListPage/PlayListController.dart';
 import '../services/PlayQueueService.dart';
 import '../widgets/netease_image.dart';
+import 'package:responsive_builder/responsive_builder.dart';
+import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 
 /// 底部 mini 播放器
 ///
@@ -92,9 +94,12 @@ class BottomPlayer extends StatelessWidget {
                       tooltip: player.isLiked.value ? '取消喜欢' : '喜欢',
                     );
                   }),
-                  IconButton(
-                    icon: const Icon(Icons.skip_previous),
-                    onPressed: () => _gotoPrev(playlist, player),
+                  OrientationLayoutBuilder(
+                    landscape: (_) => IconButton(
+                      icon: const Icon(Icons.skip_previous),
+                      onPressed: () => _gotoPrev(playlist, player),
+                    ),
+                    portrait: (_) => SizedBox.shrink(),
                   ),
                   IconButton(
                     icon: Obx(
@@ -109,32 +114,23 @@ class BottomPlayer extends StatelessWidget {
                     icon: const Icon(Icons.skip_next),
                     onPressed: () => _gotoNext(playlist, player),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.playlist_play),
-                    onPressed: () => Get.to(
-                      () => PlayListPage(),
-                      binding: PlayListBinding(),
+                  OrientationLayoutBuilder(
+                    landscape: (_) => IconButton(
+                      icon: const Icon(Icons.playlist_play),
+                      onPressed: () => Get.to(
+                        () => PlayListPage(),
+                        binding: PlayListBinding(),
+                      ),
                     ),
+                    portrait: (_) => SizedBox.shrink(),
                   ),
                 ],
               ),
             ),
             Expanded(
               flex: 1,
-              child: Obx(
-                () => ProgressBar(
-                  progress: player.position.value,
-                  buffered: player.buffered.value,
-                  total: player.duration.value,
-                  onSeek: player.seek,
-                  timeLabelLocation: TimeLabelLocation.sides,
-                  progressBarColor: scheme.primary,
-                  baseBarColor: scheme.onSurface.withValues(alpha: 0.3),
-                  bufferedBarColor: scheme.primary.withValues(alpha: 0.3),
-                  thumbColor: scheme.primary,
-                  thumbGlowColor: scheme.primary.withValues(alpha: 0.4),
-                  timeLabelTextStyle: textTheme.bodySmall,
-                ),
+              child: MusicProgressBar(
+                timeLabelLocation: TimeLabelLocation.sides,
               ),
             ),
           ],

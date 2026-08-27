@@ -76,11 +76,11 @@ class _SongView extends StatelessWidget {
       if (c.errorMessage.value != null && c.songResults.isEmpty) {
         return _ErrorView(text: c.errorMessage.value!);
       }
-      if (c.songResults.isEmpty && c.keyword.value.isEmpty) {
+      if (c.songResults.isEmpty && c.submittedKeyword.value.isEmpty) {
         return const _HintView(text: '输入关键词开始搜索');
       }
       if (c.songResults.isEmpty) {
-        return _HintView(text: '没有匹配 "${c.keyword.value}" 的单曲');
+        return _HintView(text: '没有匹配 "${c.submittedKeyword.value}" 的单曲');
       }
       return SongListBody(
         songs: c.songResults.toList(),
@@ -106,11 +106,11 @@ class _AlbumGridView extends StatelessWidget {
       if (c.isLoading.value && c.albumResults.isEmpty) {
         return const Center(child: CircularProgressIndicator());
       }
-      if (c.albumResults.isEmpty && c.keyword.value.isEmpty) {
+      if (c.albumResults.isEmpty && c.submittedKeyword.value.isEmpty) {
         return const _HintView(text: '输入关键词开始搜索');
       }
       if (c.albumResults.isEmpty) {
-        return _HintView(text: '没有匹配 "${c.keyword.value}" 的专辑');
+        return _HintView(text: '没有匹配 "${c.submittedKeyword.value}" 的专辑');
       }
       return _grid<Album>(
         items: c.albumResults.toList(),
@@ -146,11 +146,11 @@ class _ArtistGridView extends StatelessWidget {
       if (c.isLoading.value && c.artistResults.isEmpty) {
         return const Center(child: CircularProgressIndicator());
       }
-      if (c.artistResults.isEmpty && c.keyword.value.isEmpty) {
+      if (c.artistResults.isEmpty && c.submittedKeyword.value.isEmpty) {
         return const _HintView(text: '输入关键词开始搜索');
       }
       if (c.artistResults.isEmpty) {
-        return _HintView(text: '没有匹配 "${c.keyword.value}" 的艺人');
+        return _HintView(text: '没有匹配 "${c.submittedKeyword.value}" 的艺人');
       }
       return _grid<Artist>(
         items: c.artistResults.toList(),
@@ -183,11 +183,11 @@ class _PlaylistGridView extends StatelessWidget {
       if (c.isLoading.value && c.playlistResults.isEmpty) {
         return const Center(child: CircularProgressIndicator());
       }
-      if (c.playlistResults.isEmpty && c.keyword.value.isEmpty) {
+      if (c.playlistResults.isEmpty && c.submittedKeyword.value.isEmpty) {
         return const _HintView(text: '输入关键词开始搜索');
       }
       if (c.playlistResults.isEmpty) {
-        return _HintView(text: '没有匹配 "${c.keyword.value}" 的歌单');
+        return _HintView(text: '没有匹配 "${c.submittedKeyword.value}" 的歌单');
       }
       return _grid<PlaylistSummary>(
         items: c.playlistResults.toList(),

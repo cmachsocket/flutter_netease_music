@@ -16,49 +16,56 @@ class PlayListPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Get.find<PlayListController>();
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          onPressed: () => Get.back(),
-          icon: const Icon(Icons.arrow_back),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        Get.back();
+        return;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            onPressed: () => Get.back(),
+            icon: const Icon(Icons.arrow_back),
+          ),
+          title: const Text('播放列表'),
         ),
-        title: const Text('播放列表'),
+        body: Obx(() {
+          final list = controller.playlist;
+          final selected = controller.currentIndex.value;
+          return ListView.builder(
+            itemCount: list.length,
+            itemBuilder: (context, index) {
+              final song = list[index];
+              return ListTile(
+                selected: index == selected,
+                onTap: () => controller.selectIndex(index),
+                leading: _Cover(url: song.coverUrl),
+                title: Text(
+                  song.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  '${song.artist} - ${song.album}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(song.durationLabel),
+                    IconButton(
+                      icon: const Icon(Icons.delete),
+                      onPressed: () => controller.removeSong(index),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        }),
       ),
-      body: Obx(() {
-        final list = controller.playlist;
-        final selected = controller.currentIndex.value;
-        return ListView.builder(
-          itemCount: list.length,
-          itemBuilder: (context, index) {
-            final song = list[index];
-            return ListTile(
-              selected: index == selected,
-              onTap: () => controller.selectIndex(index),
-              leading: _Cover(url: song.coverUrl),
-              title: Text(
-                song.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              subtitle: Text(
-                '${song.artist} - ${song.album}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(song.durationLabel),
-                  IconButton(
-                    icon: const Icon(Icons.delete),
-                    onPressed: () => controller.removeSong(index),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      }),
     );
   }
 }
