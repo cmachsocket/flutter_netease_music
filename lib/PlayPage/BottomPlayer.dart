@@ -1,7 +1,7 @@
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
+import 'package:cached_network_image/cached_network_image.dart';
 import 'Player.dart';
 import 'PlayerController.dart';
 import '../PlayListPage/PlayListPage.dart';
@@ -44,10 +44,10 @@ class BottomPlayer extends StatelessWidget {
                     final song = player.currentSong.value;
                     final child = song == null
                         ? Container(color: scheme.surfaceContainerHigh)
-                        : Image.network(
-                            song.coverUrl,
+                        : CachedNetworkImage(
+                            imageUrl: song.coverUrl,
                             fit: BoxFit.cover,
-                            headers: neteaseImageHeaders,
+                            httpHeaders: neteaseImageHeaders,
                           );
                     return AspectRatio(aspectRatio: 1, child: child);
                   }),
@@ -89,8 +89,7 @@ class BottomPlayer extends StatelessWidget {
                         color: player.isLiked.value ? scheme.primary : null,
                       ),
                       onPressed: song == null ? null : player.toggleFavorite,
-                      tooltip:
-                          player.isLiked.value ? '取消喜欢' : '喜欢',
+                      tooltip: player.isLiked.value ? '取消喜欢' : '喜欢',
                     );
                   }),
                   IconButton(

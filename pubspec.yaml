@@ -51,6 +51,7 @@ dependencies:
   media_kit_libs_windows_audio:
   keyboard_insets:
   meta:
+  cached_network_image: 
 dev_dependencies:
   flutter_test:
     sdk: flutter

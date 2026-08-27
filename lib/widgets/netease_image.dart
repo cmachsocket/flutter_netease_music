@@ -1,6 +1,5 @@
 import 'dart:io';
-
-import 'package:flutter/painting.dart' show NetworkImage;
+import 'package:cached_network_image/cached_network_image.dart';
 
 /// NetEase 图片 CDN(`*.music.126.net`)专用请求头
 ///
@@ -14,8 +13,8 @@ const Map<String, String> neteaseImageHeaders = {
 /// 工厂:把字符串 URL 包成带 [neteaseImageHeaders] 的 `NetworkImage`。
 /// 给 `CircleAvatar.backgroundImage` / `Image(image: ...)` 这类需要
 /// `ImageProvider` 的地方用。
-NetworkImage neteaseNetworkImage(String url) =>
-    NetworkImage(url, headers: neteaseImageHeaders);
+CachedNetworkImageProvider neteaseNetworkImage(String url) =>
+    CachedNetworkImageProvider(url, headers: neteaseImageHeaders);
 
 /// **全局** UA override —— `Image.network` 的 `headers` 参数在 Android 上
 /// 不稳定(底层 `image resource service` 可能忽略)。在 [main] 里装上

@@ -5,6 +5,7 @@ import '../AppShell.dart';
 import '../widgets/netease_image.dart' show neteaseImageHeaders;
 import 'SongListController.dart';
 import 'SongListDetail.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 /// 整张歌单播放回调(返回 Future 但卡片场景 fire-and-forget)
 typedef PlayPlaylistCallback = Future<void> Function();
@@ -67,10 +68,10 @@ class SongListCard extends StatelessWidget {
           children: [
             AspectRatio(
               aspectRatio: 1,
-              child: Image.network(
-                imageUrl ?? '',
+              child: CachedNetworkImage(
+                imageUrl: imageUrl ?? '',
                 fit: BoxFit.cover,
-                headers: neteaseImageHeaders,
+                httpHeaders: neteaseImageHeaders,
               ),
             ),
 
@@ -156,10 +157,10 @@ class LineSongListCard extends StatelessWidget {
           id: AppShell.shellNavigatorId,
           binding: SongListDetailBinding(playlistId: playlistId),
         ),
-        leading: Image.network(
-          imageUrl ?? '',
+        leading: CachedNetworkImage(
+          imageUrl: imageUrl ?? '',
           fit: BoxFit.cover,
-          headers: neteaseImageHeaders,
+          httpHeaders: neteaseImageHeaders,
         ),
         title: Text(
           title ?? '',

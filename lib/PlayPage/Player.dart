@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
+import 'package:cached_network_image/cached_network_image.dart';
 import 'Lyrics.dart';
 import 'PlayerController.dart';
 import '../PlayListPage/PlayListPage.dart';
@@ -79,10 +79,10 @@ class Player extends StatelessWidget {
                           final song = controller.currentSong.value;
                           return song?.coverUrl == null
                               ? Icon(Icons.music_note)
-                              : Image.network(
-                                  song?.coverUrl ?? "",
+                              : CachedNetworkImage(
+                                  imageUrl: song?.coverUrl ?? "",
                                   fit: BoxFit.cover,
-                                  headers: neteaseImageHeaders,
+                                  httpHeaders: neteaseImageHeaders,
                                 );
                         }),
                       ),

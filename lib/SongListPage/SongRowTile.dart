@@ -1,7 +1,9 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../models/Song.dart';
 import '../widgets/linked_detail_text.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../widgets/netease_image.dart' show neteaseImageHeaders;
 
 /// 查询 song 是否被喜欢的回调(无参:调用方包好 song 后注入,SongRowTile 内部 Obx 调用)
@@ -83,11 +85,11 @@ class _Cover extends StatelessWidget {
       child: Icon(Icons.music_note, color: scheme.onSurfaceVariant),
     );
     if (url.isEmpty) return placeholder;
-    return Image.network(
-      url,
+    return CachedNetworkImage(
+      imageUrl: url,
       fit: BoxFit.cover,
-      headers: neteaseImageHeaders,
-      errorBuilder: (_, _, _) => placeholder,
+      httpHeaders: neteaseImageHeaders,
+      errorWidget: (_, _, _) => placeholder,
     );
   }
 }

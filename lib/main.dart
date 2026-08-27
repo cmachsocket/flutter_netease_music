@@ -30,6 +30,14 @@ Future<void> main() async {
   // services 除外:仍然在启动时创建,controller 交给各组件自己的 binding
   Get.put<PlayQueueService>(PlayQueueService(), permanent: true);
   Get.put<AudioPlayerService>(AudioPlayerService(), permanent: true);
+  // 网易云 SDK:创建 NeteaseCloudMusicApi 实例 + 恢复持久化 cookie
+  // (必须在 GetStorage.init 之后)
+  await initNeteaseApi();
+  // LikedSongsService 依赖 NeteaseApi(调 /likelist / /like),必须 NeteaseApi 注册后才能 put
+  Get.put<LikedSongsService>(LikedSongsService(), permanent: true);
+  Get.put<LikedAlbumsService>(LikedAlbumsService(), permanent: true);
+  Get.put<LikedArtistsService>(LikedArtistsService(), permanent: true);
+  Get.put<LikedPlaylistsService>(LikedPlaylistsService(), permanent: true);
   // PlayerController 必须在 AudioService.init 之前 put,
   // 因为 PlaybackService 内部 Get.find<PlayerController>() 依赖它存在
   Get.put<PlayerController>(PlayerController(), permanent: true);
@@ -48,14 +56,6 @@ Future<void> main() async {
   );
   // 把 handler 也通过 Get 暴露给业务层(单例)
   Get.put<PlaybackService>(playback, permanent: true);
-  // 网易云 SDK:创建 NeteaseCloudMusicApi 实例 + 恢复持久化 cookie
-  // (必须在 GetStorage.init 之后)
-  await initNeteaseApi();
-  // LikedSongsService 依赖 NeteaseApi(调 /likelist / /like),必须 NeteaseApi 注册后才能 put
-  Get.put<LikedSongsService>(LikedSongsService(), permanent: true);
-  Get.put<LikedAlbumsService>(LikedAlbumsService(), permanent: true);
-  Get.put<LikedArtistsService>(LikedArtistsService(), permanent: true);
-  Get.put<LikedPlaylistsService>(LikedPlaylistsService(), permanent: true);
   runApp(const FlutterNeteaseMusicApp());
 }
 

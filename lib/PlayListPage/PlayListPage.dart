@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
+import 'package:cached_network_image/cached_network_image.dart';
 import '../widgets/netease_image.dart' show neteaseImageHeaders;
 import 'PlayListController.dart';
 
@@ -72,11 +72,11 @@ class _Cover extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Image.network(
-      url,
+    return CachedNetworkImage(
+      imageUrl: url,
       fit: BoxFit.cover,
-      headers: neteaseImageHeaders,
-      errorBuilder: (_, _, _) => Container(
+      httpHeaders: neteaseImageHeaders,
+      errorWidget: (_, _, _) => Container(
         color: scheme.surfaceContainerHigh,
         alignment: Alignment.center,
         child: Icon(Icons.music_note, color: scheme.onSurfaceVariant),
