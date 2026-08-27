@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import '../widgets/song_cover.dart';
 import 'package:get/get.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 import '../AppShell.dart';
-import '../widgets/netease_image.dart' show neteaseImageHeaders;
+import '../models/default.dart';
 import 'SongListController.dart';
 import 'SongListDetail.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+
 
 /// 整张歌单播放回调(返回 Future 但卡片场景 fire-and-forget)
 typedef PlayPlaylistCallback = Future<void> Function();
@@ -67,12 +68,8 @@ class SongListCard extends StatelessWidget {
         child: Column(
           children: [
             AspectRatio(
-              aspectRatio: 1,
-              child: CachedNetworkImage(
-                imageUrl: imageUrl ?? '',
-                fit: BoxFit.cover,
-                httpHeaders: neteaseImageHeaders,
-              ),
+              aspectRatio: DefaultValues.squardRatio,
+              child: SongCover(url: imageUrl ?? ''),
             ),
 
             ListTile(
@@ -157,11 +154,7 @@ class LineSongListCard extends StatelessWidget {
           id: AppShell.shellNavigatorId,
           binding: SongListDetailBinding(playlistId: playlistId),
         ),
-        leading: CachedNetworkImage(
-          imageUrl: imageUrl ?? '',
-          fit: BoxFit.cover,
-          httpHeaders: neteaseImageHeaders,
-        ),
+        leading: SongCover(url: imageUrl ?? ''),
         title: Text(
           title ?? '',
           style: textTheme.bodySmall,

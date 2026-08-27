@@ -15,40 +15,28 @@ import '../models/default.dart';
 class LibraryPage extends StatelessWidget {
   const LibraryPage({super.key});
 
-  static const Map<int, String> _labelOf = {1: '歌单', 2: '专辑', 3: '艺人'};
-
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<LibraryController>();
     return Obx(() {
-      final tab = controller.tabIndex.value;
-      final label = _labelOf[tab] ?? _labelOf[1]!;
+      final tab = controller.tab.value;
       return Column(
         children: [
-          SegmentedButton(
-            segments: const [
-              ButtonSegment(
-                label: Text('歌单'),
-                icon: Icon(Icons.playlist_play),
-                value: 1,
-              ),
-              ButtonSegment(
-                label: Text('专辑'),
-                icon: Icon(Icons.album),
-                value: 2,
-              ),
-              ButtonSegment(
-                label: Text('艺人'),
-                icon: Icon(Icons.person),
-                value: 3,
-              ),
-            ],
+          SegmentedButton<LibraryTab>(
+            segments: LibraryTab.values
+                .map(
+                  (t) => ButtonSegment(
+                    label: Text(t.label),
+                    icon: Icon(t.icon),
+                    value: t,
+                  ),
+                )
+                .toList(),
+
             selected: {tab},
-            onSelectionChanged: (s) => controller.setTabIndex(s.first),
+            onSelectionChanged: (s) => controller.setTab(s.first),
           ),
-          Expanded(
-            child: _TabContent(tab: tab, label: label),
-          ),
+          Expanded(child: _TabContent(tab: tab)),
         ],
       );
     });
@@ -57,10 +45,9 @@ class LibraryPage extends StatelessWidget {
 
 /// 各 tab 的具体内容(包含未登录占位)
 class _TabContent extends StatelessWidget {
-  const _TabContent({required this.tab, required this.label});
+  const _TabContent({required this.tab});
 
-  final int tab;
-  final String label;
+  final LibraryTab tab;
 
   @override
   Widget build(BuildContext context) {
@@ -69,15 +56,15 @@ class _TabContent extends StatelessWidget {
       if (!api.loggedIn.value) {
         return const _LoginRequiredHint();
       }
+      // exhaustive switch: enum 加新值时编译器报错,不会静默走错分支
       switch (tab) {
-        case 1:
+        case LibraryTab.playlists:
           return _PlaylistsView();
-        case 2:
+        case LibraryTab.albums:
           return _AlbumsView();
-        case 3:
+        case LibraryTab.artists:
           return _ArtistsView();
       }
-      return _PlaylistsView();
     });
   }
 }
@@ -203,24 +190,31 @@ class _ArtistsView extends StatelessWidget {
       if (c.artists.isEmpty) {
         return const Center(child: Text('暂无关注艺人'));
       }
-      return AspectDrivenGrid(
-        minColumns: 3,
-        childAspectRatio: 0.78,
-        itemCount: c.artists.length,
-        itemBuilder: (context, index) {
-          final a = c.artists[index];
-          return SongListCard(
-            playlistId: a.id,
-            title: a.name,
-            subtitle: '',
-            imageUrl: a.picUrl,
-            isLiked: () => c.isArtistLiked(a.id),
-            onToggleFavorite: () => c.toggleArtistLike(a.id),
-            onTap: () => Get.to(
-              () => ArtistDetail(artistId: a.id),
-              id: AppShell.shellNavigatorId,
-              binding: ArtistDetailBinding(artistId: a.id),
-            ),
+      return OrientationBuilder(
+        builder: (context, orientation) {
+          final aspectRatio = orientation == Orientation.portrait
+              ? DefaultValues.portraitArtistGridChildAspectRatio
+              : DefaultValues.landscopeArtistGridChildAspectRatio;
+          return AspectDrivenGrid(
+            minColumns: DefaultValues.gridMinColumns,
+            childAspectRatio: aspectRatio,
+            itemCount: c.artists.length,
+            itemBuilder: (context, index) {
+              final a = c.artists[index];
+              return SongListCard(
+                playlistId: a.id,
+                title: a.name,
+                subtitle: '',
+                imageUrl: a.picUrl,
+                isLiked: () => c.isArtistLiked(a.id),
+                onToggleFavorite: () => c.toggleArtistLike(a.id),
+                onTap: () => Get.to(
+                  () => ArtistDetail(artistId: a.id),
+                  id: AppShell.shellNavigatorId,
+                  binding: ArtistDetailBinding(artistId: a.id),
+                ),
+              );
+            },
           );
         },
       );

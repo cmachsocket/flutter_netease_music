@@ -134,20 +134,20 @@ class _SectionSwitcher extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(
-      () => SegmentedButton<int>(
+      () => SegmentedButton<ArtistView>(
         segments: const [
           ButtonSegment(
-            value: 0,
+            value: ArtistView.albums,
             label: Text('专辑 / EP'),
             icon: Icon(Icons.album),
           ),
           ButtonSegment(
-            value: 1,
+            value: ArtistView.songs,
             label: Text('所有歌曲'),
             icon: Icon(Icons.queue_music),
           ),
         ],
-        selected: {controller.viewIndex.value},
+        selected: {controller.view.value},
         onSelectionChanged: (s) => controller.setView(s.first),
       ),
     );
@@ -161,10 +161,10 @@ class _SectionContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      switch (controller.viewIndex.value) {
-        case 0:
+      switch (controller.view.value) {
+        case ArtistView.albums:
           return _AlbumsSection(albums: controller.albums.toList());
-        case 1:
+        case ArtistView.songs:
           return SongListBody(
             songs: controller.songs.toList(),
             isLoading: false,
@@ -172,8 +172,6 @@ class _SectionContent extends StatelessWidget {
             onPlay: controller.playSong,
             isLiked: (song) => controller.isLiked(song.id),
           );
-        default:
-          return const Center(child: Text('未知视图'));
       }
     });
   }

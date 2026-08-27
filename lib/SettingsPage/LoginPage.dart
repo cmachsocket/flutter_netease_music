@@ -31,18 +31,21 @@ class LoginPage extends StatelessWidget {
             ],
             decoration: const InputDecoration(
               labelText: '手机号',
-              hintText: '请输入 11 位手机号',
+              hintText: '请输入 ${LoginController.phoneLength} 位手机号',
               prefixIcon: Icon(Icons.phone_outlined),
             ),
           ),
 
           // 验证码输入框
+          // - 只设上限 (codeMaxLength) 防呆,不限制下限/位数:
+          //   网易云后端会动态改验证码位数 (4/6/8 都见过),前端不知该信哪个,
+          //   猜错了用户输不进去 → 反正 SDK 返错时能拿到 [ApiException.message] 提示。
           TextField(
             controller: controller.codeController,
             keyboardType: TextInputType.number,
             inputFormatters: [
               FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(LoginController.codeLength),
+              LengthLimitingTextInputFormatter(LoginController.codeMaxLength),
             ],
             decoration: const InputDecoration(
               labelText: '验证码',
@@ -58,7 +61,7 @@ class LoginPage extends StatelessWidget {
               child: TextButton(
                 onPressed: controller.canSendCode ? controller.sendCode : null,
                 child: controller.isSendingCode.value
-                    ? const CircularProgressIndicator(strokeWidth: 2)
+                    ? const CircularProgressIndicator()
                     : Text(_sendCodeLabel(controller.countdown.value)),
               ),
             ),
@@ -69,7 +72,7 @@ class LoginPage extends StatelessWidget {
             () => ElevatedButton(
               onPressed: controller.canLogin ? controller.login : null,
               child: controller.isLoggingIn.value
-                  ? const CircularProgressIndicator(strokeWidth: 2)
+                  ? const CircularProgressIndicator()
                   : const Text('登录'),
             ),
           ),

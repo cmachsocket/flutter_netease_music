@@ -11,6 +11,8 @@ import '../sdk/api_exception.dart';
 import '../sdk/netease_api.dart';
 import '../services/AudioPlayerService.dart';
 
+enum CenterPage { cover, lyric }
+
 /// 播放页统一控制器:进度 + 切页 + 歌词 + 实际音频加载
 ///
 /// - **音频**:通过 [AudioPlayerService] 调 just_audio,
@@ -30,7 +32,7 @@ class PlayerController extends GetxController {
 
   // region 播放状态(由 AudioPlayer stream 推动)
   final Rx<Duration> position = Duration.zero.obs;
-  final Rx<Duration> duration = const Duration(minutes: 3).obs;
+  final Rx<Duration> duration = Duration.zero.obs;
   final Rx<Duration> buffered = Duration.zero.obs;
   final RxBool isPlaying = false.obs;
 
@@ -47,7 +49,7 @@ class PlayerController extends GetxController {
   // endregion
 
   // region UI 切页
-  final RxInt centerIndex = 0.obs;
+  final RxInt centerIndex = CenterPage.cover.index.obs;
   // endregion
 
   // region 歌词
@@ -281,7 +283,10 @@ class PlayerController extends GetxController {
   void pause() => _audio.pause();
   void togglePlay() => isPlaying.value ? pause() : play();
   void seek(Duration p) => _audio.seek(p);
-  void switchPage() => centerIndex.value = centerIndex.value == 0 ? 1 : 0;
+  void switchPage() =>
+      centerIndex.value = centerIndex.value == CenterPage.cover.index
+      ? CenterPage.lyric.index
+      : CenterPage.cover.index;
 
   /// toggle 当前歌曲的喜欢状态
   ///

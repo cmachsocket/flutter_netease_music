@@ -1,13 +1,12 @@
 import 'MusicProgressbar.dart';
+import '../widgets/song_cover.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'Player.dart';
 import 'PlayerController.dart';
 import '../PlayListPage/PlayListPage.dart';
 import '../PlayListPage/PlayListController.dart';
 import '../services/PlayQueueService.dart';
-import '../widgets/netease_image.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 
@@ -44,14 +43,10 @@ class BottomPlayer extends StatelessWidget {
                   // 不写死 48x48 —— 跟随主题 / 父容器高度走
                   Obx(() {
                     final song = player.currentSong.value;
-                    final child = song == null
-                        ? Container(color: scheme.surfaceContainerHigh)
-                        : CachedNetworkImage(
-                            imageUrl: song.coverUrl,
-                            fit: BoxFit.cover,
-                            httpHeaders: neteaseImageHeaders,
-                          );
-                    return AspectRatio(aspectRatio: 1, child: child);
+                    return AspectRatio(
+                      aspectRatio: 1,
+                      child: SongCover(url: song?.coverUrl ?? ''),
+                    );
                   }),
                   // 标题 + 艺术家
                   Expanded(

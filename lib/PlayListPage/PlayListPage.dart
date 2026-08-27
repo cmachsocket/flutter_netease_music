@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import '../widgets/netease_image.dart' show neteaseImageHeaders;
+import '../widgets/song_cover.dart';
 import 'PlayListController.dart';
 
 /// 播放列表页
@@ -40,7 +39,7 @@ class PlayListPage extends StatelessWidget {
               return ListTile(
                 selected: index == selected,
                 onTap: () => controller.selectIndex(index),
-                leading: _Cover(url: song.coverUrl),
+                leading: SongCover(url: song.coverUrl),
                 title: Text(
                   song.title,
                   maxLines: 1,
@@ -65,28 +64,6 @@ class PlayListPage extends StatelessWidget {
             },
           );
         }),
-      ),
-    );
-  }
-}
-
-/// 列表封面:复用网络图,失败时退化为 M3 标准 surface 色块 + 音符图标
-/// 不写圆角数字 - 接受 [ListTile.leading] 默认方形容器
-class _Cover extends StatelessWidget {
-  const _Cover({required this.url});
-  final String url;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return CachedNetworkImage(
-      imageUrl: url,
-      fit: BoxFit.cover,
-      httpHeaders: neteaseImageHeaders,
-      errorWidget: (_, _, _) => Container(
-        color: scheme.surfaceContainerHigh,
-        alignment: Alignment.center,
-        child: Icon(Icons.music_note, color: scheme.onSurfaceVariant),
       ),
     );
   }

@@ -1,5 +1,5 @@
 import 'dart:convert';
-
+import 'package:flutter/material.dart' show IconData, Icons;
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:get/get.dart';
 
@@ -8,6 +8,21 @@ import '../sdk/netease_api.dart';
 import '../services/liked_albums_service.dart';
 import '../services/liked_artists_service.dart';
 import '../services/liked_playlists_service.dart';
+
+enum LibraryTab {
+  playlists(1, '歌单', Icons.playlist_play),
+  albums(2, '专辑', Icons.album),
+  artists(3, '艺人', Icons.person);
+
+  const LibraryTab(this.id, this.label, this.icon);
+
+  /// 网易云后端的 tab id (供 SDK / 个人中心等接口引用)
+  final int id;
+
+  /// UI 显示文案
+  final String label;
+  final IconData icon;
+}
 
 /// Library 页 controller
 ///
@@ -19,7 +34,11 @@ import '../services/liked_playlists_service.dart';
 /// **未登录时**:不调接口,展示"请先登录"占位卡
 /// **uid 缺失时**:拉一次 /user/account,缓存到 [NeteaseApi.currentUid]
 class LibraryController extends GetxController {
-  final RxInt tabIndex = 1.obs;
+  /// 当前 tab (默认歌单)
+  ///
+  /// **不用裸 int** —— enum 在编译期挡住 setTab(99) 这种垃圾值,
+  /// switch 也带 exhaustiveness 检查(加新 tab 时漏一个 case 编译器报错)。
+  final Rx<LibraryTab> tab = LibraryTab.playlists.obs;
   Worker? _loginWorker;
 
   final NeteaseApi api = Get.find<NeteaseApi>();
@@ -56,21 +75,21 @@ class LibraryController extends GetxController {
     }
   }
 
-  void setTabIndex(int index) {
-    tabIndex.value = index;
+  void setTab(LibraryTab t) {
+    tab.value = t;
     // 切换时按需触发加载(只在未加载过且未在加载中时)
     _loadVisibleTab();
   }
 
   void _loadVisibleTab() {
-    switch (tabIndex.value) {
-      case 1:
+    switch (tab.value) {
+      case LibraryTab.playlists:
         if (playlists.isEmpty && !playlistsLoading.value) loadPlaylists();
         break;
-      case 2:
+      case LibraryTab.albums:
         if (albums.isEmpty && !albumsLoading.value) loadAlbums();
         break;
-      case 3:
+      case LibraryTab.artists:
         if (artists.isEmpty && !artistsLoading.value) loadArtists();
         break;
     }

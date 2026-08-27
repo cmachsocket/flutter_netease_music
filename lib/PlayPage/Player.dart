@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'Lyrics.dart';
+import '../widgets/song_cover.dart';
 import 'PlayerController.dart';
+import '../models/default.dart';
 import '../PlayListPage/PlayListPage.dart';
 import '../PlayListPage/PlayListController.dart';
 import '../services/PlayQueueService.dart';
 import '../widgets/linked_detail_text.dart';
-import '../widgets/netease_image.dart';
 import 'MusicProgressbar.dart';
 
 class Player extends StatelessWidget {
@@ -55,7 +55,9 @@ class Player extends StatelessWidget {
         onPressed: controller.switchPage,
         child: Obx(
           () => Icon(
-            controller.centerIndex.value == 0 ? Icons.music_note : Icons.lyrics,
+            controller.centerIndex.value == CenterPage.cover.index
+                ? Icons.music_note
+                : Icons.lyrics,
           ),
         ),
       ),
@@ -73,16 +75,10 @@ class Player extends StatelessWidget {
                     alignment: Alignment.center,
                     children: [
                       AspectRatio(
-                        aspectRatio: 1,
+                        aspectRatio: DefaultValues.squardRatio,
                         child: Obx(() {
                           final song = controller.currentSong.value;
-                          return song?.coverUrl == null
-                              ? Icon(Icons.music_note)
-                              : CachedNetworkImage(
-                                  imageUrl: song?.coverUrl ?? "",
-                                  fit: BoxFit.cover,
-                                  httpHeaders: neteaseImageHeaders,
-                                );
+                          return SongCover(url: song?.coverUrl ?? '');
                         }),
                       ),
                       const Lyrics(),

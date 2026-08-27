@@ -1,18 +1,16 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../models/Song.dart';
 import '../widgets/linked_detail_text.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import '../widgets/netease_image.dart' show neteaseImageHeaders;
+import '../widgets/song_cover.dart';
 
-/// 查询 song 是否被喜欢的回调(无参:调用方包好 song 后注入,SongRowTile 内部 Obx 调用)
+/// 查询 song 是否被喜欢的回调（无参：调用方包好 song 后注入,SongRowTile 内部 Obx 调用)
 typedef IsLikedGetter = bool Function();
 
 /// 歌曲行(供 SongListDetail / ArtistDetail 共用)
 ///
 /// - 封面 + 标题 + "艺人 - 专辑" + (时长 + 喜爱 + 播放)
-/// - 复用 [ListTile] + 内嵌 [_Cover] 错误降级,业务侧零硬编码
+/// - 复用 [ListTile] + 内嵌 [SongCover] 错误降级，业务侧零硬编码
 /// - onToggleFavorite / onPlay / isLiked 由调用方绑定 controller 方法
 class SongRowTile extends StatelessWidget {
   const SongRowTile({
@@ -33,7 +31,7 @@ class SongRowTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: AspectRatio(aspectRatio: 1.0, child: _Cover(url: song.coverUrl)),
+      leading: AspectRatio(aspectRatio: 1.0, child: SongCover(url: song.coverUrl)),
       title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: LinkedDetailText(song: song),
       onTap: onPlay,
@@ -67,29 +65,3 @@ class SongRowTile extends StatelessWidget {
   }
 }
 
-/// 列表封面:复用网络图,失败时退化为 M3 标准 surface 色块 + 音符图标
-///
-/// 空 URL 直接走占位(不调 Image.network,避免空 URI 解析异常):
-/// - search 接口 song 项里 album 只有 picId(数字),没 picUrl(URL)
-/// - Song.coverUrl 为空是预期的,占位 Container 反而更干净
-class _Cover extends StatelessWidget {
-  const _Cover({required this.url});
-  final String url;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final placeholder = Container(
-      color: scheme.surfaceContainerHigh,
-      alignment: Alignment.center,
-      child: Icon(Icons.music_note, color: scheme.onSurfaceVariant),
-    );
-    if (url.isEmpty) return placeholder;
-    return CachedNetworkImage(
-      imageUrl: url,
-      fit: BoxFit.cover,
-      httpHeaders: neteaseImageHeaders,
-      errorWidget: (_, _, _) => placeholder,
-    );
-  }
-}

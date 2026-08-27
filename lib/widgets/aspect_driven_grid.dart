@@ -10,18 +10,42 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
+/// 三个 grid widget 的默认参数集中放这里
+///
+/// - 三个 constructor (AspectDrivenGrid / SliverAspectDrivenGrid / MasonryAspectDrivenGrid)
+///   以前各自重写这些默认值，改一处忘改另两处会造成不一致。
+/// - 现在抽到这里：改默认参数只改一处。
+/// - `private` (下划线开头) 仅本文件内部用，外部不应该手动改。
+class _GridDefaults {
+  /// 基准宽高比下的列数（默认 2）
+  static const int baseColumns = 2;
+
+  /// 基准宽高比（默认 1.0 = 1:1）
+  static const double baseRatio = 1.0;
+
+  /// 间距 = 列宽 × 此比例（0.02~0.06 区间）
+  static const double gapRatio = 0.04;
+
+  /// item 自身的宽/高比（默认 1.0 = 永远方）
+  static const double childAspectRatio = 1.0;
+
+  /// 列数限位
+  static const int minColumns = 1;
+  static const int maxColumns = 6;
+}
+
 /// 1. 标准版（等高 item，列数 / 间距 / item 比例全部派生）
 class AspectDrivenGrid extends StatelessWidget {
   const AspectDrivenGrid({
     super.key,
     required this.itemCount,
     required this.itemBuilder,
-    this.baseColumns = 2,
-    this.baseRatio = 1.0,
-    this.gapRatio = 0.04,
-    this.childAspectRatio = 1.0,
-    this.minColumns = 1,
-    this.maxColumns = 6,
+    this.baseColumns = _GridDefaults.baseColumns,
+    this.baseRatio = _GridDefaults.baseRatio,
+    this.gapRatio = _GridDefaults.gapRatio,
+    this.childAspectRatio = _GridDefaults.childAspectRatio,
+    this.minColumns = _GridDefaults.minColumns,
+    this.maxColumns = _GridDefaults.maxColumns,
     this.padding = EdgeInsets.zero,
     this.scrollPhysics,
     this.shrinkWrap = false,
@@ -92,12 +116,12 @@ class SliverAspectDrivenGrid extends StatelessWidget {
     super.key,
     required this.itemCount,
     required this.itemBuilder,
-    this.baseColumns = 2,
-    this.baseRatio = 1.0,
-    this.gapRatio = 0.04,
-    this.childAspectRatio = 1.0,
-    this.minColumns = 1,
-    this.maxColumns = 6,
+    this.baseColumns = _GridDefaults.baseColumns,
+    this.baseRatio = _GridDefaults.baseRatio,
+    this.gapRatio = _GridDefaults.gapRatio,
+    this.childAspectRatio = _GridDefaults.childAspectRatio,
+    this.minColumns = _GridDefaults.minColumns,
+    this.maxColumns = _GridDefaults.maxColumns,
   });
 
   final int itemCount;
@@ -153,11 +177,11 @@ class MasonryAspectDrivenGrid extends StatelessWidget {
     super.key,
     required this.itemCount,
     required this.itemBuilder,
-    this.baseColumns = 2,
-    this.baseRatio = 1.0,
-    this.gapRatio = 0.04,
-    this.minColumns = 1,
-    this.maxColumns = 6,
+    this.baseColumns = _GridDefaults.baseColumns,
+    this.baseRatio = _GridDefaults.baseRatio,
+    this.gapRatio = _GridDefaults.gapRatio,
+    this.minColumns = _GridDefaults.minColumns,
+    this.maxColumns = _GridDefaults.maxColumns,
     this.padding = EdgeInsets.zero,
     this.scrollPhysics,
     this.shrinkWrap = false,

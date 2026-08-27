@@ -12,6 +12,8 @@ import 'AppShellController.dart';
 import 'searchPage/searchPage.dart';
 import 'searchPage/SearchController.dart' show SearchPageBinding;
 
+enum PageIndex { home, search, library, settings }
+
 /// 顶层 Scaffold,IndexedStack 那一格换成 Navigator。
 /// 切 tab 用 GetX:Get.to() + id 推到 shell 自己的 navigator。
 /// tab 状态完全交给 GetxController(AppShellController),本类 StatelessWidget。
@@ -21,41 +23,40 @@ class AppShell extends StatelessWidget {
 
   /// AppShell 这一层 Navigator 在 Get 中的 id,跟 Settings 的内嵌 id 区分
   static const int shellNavigatorId = 0;
+  static const int maxPageIndex = 4;
 
   /// 按 index 返回 tab 内容
-  static Widget _content(int i) {
+  static Widget _content(PageIndex i) {
     switch (i) {
-      case 0:
+      case PageIndex.home:
         return const HomePage();
-      case 1:
+      case PageIndex.search:
         return const SearchPage();
-      case 2:
+      case PageIndex.library:
         return const LibraryPage();
-      case 3:
+      case PageIndex.settings:
         return const Settings();
     }
-    return const HomePage();
   }
 
   /// 跟 _content 对应:每个 tab 是否需要 binding。
   /// library tab 切到时才需要 LibraryController,所以用 Get.to(binding:) 按需绑定。
   /// 启动前已注入的(AppShellController / ThemeController / PlayerController)走 global,不在这里绑。
-  static Bindings? _bindingForTab(int i) {
+  static Bindings? _bindingForTab(PageIndex i) {
     switch (i) {
-      case 0:
+      case PageIndex.home:
         return HomePageBinding();
-      case 1:
+      case PageIndex.search:
         return SearchPageBinding();
-      case 2:
+      case PageIndex.library:
         return LibraryBinding();
-      case 3:
+      case PageIndex.settings:
         return SettingsPageBinding();
     }
-    return HomePageBinding();
   }
 
   /// shell 这一层的 Navigator,内容跟着 tab index 走
-  static Widget _navigator(int i) {
+  static Widget _navigator(PageIndex i) {
     return Navigator(
       key: Get.nestedKey(shellNavigatorId),
       initialRoute: '/',
@@ -74,7 +75,7 @@ class AppShell extends StatelessWidget {
   /// 按屏幕朝向走不同 flex 配置
   /// - portrait:Navigator 用 Expanded 吃剩余高度,BottomPlay 自身高度
   /// - landscape:Navigator flex=4,BottomPlay flex=1(横屏播放器按比例拉大)
-  static Widget _responsiveBody(int i) {
+  static Widget _responsiveBody(PageIndex i) {
     return Column(
       children: [
         OrientationLayoutBuilder(
@@ -95,7 +96,7 @@ class AppShell extends StatelessWidget {
       bottom: true,
       handleObserver: true,
       child: Obx(() {
-        final i = tab.index.value.clamp(0, 3);
+        final i = tab.index.value.clamp(0, maxPageIndex - 1);
         return Scaffold(
           // 2026-08-25: 用 SafeArea 包 body, Flutter UI 不越过状态栏 / 底部
           // navigation bar。bottomNavigationBar 本身 Scaffold 会自动避开底部, 这里
@@ -105,7 +106,7 @@ class AppShell extends StatelessWidget {
           // - SafeArea: Flutter UI 进一步避开状态栏/导航栏的高度, 避免画到系统栏下
           // top/bottom true (BottomNavigationBar 本身 Scaffold 避开 bottom, 这里
           // bottom=true 是冗余防御, 设了不出问题)。
-          body: _responsiveBody(i),
+          body: _responsiveBody(PageIndex.values[i]),
 
           bottomNavigationBar: BottomNavigationBar(
             currentIndex: i,
@@ -113,9 +114,10 @@ class AppShell extends StatelessWidget {
               if (j == i) return;
               tab.change(j);
               // 用 GetX 的导航 API 推到 shell 自己的 navigator
+              final toThePage = PageIndex.values[j.clamp(0, maxPageIndex - 1)];
               Get.to(
-                () => _content(j.clamp(0, 3)),
-                binding: _bindingForTab(j.clamp(0, 3)),
+                () => _content(toThePage),
+                binding: _bindingForTab(toThePage),
                 id: shellNavigatorId,
               );
             },

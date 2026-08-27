@@ -13,6 +13,12 @@ import '../services/liked_artists_service.dart';
 import '../services/LikedSongsService.dart';
 import 'Artist.dart';
 
+/// 艺人详情页 tab 枚举
+///
+/// 不用裸 int — enum 在编译期挡住 setView(99) 这种垃圾值,
+/// switch 也带 exhaustiveness 检查(加新 tab 时漏一个 case 编译器报错)。
+enum ArtistView { albums, songs }
+
 /// 艺人页 controller
 ///
 /// - 一位艺人一个实例(由 [artistId] 区分);路由 pop 时随 binding 自动销毁
@@ -35,8 +41,8 @@ class ArtistController extends GetxController {
   final RxnString errorMessage = RxnString();
   final RxBool isFollowing = false.obs;
 
-  /// 0 = 专辑 / EP 网格;1 = 所有歌曲列表
-  final RxInt viewIndex = 0.obs;
+  /// 当前选中的 tab (albums = 专辑/EP 网格, songs = 所有歌曲列表)
+  final Rx<ArtistView> view = ArtistView.albums.obs;
 
   @override
   void onInit() {
@@ -134,7 +140,7 @@ class ArtistController extends GetxController {
     isLoading.value = false;
   }
 
-  void setView(int index) => viewIndex.value = index;
+  void setView(ArtistView v) => view.value = v;
 
   void toggleFollow() {
     // 乐观更新本地状态(纯 UI 反映,后端 toggle 交由 service)
