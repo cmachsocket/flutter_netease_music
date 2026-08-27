@@ -16,6 +16,8 @@ class SongListBody extends StatelessWidget {
     this.onToggleFavorite,
     this.onPlay,
     this.isLiked,
+    this.extraTrailing,
+    this.selectedHighlight,
   });
 
   final List<Song> songs;
@@ -23,6 +25,9 @@ class SongListBody extends StatelessWidget {
   final String? errorMessage;
   final void Function(Song)? onToggleFavorite;
   final void Function(Song)? onPlay;
+  // 为SongRowTile暴露的额外 trailing widget，同时会传递当前Song和index。
+  final Widget Function(Song, int)? extraTrailing;
+  final int? selectedHighlight;
 
   /// 查询某首 song 是否被喜欢(由 controller 提供,内部读 Rx)
   final bool Function(Song)? isLiked;
@@ -48,11 +53,16 @@ class SongListBody extends StatelessWidget {
       itemCount: songs.length,
       itemBuilder: (context, index) {
         final song = songs[index];
-
+        final selected =
+            selectedHighlight != null && index == selectedHighlight;
         return SongRowTile(
+          selected: selected,
           song: song,
           onToggleFavorite: () => onToggleFavorite?.call(song),
           onPlay: () => onPlay?.call(song),
+          extraTrailing: extraTrailing != null
+              ? () => extraTrailing!(song, index)
+              : null,
           isLiked: () => isLiked?.call(song) ?? false,
         );
       },

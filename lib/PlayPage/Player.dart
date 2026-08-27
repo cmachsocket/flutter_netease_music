@@ -14,7 +14,7 @@ class Player extends StatelessWidget {
   Player({super.key});
   final controller = Get.find<PlayerController>();
   final playlist = Get.find<PlayListController>();
-
+  static const tileMaxLine = 1;
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -37,7 +37,7 @@ class Player extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
                 textAlign: TextAlign.center,
-                maxLines: 1,
+                maxLines: tileMaxLine,
                 overflow: TextOverflow.ellipsis,
               ),
               if (song != null)
@@ -53,16 +53,14 @@ class Player extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: controller.switchPage,
-        child: Obx(
-          () {
-            // exhaustive switch: enum 加新 page 时编译器报错,不会走错 icon
-            final icon = switch (controller.center.value) {
-              CenterPage.cover => Icons.music_note,
-              CenterPage.lyric => Icons.lyrics,
-            };
-            return Icon(icon);
-          },
-        ),
+        child: Obx(() {
+          // exhaustive switch: enum 加新 page 时编译器报错,不会走错 icon
+          final icon = switch (controller.center.value) {
+            CenterPage.cover => Icons.music_note,
+            CenterPage.lyric => Icons.lyrics,
+          };
+          return Icon(icon);
+        }),
       ),
       body: Column(
         children: [

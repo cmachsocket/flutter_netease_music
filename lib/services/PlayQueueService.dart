@@ -10,11 +10,7 @@ import '../models/Song.dart';
 /// - [sequential]: 顺序循环, 队尾 → 跳回首首(双向都 wrap, 跟常用播放器一致)
 /// - [shuffle]:    乱序播放, 不重复抽到同一首直到 playlist 全部播过一轮
 /// - [repeatOne]:  单曲循环, 播完当前首自动重播(不走 next)
-enum PlayMode {
-  sequential,
-  shuffle,
-  repeatOne,
-}
+enum PlayMode { sequential, shuffle, repeatOne }
 
 /// 播放队列服务
 ///
@@ -26,7 +22,10 @@ class PlayQueueService extends GetxService {
   static const _storageKey = 'playlist_v1';
   static const _currentIndexKey = 'playlist_currentIndex_v1';
   static const _modeKey = 'playlist_mode_v1';
-
+  static const notToPlay = -1;
+  static const constHeadOfTheQueue = 0;
+  int get headOfTheQueue => constHeadOfTheQueue;
+  int get tailOfTheQueue => playlist.length - 1;
   final RxList<Song> playlist = <Song>[].obs;
   final RxInt currentIndex = 0.obs;
   final Rx<PlayMode> mode = PlayMode.sequential.obs;
@@ -54,9 +53,10 @@ class PlayQueueService extends GetxService {
       );
     }
     final savedIdx = box.read<int>(_currentIndexKey) ?? 0;
-    currentIndex.value = (savedIdx >= 0 && savedIdx < playlist.length)
+    currentIndex.value =
+        (savedIdx >= headOfTheQueue && savedIdx <= tailOfTheQueue)
         ? savedIdx
-        : 0;
+        : headOfTheQueue;
     // mode 持久化 (没存过 → sequential)
     final savedMode = box.read<String>(_modeKey);
     mode.value = _decodeMode(savedMode);
@@ -111,7 +111,7 @@ class PlayQueueService extends GetxService {
   ///
   /// **不修改 currentIndex** —— 调用方拿到返回值自己 selectIndex
   int nextIndex() {
-    if (playlist.isEmpty) return -1;
+    if (playlist.isEmpty) return notToPlay;
     switch (mode.value) {
       case PlayMode.sequential:
         return (currentIndex.value + 1) % playlist.length;
@@ -128,11 +128,11 @@ class PlayQueueService extends GetxService {
   /// - **shuffle**:    同 next, 随机抽
   /// - **repeatOne**:  当前首, 不变
   int prevIndex() {
-    if (playlist.isEmpty) return -1;
+    if (playlist.isEmpty) return notToPlay;
     switch (mode.value) {
       case PlayMode.sequential:
         final p = currentIndex.value - 1;
-        return p < 0 ? playlist.length - 1 : p;
+        return p < headOfTheQueue ? tailOfTheQueue : p;
       case PlayMode.shuffle:
         return _nextShuffleIndex();
       case PlayMode.repeatOne:
@@ -141,7 +141,7 @@ class PlayQueueService extends GetxService {
   }
 
   int _nextShuffleIndex() {
-    if (playlist.length == 1) return 0;
+    if (playlist.length == 1) return headOfTheQueue;
 
     final allPlayed = _shufflePlayed.length >= playlist.length;
     if (allPlayed) {
@@ -149,7 +149,7 @@ class PlayQueueService extends GetxService {
     }
 
     final candidates = <int>[];
-    for (var i = 0; i < playlist.length; i++) {
+    for (var i = headOfTheQueue; i < playlist.length; i++) {
       if (!_shufflePlayed.contains(playlist[i].id)) {
         candidates.add(i);
       }
@@ -167,7 +167,7 @@ class PlayQueueService extends GetxService {
       currentIndex.value = idx;
     } else {
       playlist.add(song);
-      currentIndex.value = playlist.length - 1;
+      currentIndex.value = tailOfTheQueue;
     }
     _resetShuffleRound();
     _persist();
@@ -187,15 +187,17 @@ class PlayQueueService extends GetxService {
     playlist.assignAll(uniqueSongs);
 
     final startIndex = startSong == null
-        ? 0
+        ? headOfTheQueue
         : playlist.indexWhere((song) => song.id == startSong.id);
-    currentIndex.value = startIndex >= 0 ? startIndex : 0;
+    currentIndex.value = startIndex >= headOfTheQueue
+        ? startIndex
+        : headOfTheQueue;
     _resetShuffleRound();
     _persist();
   }
 
   void removeSong(int index) {
-    if (index < 0 || index >= playlist.length) return;
+    if (index < headOfTheQueue || index > tailOfTheQueue) return;
 
     // shuffle 模式下如果删的是已播过的, 同步清掉标记
     if (mode.value == PlayMode.shuffle &&
@@ -211,7 +213,7 @@ class PlayQueueService extends GetxService {
       currentIndex.value -= 1;
     } else if (index == currentIndex.value) {
       if (currentIndex.value >= playlist.length) {
-        currentIndex.value = playlist.length - 1;
+        currentIndex.value = tailOfTheQueue;
       }
     }
 

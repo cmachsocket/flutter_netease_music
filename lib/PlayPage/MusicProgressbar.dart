@@ -9,6 +9,9 @@ class MusicProgressBar extends StatelessWidget {
     this.timeLabelLocation = TimeLabelLocation.below,
   });
   final TimeLabelLocation timeLabelLocation;
+  static const baseBarAplha = 0.3;
+  static const bufferedBarAlpha = 0.3;
+  static const thumbGlowColorAlpha = 0.4;
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<PlayerController>();
@@ -22,10 +25,10 @@ class MusicProgressBar extends StatelessWidget {
         total: controller.duration.value,
         onSeek: controller.seek,
         progressBarColor: scheme.primary,
-        baseBarColor: scheme.onSurface.withValues(alpha: 0.3),
-        bufferedBarColor: scheme.primary.withValues(alpha: 0.3),
+        baseBarColor: scheme.onSurface.withValues(alpha: baseBarAplha),
+        bufferedBarColor: scheme.primary.withValues(alpha: bufferedBarAlpha),
         thumbColor: scheme.primary,
-        thumbGlowColor: scheme.primary.withValues(alpha: 0.4),
+        thumbGlowColor: scheme.primary.withValues(alpha: thumbGlowColorAlpha),
         timeLabelTextStyle: textTheme.bodySmall,
       ),
     );

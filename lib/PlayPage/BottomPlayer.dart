@@ -9,6 +9,7 @@ import '../PlayListPage/PlayListController.dart';
 import '../services/PlayQueueService.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
+import '../models/default.dart';
 
 /// 底部 mini 播放器
 ///
@@ -19,14 +20,15 @@ import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 /// - 队列图标跳 [PlayListPage]
 class BottomPlayer extends StatelessWidget {
   const BottomPlayer({super.key});
-
+  static const tileMaxLine = 1;
+  static const progressFlex = 1;
+  static const toolBarFlex = 3;
   @override
   Widget build(BuildContext context) {
     final player = Get.find<PlayerController>();
     final playlist = Get.find<PlayListController>();
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-
     return GestureDetector(
       onTap: () => Get.to(() => Player()),
       child: Container(
@@ -35,7 +37,7 @@ class BottomPlayer extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Expanded(
-              flex: 3,
+              flex: toolBarFlex,
               child: Row(
                 children: [
                   // 封面(从当前歌曲拿;无歌曲时退化占位)
@@ -44,7 +46,7 @@ class BottomPlayer extends StatelessWidget {
                   Obx(() {
                     final song = player.currentSong.value;
                     return AspectRatio(
-                      aspectRatio: 1,
+                      aspectRatio: DefaultValues.squardRatio,
                       child: SongCover(url: song?.coverUrl ?? ''),
                     );
                   }),
@@ -60,7 +62,7 @@ class BottomPlayer extends StatelessWidget {
                             style: textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
-                            maxLines: 1,
+                            maxLines: tileMaxLine,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -69,7 +71,7 @@ class BottomPlayer extends StatelessWidget {
                           return Text(
                             song?.artist ?? '-',
                             style: textTheme.bodySmall,
-                            maxLines: 1,
+                            maxLines: tileMaxLine,
                             overflow: TextOverflow.ellipsis,
                           );
                         }),
@@ -123,7 +125,7 @@ class BottomPlayer extends StatelessWidget {
               ),
             ),
             Expanded(
-              flex: 1,
+              flex: progressFlex,
               child: MusicProgressBar(
                 timeLabelLocation: TimeLabelLocation.sides,
               ),

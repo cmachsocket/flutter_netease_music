@@ -7,7 +7,6 @@ import '../models/default.dart';
 import 'SongListController.dart';
 import 'SongListDetail.dart';
 
-
 /// 整张歌单播放回调(返回 Future 但卡片场景 fire-and-forget)
 typedef PlayPlaylistCallback = Future<void> Function();
 
@@ -57,10 +56,11 @@ class SongListCard extends StatelessWidget {
   /// - widget 内 fire-and-forget,不 await
   final VoidCallback? onToggleFavorite;
 
+  static const cardTextMaxLines = 2;
+  static const subTextMaxLines = 1;
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-
     return Card(
       clipBehavior: Clip.antiAlias,
       child: GestureDetector(
@@ -76,13 +76,13 @@ class SongListCard extends StatelessWidget {
               title: Text(
                 title ?? '',
                 style: textTheme.bodySmall,
-                maxLines: 2,
+                maxLines: cardTextMaxLines,
                 overflow: TextOverflow.ellipsis,
               ),
               subtitle: Text(
                 subtitle ?? '',
                 style: textTheme.bodySmall,
-                maxLines: 1,
+                maxLines: subTextMaxLines,
                 overflow: TextOverflow.ellipsis,
               ),
               trailing: OrientationLayoutBuilder(
@@ -138,6 +138,7 @@ class LineSongListCard extends StatelessWidget {
   final String? title;
   final String? subtitle;
   final String? imageUrl;
+  static const bodyTextMaxLines = 1;
 
   /// 覆盖默认播放(整张歌单)。null = 默认调 SongListController.playPlaylistById
   final PlayPlaylistCallback? onPlay;
@@ -158,13 +159,13 @@ class LineSongListCard extends StatelessWidget {
         title: Text(
           title ?? '',
           style: textTheme.bodySmall,
-          maxLines: 1,
+          maxLines: bodyTextMaxLines,
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(
           subtitle ?? '',
           style: textTheme.bodySmall,
-          maxLines: 1,
+          maxLines: bodyTextMaxLines,
           overflow: TextOverflow.ellipsis,
         ),
         trailing: IconButton(

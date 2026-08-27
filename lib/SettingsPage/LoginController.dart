@@ -19,12 +19,14 @@ import '../sdk/netease_api.dart';
 class LoginController extends GetxController {
   // 业务常量集中放这里(单一来源,View 也引用)
   static const int phoneLength = 11;
+
   /// 验证码输入框**上限**(防呆:避免用户输 100 位)
   ///
   /// **不假设验证码位数** —— 网易云后端会动态调整(见过 4/6/8 位),
   /// 前端不知道下次是几位,所以**只设上限不限下限**,位数交给后端决定。
   static const int codeMaxLength = 8;
   static const int countdownSeconds = 60;
+  static const String countryCode = '86';
   static const Duration tickInterval = Duration(seconds: 1);
 
   // 中国大陆手机号 + 任意位数字验证码 (只验"非空 + 全数字",不验位数)
@@ -94,7 +96,7 @@ class LoginController extends GetxController {
       // 一次性拉 (已登录 / 已缓存不重拉), 这里不再调 applyAnonymousCookie 避免重复请求。
       // 同步阻塞调用;SDK 文档里也说 compute 会跨 isolate 拿 native handle
       apiCall(
-        () => api.raw.captcha_sent(phoneStr, ctcode: '86'),
+        () => api.raw.captcha_sent(phoneStr, ctcode: countryCode),
         what: '发送验证码',
       );
       _startCountdown();
@@ -139,7 +141,11 @@ class LoginController extends GetxController {
       await api.applyAnonymousCookie();
       // 2. 再发登录请求(此时 SDK 全局 cookie map 已有 NMTID/NMSCVT)
       final r = await api.call(
-        (a) => a.login_cellphone(phoneStr, captcha: codeStr, countrycode: '86'),
+        (a) => a.login_cellphone(
+          phoneStr,
+          captcha: codeStr,
+          countrycode: countryCode,
+        ),
         what: '登录',
       );
       api.applyLoginCookie(r);

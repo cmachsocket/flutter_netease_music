@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 
 import 'SongListBody.dart';
 import 'SongListController.dart';
-import '../services/LikedSongsService.dart';
 
 /// 歌单详情页(主页 [SongListCard] 点进来后看到)
 ///
@@ -20,11 +19,12 @@ class SongListDetail extends StatelessWidget {
   final String playlistId;
   final String? displayTitle;
 
+  static const mainTextMaxLines = 4;
+  static const subTextMaxLines = 1;
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<SongListController>();
     final textTheme = Theme.of(context).textTheme;
-
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -58,7 +58,7 @@ class SongListDetail extends StatelessWidget {
                       return Text(
                         description.isEmpty ? '暂无描述' : description,
                         style: textTheme.bodyMedium,
-                        maxLines: 4,
+                        maxLines: mainTextMaxLines,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.left,
                       );
@@ -73,7 +73,7 @@ class SongListDetail extends StatelessWidget {
                         label: Text(
                           '播放',
                           style: textTheme.bodyMedium,
-                          maxLines: 1,
+                          maxLines: subTextMaxLines,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -92,7 +92,7 @@ class SongListDetail extends StatelessWidget {
                         label: Text(
                           '收藏',
                           style: textTheme.bodyMedium,
-                          maxLines: 1,
+                          maxLines: subTextMaxLines,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),

@@ -171,7 +171,7 @@ class PlayerController extends GetxController {
   /// - repeatOne 模式: 同首重播,不走切歌
   void next() {
     final n = queue.nextIndex();
-    if (n < 0) return;
+    if (n < queue.headOfTheQueue) return;
     queue.selectIndex(n);
     if (queue.mode.value == PlayMode.repeatOne) {
       _audio.seek(Duration.zero);
@@ -185,7 +185,7 @@ class PlayerController extends GetxController {
   /// - shuffle / repeatOne: 同 next 的语义
   void prev() {
     final p = queue.prevIndex();
-    if (p < 0) return;
+    if (p < queue.headOfTheQueue) return;
     queue.selectIndex(p);
     if (queue.mode.value == PlayMode.repeatOne) {
       _audio.seek(Duration.zero);
@@ -215,7 +215,7 @@ class PlayerController extends GetxController {
     }
 
     final index = queue.currentIndex.value;
-    if (index < 0 || index >= queue.playlist.length) return;
+    if (index < queue.headOfTheQueue || index > queue.tailOfTheQueue) return;
 
     final target = queue.playlist[index];
     if (currentSong.value?.id == target.id) return;

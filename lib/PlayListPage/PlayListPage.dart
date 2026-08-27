@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../SongListPage/SongListBody.dart';
 import 'PlayListController.dart';
+import '../models/Song.dart';
 
 /// 播放列表页
 ///
@@ -45,9 +46,29 @@ class PlayListPage extends StatelessWidget {
             // 喜爱 / 不喜爱 (isLiked 内部读 likedIds.value → Obx 跟踪)
             isLiked: (song) => controller.isLiked(song.id),
             onToggleFavorite: (song) => controller.toggleFavorite(song.id),
+            extraTrailing: (song, index) =>
+                RemoveIconButton(song: song, index: index),
+            selectedHighlight: controller.currentIndex.value,
           );
         }),
       ),
+    );
+  }
+}
+
+class RemoveIconButton extends StatelessWidget {
+  const RemoveIconButton({super.key, required this.song, required this.index});
+  final Song? song;
+  final int index;
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: const Icon(Icons.remove_circle_outline),
+      onPressed: () {
+        final controller = Get.find<PlayListController>();
+        controller.removeSong(index);
+      },
+      tooltip: '移除',
     );
   }
 }

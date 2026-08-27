@@ -68,7 +68,7 @@ class ArtistDetail extends StatelessWidget {
 class _ArtistHeader extends StatelessWidget {
   const _ArtistHeader({required this.artist});
   final Artist artist;
-
+  static const artistBioMaxLines = 4;
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<ArtistController>();
@@ -90,7 +90,11 @@ class _ArtistHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(artist.name, style: textTheme.titleLarge),
-              Text(artist.bio, maxLines: 4, overflow: TextOverflow.ellipsis),
+              Text(
+                artist.bio,
+                maxLines: artistBioMaxLines,
+                overflow: TextOverflow.ellipsis,
+              ),
             ],
           ),
         ),

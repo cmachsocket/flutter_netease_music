@@ -37,6 +37,7 @@ from pathlib import Path
 
 
 # 文件级白名单:这些文件的"数字"基本都已经命名,不再逐个审视
+'''
 WHITELIST_FILES = {
     'LoginController.dart': lambda l: bool(re.search(
         r'static const|RegExp\(|isCodeValid|countdown\.value <= 0', l)),
@@ -57,8 +58,9 @@ WHITELIST_FILES = {
     'LoginPage.dart': lambda l: bool(re.search(
         r'codeMaxLength|strokeWidth: 2|countdown > 0', l)),
 }
-
+'''
 # 行级黑名单:即使有数字也不算
+'''
 LEGIT = [
     r'maxLines:', r'flex:', r'aspectRatio:',
     r'withValues\(alpha:', r'padLeft\(',
@@ -76,7 +78,7 @@ LEGIT = [
     r'speed: 1\.0',
     r'this\.songCount = 0', r'this\.albumCount = 0', r'this\.fanCount = 0',
 ]
-
+'''
 
 def collect_magic_numbers(lib_root: Path, include_sdk: bool) -> list[str]:
     """收集 lib/ 下所有 .dart 文件里"代码行里出现数字"的行。
@@ -120,16 +122,20 @@ def filter_suspicious(hits: list[str]) -> list[str]:
     for line in hits:
         # 文件级白名单
         fname = line.split(':')[0].split('/')[-1]
+        '''
         if fname in WHITELIST_FILES and WHITELIST_FILES[fname](line):
             continue
         # 行级黑名单
         if any(re.search(p, line) for p in LEGIT):
             continue
+        '''
         # JSON 解析默认值
         if re.search(r'is int \? json\[', line):
             continue
+        '''
         if re.search(r'isEmpty return 0', line):
             continue
+        '''
         suspicious.append(line)
     return suspicious
 

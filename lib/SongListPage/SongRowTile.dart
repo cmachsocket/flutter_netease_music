@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../models/Song.dart';
 import '../widgets/linked_detail_text.dart';
 import '../widgets/song_cover.dart';
+import '../models/default.dart';
 
 /// 查询 song 是否被喜欢的回调（无参：调用方包好 song 后注入）
 typedef IsLikedGetter = bool Function();
@@ -16,14 +17,20 @@ class SongRowTile extends StatelessWidget {
   const SongRowTile({
     super.key,
     required this.song,
+    this.selected = false,
     this.onToggleFavorite,
     this.onPlay,
     this.isLiked,
+    this.extraTrailing,
   });
 
   final Song song;
   final VoidCallback? onToggleFavorite;
   final VoidCallback? onPlay;
+  final bool selected;
+
+  //额外的 trailing widget, 比如专辑列表页的 "更多" 按钮
+  final Widget Function()? extraTrailing;
 
   /// 查询当前 song 是否被喜欢 —— callback 内部读 Rx，
   /// Obx 会自动监听那些 Rx（likedIds / likedAlbumIds 等）。
@@ -33,8 +40,9 @@ class SongRowTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return ListTile(
+      selected: selected,
       leading: AspectRatio(
-        aspectRatio: 1.0,
+        aspectRatio: DefaultValues.squardRatio,
         child: SongCover(url: song.coverUrl),
       ),
       title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -63,6 +71,7 @@ class SongRowTile extends StatelessWidget {
             onPressed: onPlay,
             tooltip: '播放',
           ),
+          if (extraTrailing != null) extraTrailing!(),
         ],
       ),
     );
