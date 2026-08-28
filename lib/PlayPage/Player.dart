@@ -9,6 +9,7 @@ import '../PlayListPage/PlayListController.dart';
 import '../services/PlayQueueService.dart';
 import '../widgets/linked_detail_text.dart';
 import 'MusicProgressbar.dart';
+import '../AppShell.dart';
 
 class Player extends StatelessWidget {
   Player({super.key});
@@ -23,7 +24,7 @@ class Player extends StatelessWidget {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(),
+          onPressed: () => Get.back(id: AppShell.shellNavigatorId),
         ),
         centerTitle: true,
         title: Obx(() {
@@ -143,7 +144,10 @@ class Player extends StatelessWidget {
               }),
               IconButton(
                 icon: const Icon(Icons.playlist_play),
-                onPressed: () => Get.to(() => const PlayListPage()),
+                onPressed: () => Get.to(
+                      () => const PlayListPage(),
+                      id: AppShell.shellNavigatorId,
+                    ),
               ),
             ],
           ),

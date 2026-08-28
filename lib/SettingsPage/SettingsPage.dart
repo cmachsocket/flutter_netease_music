@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../sdk/netease_api.dart';
+import '../AppShell.dart';
 import 'LoginController.dart' show LoginPageBinding;
 import 'LoginPage.dart';
 import 'SettingsController.dart';
@@ -14,8 +15,11 @@ class Settings extends StatelessWidget {
   const Settings({super.key});
 
   /// 跳登录页入口:跟 AppShell tab 切换同款 Get.to(binding:) 模式
-  static void _openLogin() =>
-      Get.to(() => const LoginPage(), binding: LoginPageBinding());
+  static void _openLogin() => Get.to(
+    () => const LoginPage(),
+    binding: LoginPageBinding(),
+    id: AppShell.shellNavigatorId,
+  );
 
   /// 退出登录入口(已登录态才显示):直接走 [NeteaseApi.logout],
   /// 不依赖 LoginController(用户可能从没进过 LoginPage,LoginController 未注入)

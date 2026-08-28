@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../SongListPage/SongListBody.dart';
 import 'PlayListController.dart';
 import '../models/Song.dart';
+import '../AppShell.dart';
 
 /// 播放列表页
 ///
@@ -20,13 +21,13 @@ class PlayListPage extends StatelessWidget {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
-        Get.back();
+        Get.back(id: AppShell.shellNavigatorId);
         return;
       },
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(
-            onPressed: () => Get.back(),
+            onPressed: () => Get.back(id: AppShell.shellNavigatorId),
             icon: const Icon(Icons.arrow_back),
           ),
           title: const Text('播放列表'),

@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import '../sdk/api_call.dart';
 import '../sdk/api_exception.dart';
 import '../sdk/netease_api.dart';
+import '../AppShell.dart';
 
 /// 登录页 controller(手机 + 验证码)
 ///
@@ -151,7 +152,7 @@ class LoginController extends GetxController {
       api.applyLoginCookie(r);
       // 拉取并缓存 uid —— LibraryController 后续要调 /user/playlist 等
       await api.fetchCurrentUid();
-      Get.back();
+      Get.back(id: AppShell.shellNavigatorId);
       Get.snackbar(
         '登录成功',
         '已保存登录状态,下次启动自动恢复',

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import 'LoginController.dart';
+import '../AppShell.dart';
 
 /// 登录页(手机 + 验证码)
 ///
@@ -18,7 +19,13 @@ class LoginPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Get.find<LoginController>();
     return Scaffold(
-      appBar: AppBar(title: const Text('登录')),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Get.back(id: AppShell.shellNavigatorId),
+        ),
+        title: const Text('登录'),
+      ),
       body: ListView(
         children: [
           // 手机号输入框

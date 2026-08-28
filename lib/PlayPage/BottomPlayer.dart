@@ -3,6 +3,7 @@ import '../widgets/song_cover.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'Player.dart';
+import '../AppShell.dart';
 import 'PlayerController.dart';
 import '../PlayListPage/PlayListPage.dart';
 import '../PlayListPage/PlayListController.dart';
@@ -30,7 +31,10 @@ class BottomPlayer extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     return GestureDetector(
-      onTap: () => Get.to(() => Player()),
+      onTap: () => Get.to(
+        () => Player(),
+        id: AppShell.shellNavigatorId,
+      ),
       child: Container(
         color: scheme.surfaceContainerHighest,
         child: Column(
@@ -117,6 +121,7 @@ class BottomPlayer extends StatelessWidget {
                       onPressed: () => Get.to(
                         () => PlayListPage(),
                         binding: PlayListBinding(),
+                        id: AppShell.shellNavigatorId,
                       ),
                     ),
                     portrait: (_) => SizedBox.shrink(),

@@ -77,7 +77,7 @@ class _ArtistLink extends StatelessWidget {
   }
 
   void _navigate(String artistId) {
-    if (backFirst) Get.back();
+    if (backFirst) Get.back(id: AppShell.shellNavigatorId);
     Get.to(
       () => ArtistDetail(artistId: artistId),
       id: AppShell.shellNavigatorId,
@@ -115,7 +115,7 @@ class _AlbumLink extends StatelessWidget {
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
         onPressed: () {
-          if (backFirst) Get.back();
+          if (backFirst) Get.back(id: AppShell.shellNavigatorId);
           Get.to(
             () => SongListDetail(playlistId: 'album-$id'),
             id: AppShell.shellNavigatorId,
