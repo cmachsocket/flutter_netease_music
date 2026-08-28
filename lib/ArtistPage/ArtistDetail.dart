@@ -176,9 +176,11 @@ class _SectionContent extends StatelessWidget {
 
 /// 专辑 / EP 网格:直接复用 SongListCard + AspectDrivenGrid
 ///
-/// TODO: 等 AlbumDetail 页做好后,把这里 SongListCard 的 onTap 改成推到 AlbumDetail
-/// 当前 stub 阶段点了会进 SongListDetail(playlistId = 'album-xxx'),由 SongListController
-/// 默认分支给一组占位歌曲,能跑通流程就行
+/// 跳转链路:
+/// - 卡片 onTap → SongListCard 默认 _defaultNavigate (传 `playlistId = 'album-${album.id}'`)
+/// - SongListDetail 看 playlistId 以 `album-` 开头 → 标题前缀加 "专辑"
+/// - SongListController.load 看到 `_albumPrefix` → 走 `_loadAlbum` 调 NCM `/album`
+///   拿真专辑元信息 + songs 数组(不是占位)
 class _AlbumsSection extends StatelessWidget {
   const _AlbumsSection({required this.albums});
   final List<Album> albums;

@@ -93,7 +93,14 @@ class AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tab = Get.find<AppShellController>();
-
+    // 2026-08-25: 用 SafeArea 包 body, Flutter UI 不越过状态栏 / 底部
+    // navigation bar。bottomNavigationBar 本身 Scaffold 会自动避开底部, 这里
+    // 跟之前的 MainActivity.setDecorFitsSystemWindows(true) 一起确保非全屏:
+    // - setDecorFitsSystemWindows: Android 不强制 edge-to-edge, 状态栏/导航栏
+    //   保留系统位置
+    // - SafeArea: Flutter UI 进一步避开状态栏/导航栏的高度, 避免画到系统栏下
+    // top/bottom true (BottomNavigationBar 本身 Scaffold 避开 bottom, 这里
+    // bottom=true 是冗余防御, 设了不出问题)。
     return PersistentSafeArea(
       top: true,
       bottom: true,
@@ -102,14 +109,6 @@ class AppShell extends StatelessWidget {
         final tailOfThePage = maxPageIndex - 1;
         final i = tab.index.value.clamp(0, tailOfThePage);
         return Scaffold(
-          // 2026-08-25: 用 SafeArea 包 body, Flutter UI 不越过状态栏 / 底部
-          // navigation bar。bottomNavigationBar 本身 Scaffold 会自动避开底部, 这里
-          // 跟之前的 MainActivity.setDecorFitsSystemWindows(true) 一起确保非全屏:
-          // - setDecorFitsSystemWindows: Android 不强制 edge-to-edge, 状态栏/导航栏
-          //   保留系统位置
-          // - SafeArea: Flutter UI 进一步避开状态栏/导航栏的高度, 避免画到系统栏下
-          // top/bottom true (BottomNavigationBar 本身 Scaffold 避开 bottom, 这里
-          // bottom=true 是冗余防御, 设了不出问题)。
           body: _responsiveBody(PageIndex.values[i]),
 
           bottomNavigationBar: BottomNavigationBar(

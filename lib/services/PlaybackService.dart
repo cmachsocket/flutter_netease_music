@@ -4,6 +4,7 @@ import 'package:just_audio/just_audio.dart' show ProcessingState, PlayerState;
 
 import '../models/Song.dart';
 import '../PlayPage/PlayerController.dart';
+import '../widgets/netease_image.dart' show neteaseImageHeaders;
 import 'AudioPlayerService.dart';
 import 'LikedSongsService.dart';
 import 'PlayQueueService.dart';
@@ -104,30 +105,31 @@ class PlaybackService extends BaseAudioHandler
       mediaItem.add(null);
       return;
     }
-    mediaItem.add(
-      MediaItem(
-        id: song.id,
-        title: song.title,
-        artist: song.artist,
-        album: song.album,
-        duration: _player.duration.value,
-        // artUri: TODO 后续接封面 URL
-      ),
-    );
+    mediaItem.add(_buildMediaItem(song, withDuration: true));
   }
 
   void _broadcastQueue(List<Song> songs) {
-    queue.add(
-      songs
-          .map(
-            (s) => MediaItem(
-              id: s.id,
-              title: s.title,
-              artist: s.artist,
-              album: s.album,
-            ),
-          )
-          .toList(),
+    queue.add(songs.map(_buildMediaItem).toList());
+  }
+
+  /// 从 Song 构建一个 MediaItem (系统通知 / 锁屏 / 队列列表都走这个)
+  ///
+  /// artUri / artHeaders 重要说明:
+  /// - NCM 的 `p1.music.126.net` CDN 把 Dart 默认 UA (Dart/x.x) 拉黑,会返 403
+  ///   → 系统拿不到封面,锁屏/通知栏显示默认图标
+  /// - artHeaders 走 audio_service 0.18 的 Dart 侧 `cacheManager.getSingleFile`,
+  ///   带 UA 伪装 Chrome 绕 CDN 403
+  /// - coverUrl 为空 (常见: search 接口 album 项只有 picId 没 picUrl) → 不设
+  ///   artUri,系统走默认占位图 (避免 Uri.parse('') 抛 FormatException)
+  MediaItem _buildMediaItem(Song s, {bool withDuration = false}) {
+    return MediaItem(
+      id: s.id,
+      title: s.title,
+      artist: s.artist,
+      album: s.album,
+      duration: withDuration ? _player.duration.value : null,
+      artUri: s.coverUrl.isEmpty ? null : Uri.tryParse(s.coverUrl),
+      artHeaders: neteaseImageHeaders,
     );
   }
 

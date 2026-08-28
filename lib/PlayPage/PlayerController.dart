@@ -19,7 +19,7 @@ enum CenterPage { cover, lyric }
 ///   [loadSong] 走 `/song/url` 拿临时 mp3 直链 → `setUrl` 加载 → `play()`
 /// - **进度**:订阅 [AudioPlayerService.positionStream] 写 [position];
 ///   订阅 [durationStream] 写 [duration](避免被 Player 那边 push 覆盖)
-/// - **歌词**:由 [fetchLyric] 主动拉 `/lyric`(TODO 后续切 lyric_new 拿逐字)
+/// - **歌词**:由 [fetchLyric] 主动拉 `/lyric/new` 拿逐字 (yrc), fallback 到 lrc
 ///   失败 / 空 → lyric 留空,UI 显示"暂无歌词"
 /// - **切页**:左右滑切 cover / lyric(原有 UI 逻辑)
 class PlayerController extends GetxController {
@@ -283,11 +283,22 @@ class PlayerController extends GetxController {
 
   /// 拉歌词并灌进 lyricController
   ///
-  /// - 调 /lyric(id) 拿 lrc 字段
-  /// - 失败 / 为空 → lyric 留空,UI 显示"暂无歌词"
+  /// - 调 /lyric/new(id) 拿 yrc (逐字) + lrc (普通) 两个字段
+  /// - 优先 yrc:有逐字歌词更精细。flutter_lyric 的 QrcParser 能处理 yrc 格式,
+  ///   JSON metadata 行 ({...}) 由其 lineRegExp 自动跳过
+  /// - yrc 为空 / 解析失败 → fallback 到 lrc
+  /// - 两者都空 → lyric 留空,UI 显示"暂无歌词"
   Future<void> fetchLyric(String songId) async {
     try {
-      final r = await api.call((a) => a.lyric(songId), what: '取歌词');
+      final r = await api.call(
+        (a) => a.lyric_new(songId),
+        what: '取歌词',
+      );
+      final yrc = (r.body['yrc']?['lyric'] as String?)?.toString() ?? '';
+      if (yrc.trim().isNotEmpty) {
+        lyricController.loadLyric(yrc);
+        return;
+      }
       final lrc = (r.body['lrc']?['lyric'] as String?)?.toString() ?? '';
       if (lrc.trim().isEmpty) return;
       lyricController.loadLyric(lrc);
