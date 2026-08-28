@@ -152,17 +152,26 @@ class _AlbumsView extends StatelessWidget {
       if (c.albums.isEmpty) {
         return const Center(child: Text('暂无订阅专辑'));
       }
-      return AspectDrivenGrid(
-        itemCount: c.albums.length,
-        itemBuilder: (context, index) {
-          final a = c.albums[index];
-          return SongListCard(
-            playlistId: 'album-${a.id}',
-            title: a.name,
-            subtitle: a.artist,
-            imageUrl: a.picUrl,
-            isLiked: () => c.isAlbumLiked(a.id),
-            onToggleFavorite: () => c.toggleAlbumLike(a.id),
+      return OrientationBuilder(
+        builder: (context, orientation) {
+          final aspectRatio = orientation == Orientation.portrait
+              ? DefaultValues.portraitGridChildAspectRatio
+              : DefaultValues.landscopeGridChildAspectRatio;
+          return AspectDrivenGrid(
+            childAspectRatio: aspectRatio,
+            minColumns: DefaultValues.gridMinColumns,
+            itemCount: c.albums.length,
+            itemBuilder: (context, index) {
+              final a = c.albums[index];
+              return SongListCard(
+                playlistId: 'album-${a.id}',
+                title: a.name,
+                subtitle: a.artist,
+                imageUrl: a.picUrl,
+                isLiked: () => c.isAlbumLiked(a.id),
+                onToggleFavorite: () => c.toggleAlbumLike(a.id),
+              );
+            },
           );
         },
       );
@@ -193,8 +202,8 @@ class _ArtistsView extends StatelessWidget {
       return OrientationBuilder(
         builder: (context, orientation) {
           final aspectRatio = orientation == Orientation.portrait
-              ? DefaultValues.portraitArtistGridChildAspectRatio
-              : DefaultValues.landscopeArtistGridChildAspectRatio;
+              ? DefaultValues.portraitGridChildAspectRatio
+              : DefaultValues.landscopeGridChildAspectRatio;
           return AspectDrivenGrid(
             minColumns: DefaultValues.gridMinColumns,
             childAspectRatio: aspectRatio,

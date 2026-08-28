@@ -36,10 +36,10 @@ Future<void> main() async {
   // (必须在 GetStorage.init 之后)
   await initNeteaseApi();
   // LikedSongsService 依赖 NeteaseApi(调 /likelist / /like),必须 NeteaseApi 注册后才能 put
-  Get.put<LikedSongsService>(LikedSongsService(), permanent: true);
+  Get.put<LikedSongsService>(LikedSongsService(Get.find<NeteaseApi>()), permanent: true);
   Get.put<LikedAlbumsService>(LikedAlbumsService(), permanent: true);
-  Get.put<LikedArtistsService>(LikedArtistsService(), permanent: true);
-  Get.put<LikedPlaylistsService>(LikedPlaylistsService(), permanent: true);
+  Get.put<LikedArtistsService>(LikedArtistsService(Get.find<NeteaseApi>()), permanent: true);
+  Get.put<LikedPlaylistsService>(LikedPlaylistsService(Get.find<NeteaseApi>()), permanent: true);
   // PlayerController 必须在 AudioService.init 之前 put,
   // 因为 PlaybackService 内部 Get.find<PlayerController>() 依赖它存在
 

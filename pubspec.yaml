@@ -52,6 +52,7 @@ dependencies:
   keyboard_insets:
   meta:
   cached_network_image: 
+  audio_service_mpris:
 dev_dependencies:
   flutter_test:
     sdk: flutter
