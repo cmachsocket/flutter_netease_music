@@ -7,15 +7,17 @@ import 'package:get_storage/get_storage.dart';
 
 import 'AppShell.dart';
 import 'AppShellController.dart';
+import 'PlayPage/LyricsController.dart';
 import 'PlayPage/PlayerController.dart';
 import 'services/AudioPlayerService.dart';
+import 'services/LyricsService.dart';
 import 'services/PlaybackService.dart';
 import 'services/PlayQueueService.dart';
 import 'sdk/netease_api.dart';
 import 'services/LikedSongsService.dart';
-import 'services/liked_albums_service.dart';
-import 'services/liked_artists_service.dart';
-import 'services/liked_playlists_service.dart';
+import 'services/LikedAlbumsService.dart';
+import 'services/LikedArtistsService.dart';
+import 'services/LikedPlaylistsService.dart';
 import 'theme/AppTheme.dart';
 import 'theme/ThemeController.dart';
 import 'widgets/netease_image.dart' show NeteaseHttpOverrides;
@@ -40,7 +42,16 @@ Future<void> main() async {
   Get.put<LikedPlaylistsService>(LikedPlaylistsService(), permanent: true);
   // PlayerController 必须在 AudioService.init 之前 put,
   // 因为 PlaybackService 内部 Get.find<PlayerController>() 依赖它存在
+
+  // 必须在 initNeteaseApi 之后 (LyricsService 内部 Get.find<NeteaseApi>)
+  Get.put<LyricsService>(LyricsService(), permanent: true);
   Get.put<PlayerController>(PlayerController(), permanent: true);
+  // LyricsController 依赖 PlayerController (订阅 currentSong) + LyricsService (拉歌词).
+  // 注册顺序: LyricsService → PlayerController → LyricsController.
+  // permanent: true 是为了 LyricController 跨 PlayPage 路由活 (跟 PlayerController 同生命周期),
+  // 保证 Lyrics widget 任何时候 mount 都能从 lyricNotifier.value 拿到当前 lyric.
+  Get.put<LyricsController>(LyricsController(), permanent: true);
+  // LyricsService 依赖 PlayerController (订阅 currentSong 自动拉歌词),
   // audio_service: 初始化后台播放 handler
   // - 必须在 WidgetsFlutterBinding.ensureInitialized() 之后 (官方文档要求)
   // - 必须在 AudioPlayerService 注册之后 (PlaybackService 内部 Get.find 依赖)

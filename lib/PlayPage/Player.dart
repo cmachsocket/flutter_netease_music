@@ -24,7 +24,7 @@ class Player extends StatelessWidget {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(id: AppShell.shellNavigatorId),
+          onPressed: () => Get.back(),
         ),
         centerTitle: true,
         title: Obx(() {
@@ -145,9 +145,9 @@ class Player extends StatelessWidget {
               IconButton(
                 icon: const Icon(Icons.playlist_play),
                 onPressed: () => Get.to(
-                      () => const PlayListPage(),
-                      id: AppShell.shellNavigatorId,
-                    ),
+                  () => const PlayListPage(),
+                  id: AppShell.shellNavigatorId,
+                ),
               ),
             ],
           ),

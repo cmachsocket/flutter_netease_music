@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter_lyric/flutter_lyric.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:get/get.dart';
 
@@ -19,8 +18,8 @@ enum CenterPage { cover, lyric }
 ///   [loadSong] 走 `/song/url` 拿临时 mp3 直链 → `setUrl` 加载 → `play()`
 /// - **进度**:订阅 [AudioPlayerService.positionStream] 写 [position];
 ///   订阅 [durationStream] 写 [duration](避免被 Player 那边 push 覆盖)
-/// - **歌词**:由 [fetchLyric] 主动拉 `/lyric/new` 拿逐字 (yrc), fallback 到 lrc
-///   失败 / 空 → lyric 留空,UI 显示"暂无歌词"
+/// - **歌词**:由 [LyricsController] (page→controller→service) 负责拉 + 灌 lyric,
+///   本 controller 不再持有 lyricController。
 /// - **切页**:左右滑切 cover / lyric(原有 UI 逻辑)
 class PlayerController extends GetxController {
   /// bitrate 默认 standard(128k = '128000')。
@@ -57,8 +56,8 @@ class PlayerController extends GetxController {
   // endregion
 
   // region 歌词
-  final LyricController lyricController = LyricController();
-  Worker? _positionWorker;
+  // lyricController / setProgress / setOnTapLineCallback 都不在 PlayerController 里,
+  // 由独立的 [LyricsController] 负责 (page→controller→service 分层)。
   Worker? _queueIndexWorker;
   Worker? _queuePlaylistWorker;
   Worker? _currentSongWorker;
@@ -86,21 +85,18 @@ class PlayerController extends GetxController {
   void onInit() {
     super.onInit();
     _audio = Get.find<AudioPlayerService>();
-    // 歌词留空 —— 由 [loadSong] 成功后调 [fetchLyric] 注入
-    lyricController.loadLyric('');
 
     // 订阅 just_audio 的 stream → 写 Rx
-    _posSub = _audio.positionStream.listen((p) => position.value = p);
+    _posSub = _audio.positionStream.listen(_onPositionChange);
     _durSub = _audio.durationStream.listen((d) {
       if (d != null) duration.value = d;
     });
     _bufSub = _audio.bufferedPositionStream.listen((b) => buffered.value = b);
-    _playingSub = _audio.playingStream.listen((p) => isPlaying.value = p);
+    _playingSub = _audio.playingStream.listen((p) {
+      isPlaying.value = p;
+    });
     // 播完一首 → 自动切下一首
     _stateSub = _audio.playerStateStream.listen(_onPlayerState);
-
-    // 进度推进 → 歌词高亮 + 自动滚动
-    _positionWorker = ever<Duration>(position, lyricController.setProgress);
 
     _queueIndexWorker = ever<int>(
       queue.currentIndex,
@@ -117,11 +113,6 @@ class PlayerController extends GetxController {
       _likedService.likedIds,
       (_) => _refreshIsLiked(),
     );
-
-    // 点击歌词行 → seek
-    lyricController.setOnTapLineCallback((Duration p) {
-      _audio.seek(p);
-    });
   }
 
   @override
@@ -131,38 +122,70 @@ class PlayerController extends GetxController {
     _bufSub?.cancel();
     _playingSub?.cancel();
     _stateSub?.cancel();
-    _positionWorker?.dispose();
     _queueIndexWorker?.dispose();
     _queuePlaylistWorker?.dispose();
     _currentSongWorker?.dispose();
     _likedIdsWorker?.dispose();
-    lyricController.dispose();
+    // lyricController 不再 dispose, 由 [LyricsService] (permanent: true) 跨 widget 生命周期拥有
     super.onClose();
   }
 
   /// 播完一首 → 自动切下一首
   ///
-  /// - 只看 `processingState == completed`(自然结束;手动 seek 不会触发这个)
-  /// - **走 [PlayQueueService.nextIndex]** —— 模式(sequential/shuffle/repeatOne)
-  ///   全在 service 里算, 这里只负责"查索引 → selectIndex → 触发 _syncQueueState"
-  /// - sequential 模式下走顺序循环(队尾 wrap 到 0), service 永远返回有效索引
-  ///   (除非 playlist 为空)
-  /// - repeatOne → 同一首, service 自己处理(本函数选回当前 index → _syncQueueState
-  ///   看到 currentSong.id == target.id 早退, 这里手动 seek + play 重启)
+  /// 两个入口信号:
+  /// 1. **[_onPlayerState]**: 负责 `processingState == completed`(iOS/desktop 默认 backend
+  ///    正常路径)。completed 是 just_audio backend 明确告诉“媒体播完了”，人工 seek 不会触发。
+  /// 2. **[_onPositionChange]**: 负责 Android/just_audio_media_kit 上 completed 事件丢了
+  ///    的兑底。 media_kit 在 complete 事件中把 _position reset 到 0 (mediakit_player.dart:131),
+  ///    同时由于 _player.open(Media) 后 _player.state.playlist.medias 是空数组,
+  ///    line 132-137 的 last-track 条件不成立 → completed 不转 ProcessingState.completed。
+  ///    兑底策略: position 出现“接近末尾 → 接近 0”的跳变且未发生用户主动 seek → next().
+  ///
+  /// 防抖 [_autoNextFired]: 同一首歌只允许触发一次 next(), 避免双信号走两遍导致跳歌。
+  /// [loadSong] 开头重置 → 下首歌开始播放后可重新触发。 repeatOne 走 [next]/[prev] 里的
+  /// 手动重置 → 重播结束后还能再触发。
   void _onPlayerState(PlayerState state) {
+    if (state.processingState != ProcessingState.completed) return;
+    if (_autoNextFired) return;
+    _autoNextFired = true;
+    next();
+  }
+
+  /// 上一次 positionStream 是否接近末尾 (供 [_onPositionChange] 判断跳变)
+  bool _lastNearEnd = false;
+
+  /// position stream 变化 → _onPlayerState (processingState.completed) 的兑底
+  ///
+  /// Android/just_audio_media_kit 下需兑底的原因 (见 [_onPlayerState] 头部 doc):
+  /// media_kit 在 complete 事件中会把 _position reset 到 0 (mediakit_player.dart:131),
+  /// positionStream 会 emit 一次 0。 这跟用户手动 seek 到 0 看起来一样, 需要 [_userSeeked]
+  /// 区分。
+  ///
+  /// 判断逻辑: 上一次 position 接近 dur (且本次不接近 dur) 且未产生 [_userSeeked] →
+  /// 认定为自然结束 → next().
+  void _onPositionChange(Duration p) {
+    position.value = p;
     final dur = duration.value;
-    final pos = position.value;
-
-    // completed 是正常路径；位置接近结尾是 Android/just_audio_media_kit
-    // 上 completed 事件可能瞬时丢失时的兜底。手动 seek 到接近结尾
-    // 也可能命中这里，但 _autoNextFired 会保证同一首只触发一次。
-    final completed = state.processingState == ProcessingState.completed;
-    final nearEnd = dur > Duration.zero &&
-        pos > Duration.zero &&
-        pos >= dur - const Duration(milliseconds: 800);
-
-    if (!(completed || nearEnd) || _autoNextFired) return;
-
+    if (dur == Duration.zero) {
+      _lastNearEnd = false;
+      return;
+    }
+    final nearEnd = p >= dur - const Duration(milliseconds: 800);
+    if (nearEnd) {
+      // 接近末尾,  标记为“候选跳变起点”,  等下一帧看是 reset 还是用户继续在末尾。
+      _lastNearEnd = true;
+      return;
+    }
+    // 当前位置不接近末尾 (如果不是 0 或很小)。 如果上一次接近末尾 → MediaKit reset
+    // 产生的大幅跳变 → 自然结束 (除非用户主动 seek)。
+    final wasNearEnd = _lastNearEnd;
+    _lastNearEnd = false;
+    if (!wasNearEnd) return;
+    if (_autoNextFired) return;
+    if (_userSeeked) {
+      _userSeeked = false;
+      return;
+    }
     _autoNextFired = true;
     next();
   }
@@ -278,11 +301,9 @@ class PlayerController extends GetxController {
       }
 
       currentSong.value = song;
-
-      // 先拉歌词(同步 FFI,通常很快),避免与 ExoPlayer 首次初始化竞争。
-      // Android 首次点播放时若歌词请求在 play() 之后异步发起,可能因时序
-      // 竞态拿不到歌词;这里改为提前 await,保证第一次播放就有歌词。
-      await fetchLyric(song.id);
+      // 歌词由 [LyricsService] 监听 currentSong 自动拉 + 灌 lyricController,
+      // 这里不需要等。 LyricsService 在 PlayerController 之前已注册 (main.dart),
+      // 且 lyricController 由 service 跨实例持有 (跟 widget 生命周期解耦)。
 
       await _audio.setUrl(url);
       await _audio.play();
@@ -311,32 +332,20 @@ class PlayerController extends GetxController {
   /// - 调 /lyric/new(id) 拿 yrc (逐字) + lrc (普通) 两个字段
   /// - 优先 yrc:有逐字歌词更精细。flutter_lyric 的 QrcParser 能处理 yrc 格式,
   ///   JSON metadata 行 ({...}) 由其 lineRegExp 自动跳过
-  /// - yrc 为空 / 解析失败 → fallback 到 lrc
-  /// - 两者都空 → lyric 留空,UI 显示"暂无歌词"
-  Future<void> fetchLyric(String songId) async {
-    try {
-      final r = await api.call(
-        (a) => a.lyric_new(songId),
-        what: '取歌词',
-      );
-      final yrc = (r.body['yrc']?['lyric'] as String?)?.toString() ?? '';
-      if (yrc.trim().isNotEmpty) {
-        lyricController.loadLyric(yrc);
-        return;
-      }
-      final lrc = (r.body['lrc']?['lyric'] as String?)?.toString() ?? '';
-      if (lrc.trim().isEmpty) return;
-      lyricController.loadLyric(lrc);
-    } on ApiException {
-      // 静默:歌词拿不到不影响播放
-    }
-  }
-
   // region 控制接口(给 Player UI 调用)
   void play() => _audio.play();
   void pause() => _audio.pause();
   void togglePlay() => isPlaying.value ? pause() : play();
-  void seek(Duration p) => _audio.seek(p);
+  /// 手动 seek —— 标记一下供 [_onPositionChange] 区分"用户主动 seek"vs"自然播完 reset"
+  ///
+  /// 背景:Android/just_audio_media_kit 播完时 media_kit.completed 会把 position
+  /// reset 到 0 (mediakit_player.dart:131),  positionStream 会 emit 一次 0。
+  /// 这跟用户手动 seek 到 0 在 stream 看来一样。 需要一个有意识的标记。
+  bool _userSeeked = false;
+  void seek(Duration p) {
+    _userSeeked = true;
+    _audio.seek(p);
+  }
   void switchPage() {
     // exhaustive switch: enum 加新 page 时编译器报错,不会静默走错分支
     center.value = switch (center.value) {

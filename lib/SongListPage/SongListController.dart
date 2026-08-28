@@ -2,8 +2,8 @@ import 'package:get/get.dart';
 
 import '../models/Song.dart';
 import '../services/LikedSongsService.dart';
-import '../services/liked_albums_service.dart';
-import '../services/liked_playlists_service.dart';
+import '../services/LikedAlbumsService.dart';
+import '../services/LikedPlaylistsService.dart';
 import '../services/PlayQueueService.dart';
 import '../sdk/api_exception.dart';
 import '../sdk/netease_api.dart';

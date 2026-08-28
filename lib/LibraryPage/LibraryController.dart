@@ -5,9 +5,9 @@ import 'package:get/get.dart';
 
 import '../sdk/api_exception.dart';
 import '../sdk/netease_api.dart';
-import '../services/liked_albums_service.dart';
-import '../services/liked_artists_service.dart';
-import '../services/liked_playlists_service.dart';
+import '../services/LikedAlbumsService.dart';
+import '../services/LikedArtistsService.dart';
+import '../services/LikedPlaylistsService.dart';
 
 enum LibraryTab {
   playlists(1, '歌单', Icons.playlist_play),

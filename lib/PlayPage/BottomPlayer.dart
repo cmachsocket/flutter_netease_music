@@ -31,10 +31,7 @@ class BottomPlayer extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     return GestureDetector(
-      onTap: () => Get.to(
-        () => Player(),
-        id: AppShell.shellNavigatorId,
-      ),
+      onTap: () => Get.to(() => Player()),
       child: Container(
         color: scheme.surfaceContainerHighest,
         child: Column(
