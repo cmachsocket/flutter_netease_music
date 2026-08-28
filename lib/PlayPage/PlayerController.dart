@@ -64,6 +64,10 @@ class PlayerController extends GetxController {
   Worker? _currentSongWorker;
   Worker? _likedIdsWorker;
   bool _queueSyncScheduled = false;
+
+  /// 自然结束自动切歌的防抖标志：同一首歌只触发一次 next()，
+  /// 避免 playerStateStream / position 兜底双重触发导致跳歌。
+  bool _autoNextFired = false;
   // endregion
 
   final LikedSongsService _likedService = Get.find<LikedSongsService>();
@@ -146,7 +150,20 @@ class PlayerController extends GetxController {
   /// - repeatOne → 同一首, service 自己处理(本函数选回当前 index → _syncQueueState
   ///   看到 currentSong.id == target.id 早退, 这里手动 seek + play 重启)
   void _onPlayerState(PlayerState state) {
-    if (state.processingState != ProcessingState.completed) return;
+    final dur = duration.value;
+    final pos = position.value;
+
+    // completed 是正常路径；位置接近结尾是 Android/just_audio_media_kit
+    // 上 completed 事件可能瞬时丢失时的兜底。手动 seek 到接近结尾
+    // 也可能命中这里，但 _autoNextFired 会保证同一首只触发一次。
+    final completed = state.processingState == ProcessingState.completed;
+    final nearEnd = dur > Duration.zero &&
+        pos > Duration.zero &&
+        pos >= dur - const Duration(milliseconds: 800);
+
+    if (!(completed || nearEnd) || _autoNextFired) return;
+
+    _autoNextFired = true;
     next();
   }
 
@@ -174,6 +191,9 @@ class PlayerController extends GetxController {
     if (n < queue.headOfTheQueue) return;
     queue.selectIndex(n);
     if (queue.mode.value == PlayMode.repeatOne) {
+      // repeatOne 不会重新 loadSong，这里手动重置防抖，
+      // 让同一首歌重播到结尾后还能再次触发自动重播。
+      _autoNextFired = false;
       _audio.seek(Duration.zero);
       _audio.play();
     }
@@ -188,6 +208,9 @@ class PlayerController extends GetxController {
     if (p < queue.headOfTheQueue) return;
     queue.selectIndex(p);
     if (queue.mode.value == PlayMode.repeatOne) {
+      // repeatOne 不会重新 loadSong，这里手动重置防抖，
+      // 让同一首歌重播到结尾后还能再次触发自动重播。
+      _autoNextFired = false;
       _audio.seek(Duration.zero);
       _audio.play();
     }
@@ -231,6 +254,8 @@ class PlayerController extends GetxController {
   Future<void> loadSong(Song song, {String bitrate = defaultBitrate}) async {
     if (isLoadingSong.value) return;
     isLoadingSong.value = true;
+    // 新歌真正开始加载，允许下一首自然结束时再次自动 next。
+    _autoNextFired = false;
     try {
       final r = await api.call(
         (a) => a.song_url(song.id, br: bitrate),

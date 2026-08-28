@@ -69,22 +69,19 @@ class Player extends StatelessWidget {
             child: Obx(
               () => GestureDetector(
                 onSecondaryTap: controller.switchPage,
-                onLongPress: controller.switchPage,
                 child: Center(
-                  child: IndexedStack(
-                    index: controller.center.value.index,
-                    alignment: Alignment.center,
-                    children: [
-                      AspectRatio(
-                        aspectRatio: DefaultValues.squardRatio,
-                        child: Obx(() {
-                          final song = controller.currentSong.value;
-                          return SongCover(url: song?.coverUrl ?? '');
-                        }),
-                      ),
-                      const Lyrics(),
-                    ],
-                  ),
+                  // 不再用 IndexedStack 同时保留封面/歌词两层：隐藏的歌词层
+                  // (LyricView，内部有滚动/触摸 seek) 会在切歌后留下手势与滚动状态，
+                  // 造成触控竞争、点不准。这里按当前页条件渲染，只挂载一层。
+                  child: controller.center.value == CenterPage.cover
+                      ? AspectRatio(
+                          aspectRatio: DefaultValues.squardRatio,
+                          child: Obx(() {
+                            final song = controller.currentSong.value;
+                            return SongCover(url: song?.coverUrl ?? '');
+                          }),
+                        )
+                      : const Lyrics(),
                 ),
               ),
             ),

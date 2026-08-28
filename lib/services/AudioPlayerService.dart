@@ -33,6 +33,10 @@ class AudioPlayerService extends GetxService {
 
   /// 加载一首新歌(URL 是 /song/url 返回的临时 mp3 直链)
   Future<void> setUrl(String url) async {
+    // Android/just_audio_media_kit 下 completed 事件依赖 playlistMode == none。
+    // 防御性关闭 loop，避免任何路径把 playlistMode 改成 single/loop 导致
+    // media_kit.completed 无法转成 ProcessingState.completed。
+    await player.setLoopMode(LoopMode.off);
     await player.setUrl(url);
   }
 

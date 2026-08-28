@@ -109,6 +109,7 @@ class AppShell extends StatelessWidget {
         final tailOfThePage = maxPageIndex - 1;
         final i = tab.index.value.clamp(0, tailOfThePage);
         return Scaffold(
+          resizeToAvoidBottomInset: false,
           body: _responsiveBody(PageIndex.values[i]),
 
           bottomNavigationBar: BottomNavigationBar(
