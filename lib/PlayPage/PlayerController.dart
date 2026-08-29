@@ -6,9 +6,9 @@ import 'package:get/get.dart';
 import '../models/Song.dart';
 import '../services/PlayQueueService.dart';
 import '../services/LikedSongsService.dart';
-import '../sdk/api_exception.dart';
-import '../sdk/netease_api.dart';
+import '../models/ApiException.dart';
 import '../services/AudioPlayerService.dart';
+import '../services/repositories/song_repository.dart';
 
 enum CenterPage { cover, lyric }
 
@@ -71,8 +71,8 @@ class PlayerController extends GetxController {
 
   final LikedSongsService _likedService = Get.find<LikedSongsService>();
 
-  final NeteaseApi api = Get.find<NeteaseApi>();
   final PlayQueueService queue = Get.find<PlayQueueService>();
+  final SongRepository _songRepo = Get.find<SongRepository>();
 
   late final AudioPlayerService _audio;
   StreamSubscription<Duration>? _posSub;
@@ -280,11 +280,7 @@ class PlayerController extends GetxController {
     // 新歌真正开始加载，允许下一首自然结束时再次自动 next。
     _autoNextFired = false;
     try {
-      final r = await api.call(
-        (a) => a.song_url(song.id, br: bitrate),
-        what: '取播放 URL',
-      );
-      final httpUrl = _extractFirstUrl(r.body) ?? "";
+      final httpUrl = await _songRepo.fetchSongUrl(song.id, br: bitrate) ?? "";
       late String url;
       if (httpUrl.startsWith('http://')) {
         url = httpUrl.replaceFirst('http://', 'https://');
@@ -318,15 +314,6 @@ class PlayerController extends GetxController {
     }
   }
 
-  /// /song/url 返回结构:body['data'][0]['url']
-  String? _extractFirstUrl(Map<String, dynamic> body) {
-    final data = body['data'];
-    if (data is! List || data.isEmpty) return null;
-    final first = data.first;
-    if (first is Map) return (first['url'] as String?)?.toString();
-    return null;
-  }
-
   /// 拉歌词并灌进 lyricController
   ///
   /// - 调 /lyric/new(id) 拿 yrc (逐字) + lrc (普通) 两个字段
@@ -336,6 +323,7 @@ class PlayerController extends GetxController {
   void play() => _audio.play();
   void pause() => _audio.pause();
   void togglePlay() => isPlaying.value ? pause() : play();
+
   /// 手动 seek —— 标记一下供 [_onPositionChange] 区分"用户主动 seek"vs"自然播完 reset"
   ///
   /// 背景:Android/just_audio_media_kit 播完时 media_kit.completed 会把 position
@@ -346,6 +334,7 @@ class PlayerController extends GetxController {
     _userSeeked = true;
     _audio.seek(p);
   }
+
   void switchPage() {
     // exhaustive switch: enum 加新 page 时编译器报错,不会静默走错分支
     center.value = switch (center.value) {

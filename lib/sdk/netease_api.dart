@@ -27,17 +27,41 @@ class NeteaseApi extends GetxService {
     libraryDir: _resolveLibraryDir(),
   );
 
-  /// 登录态(响应式,UI 可 Obx 监听)
-  ///
-  /// 初始值来自 GetStorage;登录/退出后会自动更新
-  final RxBool loggedIn = false.obs;
+  // region 登录流程 API
 
-  /// 当前登录用户的 uid(给需要 uid 的接口用,如 /user/playlist)
+  /// 发送验证码。
   ///
-  /// - 登录成功后 [applyLoginCookie] 后调 [fetchCurrentUid] 写入
-  /// - 退出登录 / 冷启动读 GetStorage 还原
-  final RxnInt currentUid = RxnInt();
+  /// API: `/captcha/sent?phone=X&ctcode=Y`
+  /// 抛 [ApiException] (调用方决定是否 snackbar)。
+  Future<void> sendCaptcha({
+    required String phone,
+    String ctcode = '86',
+  }) async {
+    await apiCall(() => raw.captcha_sent(phone, ctcode: ctcode), what: '发送验证码');
+  }
 
+  /// 登录 (走 captcha 验证码分支)。
+  ///
+  /// API: `/login/cellphone?phone=X&captcha=Y&countrycode=Z`
+  /// 响应 raw 交给调用方处理 ([applyLoginCookie] 灌 Set-Cookie)。
+  ///
+  /// 抛 [ApiException] (调用方决定是否 snackbar)。
+  Future<MusicResponse> loginCellphone({
+    required String phone,
+    required String captcha,
+    String countrycode = '86',
+  }) async {
+    return apiCall(
+      () => raw.login_cellphone(
+        phone,
+        captcha: captcha,
+        countrycode: countrycode,
+      ),
+      what: '登录',
+    );
+  }
+
+  // endregion
   /// 启动初始化:从 GetStorage 读 cookie + 登录标记灌进 SDK
   ///
   /// 必须在 `GetStorage.init()` 之后调用
@@ -52,8 +76,7 @@ class NeteaseApi extends GetxService {
       print('[NeteaseApi] libraryDir = $_libraryDirForLog');
     }
     final box = GetStorage();
-    loggedIn.value = box.read<bool>(_loggedInKey) ?? false;
-    currentUid.value = box.read<int>(_uidStorageKey);
+    final loggedIn = box.read<bool>(_loggedInKey) ?? false;
     // 优先级:auth cookie > anonymous cookie > 空
     // auth(MUSIC_U 等)登录后才有,anonymous(NMTID/NMSCVT)是 register_anonimous
     // 拿到的访客会话;两者一般不会同时存在(auth 走了会覆盖 anonymous)
@@ -71,7 +94,7 @@ class NeteaseApi extends GetxService {
     // 未登录 且 本地没缓存 anonymous cookie: 主动拉一次,
     // 拿到 NMTID/NMSCVT 走后续风控路子 (applyAnonymousCookie 内部 try/catch,
     // 拉失败也不阻断启动, 退到老路径最坏被云盾挡)。
-    if (!loggedIn.value && (savedAnon == null || savedAnon.isEmpty)) {
+    if (!loggedIn && (savedAnon == null || savedAnon.isEmpty)) {
       await applyAnonymousCookie();
     }
   }
@@ -79,16 +102,17 @@ class NeteaseApi extends GetxService {
   /// 把登录响应里的 Set-Cookie 持久化 + 灌进 SDK
   ///
   /// - 解析 `headers['Set-Cookie']` 字符串(多 cookie 用逗号分隔)
-  /// - 写到 GetStorage + `_loggedInKey = true`
-  /// - 调用 [raw.setCookie] 让后续请求带身份
-  void applyLoginCookie(MusicResponse response) {
+  /// - 写到 GetStorage
+  /// - 调用 [raw.set_cookie] 让后续请求带身份
+  ///  - 返回 false: 没拿到任何 cookie,不写入 SDK / GetStorage
+  Map<String, String> applyLoginCookie(MusicResponse response) {
     final cookies = parseCookieString(response.cookies);
-    if (cookies.isEmpty) return;
+    if (cookies.isEmpty) return const {};
     raw.set_cookie(cookies);
     final box = GetStorage();
     box.write(_cookieStorageKey, cookies);
     box.write(_loggedInKey, true);
-    loggedIn.value = true;
+    return cookies;
   }
 
   /// 拉取并缓存当前登录用户的 uid(/user/account)
@@ -96,7 +120,7 @@ class NeteaseApi extends GetxService {
   /// - 必须已登录(否则后端返 400)
   /// - 成功后写 [currentUid] + GetStorage,后续 [user_playlist] / [user_follows] 直接拿
   /// - 失败仅打日志,不抛 —— uid 拿不到只是 Library 页拿不到数据,登录态本身不受影响
-  Future<void> fetchCurrentUid() async {
+  Future<int> fetchCurrentUid() async {
     try {
       final r = await apiCall(() => raw.user_account(), what: '获取当前用户 uid');
       // 返回结构兼容两种常见形式:
@@ -121,28 +145,45 @@ class NeteaseApi extends GetxService {
             '[NeteaseApi] fetchCurrentUid: unexpected body shape ${r.body}',
           );
         }
-        return;
+        return 0;
       }
-      currentUid.value = uid;
+      //请保证修改
+
       GetStorage().write(_uidStorageKey, uid);
+      return uid;
     } catch (e) {
       if (kDebugMode) {
         // ignore: avoid_print
         print('[NeteaseApi] fetchCurrentUid failed: $e');
       }
+      return 0;
     }
   }
 
+  /// 获取当前登录状态
+  ///
+  /// SDK: `/login/status` —— 调用此接口, 可获取登录状态 (含 profile / account 等)
+  ///
+  /// 只返回响应 header 里的 Set-Cookie 解析后的 cookie map。
+  /// 调用方关心 cookie (e.g. 检查 cookie 是否过期 / 拼出身份 cookie)
+  /// 直接拿返回 Map 即可。
+  ///
+  /// 抛 [ApiException] (HTTP 200 但业务 code 错, 例如已退出 / cookie 过期)。
+  Future<Map<String, String>> getCookiesByCheckLogin() async {
+    final r = await apiCall(() => raw.login_status(), what: '获取登录状态');
+    return parseCookieString(r.cookies);
+  }
+
+  /// 对 `_loggedInKey = true/false`,必须update包裱！！！！
   /// 退出登录:清掉 SDK cookie + 本地持久化
-  void logout() {
+  bool logout() {
     raw.set_cookie(const {});
     final box = GetStorage();
     box.remove(_cookieStorageKey);
     box.remove(_anonCookieStorageKey);
     box.remove(_uidStorageKey);
     box.write(_loggedInKey, false);
-    loggedIn.value = false;
-    currentUid.value = null;
+    return true;
   }
 
   /// 获取并应用**游客 cookie**(`/register/anonimous`)
@@ -173,8 +214,10 @@ class NeteaseApi extends GetxService {
       if (cookies.isEmpty) {
         if (kDebugMode) {
           // ignore: avoid_print
-          print('[NeteaseApi] applyAnonymousCookie: register_anonimous 返 200 但没拿到 cookie '
-              '(body.keys=${r.body.keys.toList()}, status=${r.status})');
+          print(
+            '[NeteaseApi] applyAnonymousCookie: register_anonimous 返 200 但没拿到 cookie '
+            '(body.keys=${r.body.keys.toList()}, status=${r.status})',
+          );
         }
         return;
       }
@@ -183,7 +226,9 @@ class NeteaseApi extends GetxService {
       box.write(_anonCookieStorageKey, cookies);
       if (kDebugMode) {
         // ignore: avoid_print
-        print('[NeteaseApi] applyAnonymousCookie OK: 拿到 ${cookies.keys.toList()}');
+        print(
+          '[NeteaseApi] applyAnonymousCookie OK: 拿到 ${cookies.keys.toList()}',
+        );
       }
     } catch (e) {
       if (kDebugMode) {

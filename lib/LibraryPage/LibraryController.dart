@@ -3,11 +3,12 @@ import 'package:flutter/material.dart' show IconData, Icons;
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:get/get.dart';
 
-import '../sdk/api_exception.dart';
+import '../models/ApiException.dart';
 import '../sdk/netease_api.dart';
 import '../services/LikedAlbumsService.dart';
 import '../services/LikedArtistsService.dart';
 import '../services/LikedPlaylistsService.dart';
+import '../controller/AuthController.dart';
 
 enum LibraryTab {
   playlists(1, '歌单', Icons.playlist_play),
@@ -46,6 +47,7 @@ class LibraryController extends GetxController {
       Get.find<LikedPlaylistsService>();
   final LikedAlbumsService _likedAlbums = Get.find<LikedAlbumsService>();
   final LikedArtistsService _likedArtists = Get.find<LikedArtistsService>();
+  final AuthController _auth = Get.find<AuthController>();
 
   // tab 1: 歌单
   final RxBool playlistsLoading = false.obs;
@@ -65,12 +67,12 @@ class LibraryController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _loginWorker = ever<bool>(api.loggedIn, (loggedIn) {
-      if (loggedIn) {
+    _loginWorker = ever(_auth.authInfo, (info) {
+      if (info.loggedIn) {
         _loadVisibleTab();
       }
     });
-    if (api.loggedIn.value) {
+    if (_auth.loggedIn) {
       _loadVisibleTab();
     }
   }
@@ -99,8 +101,8 @@ class LibraryController extends GetxController {
     if (playlistsLoading.value) return;
     playlistsLoading.value = true;
     playlistsError.value = null;
-    final uid = await _ensureUid(api);
-    if (uid == null) {
+    final uid = _auth.currentUid;
+    if (uid == 0) {
       playlistsLoading.value = false;
       return;
     }
@@ -246,11 +248,11 @@ class LibraryController extends GetxController {
   }
 
   /// 确保当前 uid 有缓存,没有就拉一次
-  Future<int?> _ensureUid(NeteaseApi api) async {
-    if (api.currentUid.value != null) return api.currentUid.value;
-    await api.fetchCurrentUid();
-    return api.currentUid.value;
-  }
+  // Future<int?> _ensureUid() async {
+  //   if (_auth.currentUid.value != null) return _auth.currentUid.value;
+  //   await _auth.fetchCurrentUid();
+  //   return _auth.currentUid.value;
+  // }
 
   @override
   void onClose() {

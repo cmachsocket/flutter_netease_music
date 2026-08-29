@@ -7,8 +7,10 @@ import '../SongListPage/SongListBody.dart';
 import '../SongListPage/SongListCard.dart';
 import '../SongListPage/SongListDetail.dart';
 import '../models/Album.dart';
-import '../ArtistPage/Artist.dart';
+import '../models/Artist.dart';
 import '../widgets/aspect_driven_grid.dart';
+import '../services/repositories/search_repository.dart'
+    show SearchType, SearchPlaylistSummary;
 import 'SearchController.dart';
 
 /// 搜索页(主 tab 之一)
@@ -189,7 +191,7 @@ class _PlaylistGridView extends StatelessWidget {
       if (c.playlistResults.isEmpty) {
         return _HintView(text: '没有匹配 "${c.submittedKeyword.value}" 的歌单');
       }
-      return _grid<PlaylistSummary>(
+      return _grid<SearchPlaylistSummary>(
         items: c.playlistResults.toList(),
         toCard: (p) => SongListCard(
           playlistId: p.id,

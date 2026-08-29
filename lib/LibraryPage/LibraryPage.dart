@@ -4,7 +4,7 @@ import 'package:get/get.dart';
 import '../AppShell.dart';
 import '../ArtistPage/ArtistDetail.dart';
 import '../SongListPage/SongListCard.dart';
-import '../sdk/netease_api.dart';
+import '../controller/AuthController.dart';
 import '../widgets/aspect_driven_grid.dart';
 import 'LibraryController.dart';
 import '../models/default.dart';
@@ -51,9 +51,9 @@ class _TabContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final api = Get.find<NeteaseApi>();
+    final auth = Get.find<AuthController>();
     return Obx(() {
-      if (!api.loggedIn.value) {
+      if (!auth.loggedIn) {
         return const _LoginRequiredHint();
       }
       // exhaustive switch: enum 加新值时编译器报错,不会静默走错分支

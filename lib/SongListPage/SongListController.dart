@@ -5,8 +5,9 @@ import '../services/LikedSongsService.dart';
 import '../services/LikedAlbumsService.dart';
 import '../services/LikedPlaylistsService.dart';
 import '../services/PlayQueueService.dart';
-import '../sdk/api_exception.dart';
-import '../sdk/netease_api.dart';
+import '../models/ApiException.dart';
+import '../services/repositories/album_repository.dart';
+import '../services/repositories/playlist_repository.dart';
 
 /// 歌单详情页 controller
 ///
@@ -20,11 +21,13 @@ class SongListController extends GetxController {
   /// 路由传进来的歌单 ID
   final String playlistId;
 
-  final NeteaseApi api = Get.find<NeteaseApi>();
   final PlayQueueService queue = Get.find<PlayQueueService>();
   final LikedSongsService _likedService = Get.find<LikedSongsService>();
   final LikedAlbumsService _likedAlbums = Get.find<LikedAlbumsService>();
-  final LikedPlaylistsService _likedPlaylists = Get.find<LikedPlaylistsService>();
+  final LikedPlaylistsService _likedPlaylists =
+      Get.find<LikedPlaylistsService>();
+  final PlaylistRepository _playlistRepo = Get.find<PlaylistRepository>();
+  final AlbumRepository _albumRepo = Get.find<AlbumRepository>();
 
   final RxList<Song> songs = <Song>[].obs;
   final RxBool isLoading = false.obs;
@@ -81,63 +84,34 @@ class SongListController extends GetxController {
 
   /// 歌单分支:`/playlist/detail`(元信息) + `/playlist/track/all`(曲目)
   ///
-  /// - 元信息允许失败(只丢标题/封面,不影响曲目展示)
+  /// - API 调用集中到 [PlaylistRepository]。
+  /// - 元信息允许失败(只丢标题/封面,不影响曲目展示);曲目失败抛 [ApiException]
+  ///   让 [load] 走顶层 catch 写 errorMessage。
   Future<void> _loadPlaylist(String id) async {
-    // 1. 元信息(标题/封面/描述)
-    try {
-      final detail = await api.call(
-        (a) => a.playlist_detail(id),
-        what: '拉歌单详情',
-      );
-      final playlist = detail.body['playlist'];
-      if (playlist is Map) {
-        final p = Map<String, dynamic>.from(playlist);
-        title.value = (p['name'] ?? '').toString();
-        coverUrl.value = (p['coverImgUrl'] ?? '').toString();
-        description.value = (p['description'] ?? '').toString();
-      }
-    } on ApiException {
-      // 元信息失败不影响曲目展示
+    // 1. 元信息(标题/封面/描述)—— Repository 内部已 try/catch,失败返回 null
+    final meta = await _playlistRepo.fetchMeta(id);
+    if (meta != null) {
+      title.value = meta.name;
+      coverUrl.value = meta.coverUrl;
+      description.value = meta.description;
     }
+    // 元信息失败不影响曲目展示
 
     // 2. 拉所有曲目(track_all 而非 detail.tracks,后者只返前 1000 首)
-    final tracks = await api.call(
-      (a) => a.playlist_track_all(id),
-      what: '拉歌单曲目',
-    );
-    final songsList = tracks.body['songs'];
-    if (songsList is List) {
-      songs.assignAll(
-        songsList
-            .whereType<Map>()
-            .map((m) => Song.fromNeteaseJson(Map<String, dynamic>.from(m)))
-            .toList(),
-      );
-    }
+    final fetched = await _playlistRepo.fetchTracks(id);
+    songs.assignAll(fetched);
   }
 
   /// 专辑分支:`/album?id=X`(响应同时含 album 项 + songs 数组,一次拿全)
   Future<void> _loadAlbum(String id) async {
-    final r = await api.call(
-      (a) => a.album(id),
-      what: '拉专辑内容',
-    );
-    final albumMap = r.body['album'];
-    if (albumMap is Map) {
-      final a = Map<String, dynamic>.from(albumMap);
-      title.value = (a['name'] ?? '').toString();
-      coverUrl.value = (a['picUrl'] ?? '').toString();
-      description.value = (a['description'] ?? '').toString();
+    final content = await _albumRepo.fetch(id);
+    if (content == null) {
+      throw ApiException(0, '专辑内容拉取失败');
     }
-    final songsList = r.body['songs'];
-    if (songsList is List) {
-      songs.assignAll(
-        songsList
-            .whereType<Map>()
-            .map((m) => Song.fromNeteaseJson(Map<String, dynamic>.from(m)))
-            .toList(),
-      );
-    }
+    title.value = content.name;
+    coverUrl.value = content.coverUrl;
+    description.value = content.description;
+    songs.assignAll(content.songs);
   }
 
   /// 喜爱切换 → 走全局 [LikedSongsService](乐观更新 + 后端持久化)

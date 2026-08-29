@@ -1,6 +1,6 @@
 import 'package:get/get.dart';
 
-import '../sdk/api_exception.dart';
+import '../models/ApiException.dart';
 import '../sdk/netease_api.dart';
 
 /// 首页 controller

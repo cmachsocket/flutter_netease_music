@@ -1,11 +1,14 @@
 import 'package:get/get.dart';
 
-import '../sdk/api_call.dart';
-import '../sdk/api_exception.dart';
-import '../sdk/netease_api.dart';
 import 'liked_collection_service.dart';
+import '../controller/AuthController.dart';
+import 'repositories/liked_repository.dart';
 
 /// 全局"我收藏的歌单"服务。
+///
+/// API 调用 (`user_playlist` / `playlist_subscribe`) 集中在
+/// [LikedPlaylistsRepository]。service 只保留 likedPlaylistIds RxSet + 持久化 +
+/// 登录态联动 + 乐观更新 + snackbar。
 class LikedPlaylistsService extends LikedCollectionService {
   static const _storageKey = 'liked_playlists_v1';
 
@@ -15,38 +18,23 @@ class LikedPlaylistsService extends LikedCollectionService {
   @override
   String get storageKey => _storageKey;
 
-  LikedPlaylistsService(NeteaseApi api) : super(api);
+  late final LikedRepository _repo = Get.find<LikedRepository>();
+  late final AuthController _auth = Get.find<AuthController>();
+
+  LikedPlaylistsService() : super();
 
   RxSet<String> get likedPlaylistIds => ids;
 
   @override
   Future<void> loadFromServer() async {
-    final uid = api.currentUid.value;
-    if (uid == null) return;
-    try {
-      final r = await apiCall(
-        () => api.raw.user_playlist(uid.toString()),
-        what: '拉收藏歌单',
-      );
-      final list = r.body['playlist'];
-      if (list is! List) return;
-      ids.assignAll(
-        list
-            .whereType<Map>()
-            .where((m) => m['subscribed'] == true)
-            .map((m) => m['id']?.toString() ?? '')
-            .where((s) => s.isNotEmpty),
-      );
-    } on ApiException {
-      // 静默
-    }
+    final uid = _auth.currentUid;
+    if (uid == 0) return;
+    final fetched = await _repo.fetchLikedPlaylistIds(uid.toString());
+    if (fetched == null) return; // 静默
+    ids.assignAll(fetched);
   }
 
   @override
-  Future<void> toggleApi(String id, bool next) async {
-    await apiCall(
-      () => api.raw.playlist_subscribe(next ? '1' : '2', id),
-      what: next ? '收藏歌单' : '取消收藏',
-    );
-  }
+  Future<void> toggleApi(String id, bool next) =>
+      _repo.togglePlaylistSubscribe(id, next);
 }

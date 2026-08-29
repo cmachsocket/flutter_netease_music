@@ -6,7 +6,7 @@ import '../SongListPage/SongListCard.dart';
 import '../models/Album.dart';
 import '../widgets/aspect_driven_grid.dart';
 import '../widgets/netease_image.dart';
-import 'Artist.dart';
+import '../models/Artist.dart';
 import 'ArtistController.dart';
 import '../models/default.dart';
 

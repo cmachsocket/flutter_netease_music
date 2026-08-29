@@ -1,8 +1,8 @@
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 
-import '../sdk/api_exception.dart';
-import '../sdk/netease_api.dart';
+import '../models/ApiException.dart';
+import '../controller/AuthController.dart';
 
 /// 收藏集合基类 —— 抽出 Liked Songs/Albums/Artists/Playlists 的公共骨架。
 ///
@@ -14,9 +14,9 @@ import '../sdk/netease_api.dart';
 ///
 /// 公共逻辑 (hydrate / persist / 登录态联动 / isLiked / toggle 乐观更新) 全部在基类。
 abstract class LikedCollectionService extends GetxService {
-  final NeteaseApi api;
+  final AuthController _auth = Get.find<AuthController>();
 
-  LikedCollectionService(this.api);
+  LikedCollectionService();
 
   /// 子类持有的响应式 id 集合。
   abstract final RxSet<String> ids;
@@ -30,8 +30,8 @@ abstract class LikedCollectionService extends GetxService {
   void onInit() {
     super.onInit();
     _hydrate();
-    _loggedInWorker = ever<bool>(api.loggedIn, (loggedIn) {
-      if (loggedIn) {
+    _loggedInWorker = ever(_auth.authInfo, (info) {
+      if (info.loggedIn) {
         // ignore: discarded_futures
         loadFromServer();
       } else {
@@ -39,7 +39,7 @@ abstract class LikedCollectionService extends GetxService {
         _persist();
       }
     });
-    if (api.loggedIn.value) {
+    if (_auth.loggedIn) {
       // ignore: discarded_futures
       loadFromServer();
     }

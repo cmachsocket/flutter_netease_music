@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_netease_music/controller/AuthController.dart';
 import 'package:get/get.dart';
-
-import '../sdk/netease_api.dart';
 import '../AppShell.dart';
-import 'LoginController.dart' show LoginPageBinding;
+import 'LoginController.dart';
 import 'LoginPage.dart';
 import 'SettingsController.dart';
 import 'ThemeSwitcher.dart';
@@ -21,10 +20,10 @@ class Settings extends StatelessWidget {
     id: AppShell.shellNavigatorId,
   );
 
-  /// 退出登录入口(已登录态才显示):直接走 [NeteaseApi.logout],
+  /// 退出登录入口(已登录态才显示):走 [AuthController.logout],
   /// 不依赖 LoginController(用户可能从没进过 LoginPage,LoginController 未注入)
   static void _doLogout() {
-    Get.find<NeteaseApi>().logout();
+    Get.find<LoginController>().logout();
     Get.snackbar('已退出', '本地登录态已清除', snackPosition: SnackPosition.BOTTOM);
   }
 
@@ -36,7 +35,6 @@ class Settings extends StatelessWidget {
     // (HomePageBinding), 导致切到设置 tab 时 binding lifecycle 跟其他 tab 不一致,
     // 推测是 Android 16 / Flutter 3.47 上点击设置 tab 渲染 stall 到 fps=0.44 的 root cause。
     Get.find<SettingsController>();
-    final api = Get.find<NeteaseApi>();
     return ListView(
       children: [
         const ListTile(
@@ -47,21 +45,22 @@ class Settings extends StatelessWidget {
         ),
 
         // 登录账号:已登录 → "已登录 (退出)" / 未登录 → "登录账号"
-        Obx(
-          () => ListTile(
+        Obx(() {
+          final auth = Get.find<AuthController>();
+          return ListTile(
             leading: Icon(
-              api.loggedIn.value
+              auth.loggedIn
                   ? Icons.account_circle
                   : Icons.account_circle_outlined,
             ),
-            title: Text(api.loggedIn.value ? '已登录' : '登录账号'),
-            subtitle: Text(api.loggedIn.value ? '本地登录态已保存,点击退出' : '手机号 + 验证码'),
-            trailing: api.loggedIn.value
+            title: Text(auth.loggedIn ? '已登录' : '登录账号'),
+            subtitle: Text(auth.loggedIn ? '本地登录态已保存,点击退出' : '手机号 + 验证码'),
+            trailing: auth.loggedIn
                 ? const Icon(Icons.logout)
                 : const Icon(Icons.chevron_right),
-            onTap: () => api.loggedIn.value ? _doLogout() : _openLogin(),
-          ),
-        ),
+            onTap: () => auth.loggedIn ? _doLogout() : _openLogin(),
+          );
+        }),
       ],
     );
   }
@@ -76,5 +75,15 @@ class SettingsPageBinding extends Bindings {
   @override
   void dependencies() {
     Get.lazyPut<SettingsController>(() => SettingsController());
+  }
+}
+
+/// 登录页 binding:跟 SearchPageBinding 同款
+///
+/// 由调用方在 Get.to(..., binding: LoginPageBinding()) 时按需注入
+class LoginPageBinding extends Bindings {
+  @override
+  void dependencies() {
+    Get.lazyPut<LoginController>(() => LoginController());
   }
 }

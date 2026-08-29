@@ -18,6 +18,14 @@ import 'services/LikedSongsService.dart';
 import 'services/LikedAlbumsService.dart';
 import 'services/LikedArtistsService.dart';
 import 'services/LikedPlaylistsService.dart';
+import 'services/repositories/lyrics_repository.dart';
+import 'services/repositories/song_repository.dart';
+import 'services/repositories/liked_repository.dart';
+import 'services/repositories/search_repository.dart';
+import 'services/repositories/playlist_repository.dart';
+import 'services/repositories/album_repository.dart';
+import 'services/repositories/artist_repository.dart';
+import 'controller/AuthController.dart';
 import 'theme/AppTheme.dart';
 import 'theme/ThemeController.dart';
 import 'widgets/netease_image.dart' show NeteaseHttpOverrides;
@@ -35,15 +43,53 @@ Future<void> main() async {
   // 网易云 SDK:创建 NeteaseCloudMusicApi 实例 + 恢复持久化 cookie
   // (必须在 GetStorage.init 之后)
   await initNeteaseApi();
-  // LikedSongsService 依赖 NeteaseApi(调 /likelist / /like),必须 NeteaseApi 注册后才能 put
-  Get.put<LikedSongsService>(LikedSongsService(Get.find<NeteaseApi>()), permanent: true);
+  // Repositories 集中 API 调用 —— 必须在依赖它们的 service / controller 之前 put。
+  // 构造注入 NeteaseApi, 注册顺序错误会编译期暴露 (README 阶段 1.1)。
+  Get.put<LyricsRepository>(
+    LyricsRepository(Get.find<NeteaseApi>()),
+    permanent: true,
+  );
+  Get.put<SongRepository>(
+    SongRepository(Get.find<NeteaseApi>()),
+    permanent: true,
+  );
+  Get.put<SearchRepository>(
+    SearchRepository(Get.find<NeteaseApi>()),
+    permanent: true,
+  );
+  Get.put<PlaylistRepository>(
+    PlaylistRepository(Get.find<NeteaseApi>()),
+    permanent: true,
+  );
+  Get.put<AlbumRepository>(
+    AlbumRepository(Get.find<NeteaseApi>()),
+    permanent: true,
+  );
+  Get.put<ArtistRepository>(
+    ArtistRepository(Get.find<NeteaseApi>()),
+    permanent: true,
+  );
+  // AuthController 是全局凭证持有者 (lib/controller/), 持有 AuthInfo (cookie + loggedIn + uid)
+  // 真正的 SDK 调用走 NeteaseApi, LoginController 等 UI 层从这里拿凭证
+  Get.putAsync<AuthController>(() async {
+    final controller = AuthController();
+    await controller.loadAuthInfo();
+    return controller;
+  }, permanent: true);
+  Get.put<LikedRepository>(
+    LikedRepository(Get.find<NeteaseApi>()),
+    permanent: true,
+  );
+  // Liked 4 个 service 现在都继承 LikedCollectionService 基类 (构造接 NeteaseApi),
+  // API 调用走对应的 Repository。
+  Get.put<LikedSongsService>(LikedSongsService(), permanent: true);
   Get.put<LikedAlbumsService>(LikedAlbumsService(), permanent: true);
-  Get.put<LikedArtistsService>(LikedArtistsService(Get.find<NeteaseApi>()), permanent: true);
-  Get.put<LikedPlaylistsService>(LikedPlaylistsService(Get.find<NeteaseApi>()), permanent: true);
+  Get.put<LikedArtistsService>(LikedArtistsService(), permanent: true);
+  Get.put<LikedPlaylistsService>(LikedPlaylistsService(), permanent: true);
   // PlayerController 必须在 AudioService.init 之前 put,
   // 因为 PlaybackService 内部 Get.find<PlayerController>() 依赖它存在
 
-  // 必须在 initNeteaseApi 之后 (LyricsService 内部 Get.find<NeteaseApi>)
+  // LyricsService 内部 Get.find<LyricsRepository>, 上面 Repository 已 put
   Get.put<LyricsService>(LyricsService(), permanent: true);
   Get.put<PlayerController>(PlayerController(), permanent: true);
   // LyricsController 依赖 PlayerController (订阅 currentSong) + LyricsService (拉歌词).

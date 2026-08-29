@@ -1,22 +1,25 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart' show TextEditingController;
-import 'package:musiclibrary/music_library.dart';
 import 'package:get/get.dart';
 
-import '../sdk/api_call.dart';
-import '../sdk/api_exception.dart';
-import '../sdk/netease_api.dart';
 import '../AppShell.dart';
+import '../controller/AuthController.dart';
 
 /// 登录页 controller(手机 + 验证码)
 ///
 /// - 输入框数据源统一走 [phoneController] / [codeController] + listener 同步到 RxString,
 ///   理由同 [SearchController.textController]:不显式绑 controller 的话清除/回填 TextField
 ///   没反应(因为 Flutter 复用 TextField 内部看不见的 TextEditingController state)
-/// - **接 SDK 后**:
-///   - [sendCode] 调 `/captcha/sent` 发送验证码
-///   - [login] 调 `/login/cellphone` 登录 + 提取 Set-Cookie + 持久化到 GetStorage
+/// - **凭证管理**: [AuthController] 全局持有 [AuthInfo] (cookie + loggedIn + uid),
+///   本 controller 只做 UI 状态 + 业务编排 (输入验证 / 倒计时 / snackbar)
+///   真正的 SDK 调用 (`/captcha/sent` / `/login/cellphone` / `/login/status` / cookie
+///   持久化) 都在 [AuthController]
+///
+/// 职责分层:
+/// - **AuthController** (lib/controller/): 全局凭证持有者, 调 SDK 拿数据
+/// - **LoginController** (本页): UI 状态 + 业务编排, 把请求转给 AuthController
+/// - **NeteaseApi** (lib/sdk/): 底层 SDK 入口, 只被 AuthController 调
 class LoginController extends GetxController {
   // 业务常量集中放这里(单一来源,View 也引用)
   static const int phoneLength = 11;
@@ -47,13 +50,17 @@ class LoginController extends GetxController {
   final RxBool isSendingCode = false.obs;
   final RxBool isLoggingIn = false.obs;
 
-  final NeteaseApi api = Get.find<NeteaseApi>();
-
   Timer? _timer;
+
+  /// 全局凭证持有者 —— 真正的 SDK 调用都走它。
+  /// `permanent: true` 全局 controller, 启动时 main.dart 注册。
+  late final AuthController _auth;
 
   @override
   void onInit() {
     super.onInit();
+    _auth = Get.find<AuthController>();
+
     phoneController.addListener(_syncPhone);
     codeController.addListener(_syncCode);
   }
@@ -83,30 +90,8 @@ class LoginController extends GetxController {
   /// "登录"按钮可点的条件:手机号 + 验证码都格式对 + 不在请求中
   bool get canLogin => isPhoneValid && isCodeValid && !isLoggingIn.value;
 
-  /// 发送验证码
-  ///
-  /// - 调 [NeteaseCloudMusicApi.captcha_sent]
-  /// - 成功 → 启动 60s 倒计时(期间按钮置灰,文案显示 "重新发送(60s)")
-  /// - 失败 → 弹 SnackBar 显示 [ApiException.message]
-  void sendCode() async {
-    if (!canSendCode) return;
-    isSendingCode.value = true;
-    final phoneStr = phone.value;
-    try {
-      // 2026-08-25: 匿名访客 cookie (NMTID/NMSCVT) 由 [NeteaseApi.init] 启动阶段
-      // 一次性拉 (已登录 / 已缓存不重拉), 这里不再调 applyAnonymousCookie 避免重复请求。
-      // 同步阻塞调用;SDK 文档里也说 compute 会跨 isolate 拿 native handle
-      apiCall(
-        () => api.raw.captcha_sent(phoneStr, ctcode: countryCode),
-        what: '发送验证码',
-      );
-      _startCountdown();
-    } on ApiException catch (e) {
-      Get.snackbar('发送失败', e.message, snackPosition: SnackPosition.BOTTOM);
-    } finally {
-      isSendingCode.value = false;
-    }
-  }
+  /// 登录态(从 [AuthController.authInfo] 转发)。
+  /// 设置页 [SettingsPage] 直接读这个判断已登录。
 
   void _startCountdown() {
     countdown.value = countdownSeconds;
@@ -119,72 +104,65 @@ class LoginController extends GetxController {
     });
   }
 
-  /// 登录
+  /// 发送验证码 —— 委托给 [AuthController.sendCode]
   ///
-  /// 流程:
-  /// 1. 先调 [NeteaseApi.applyAnonymousCookie] —— 拿 `/register/anonimous`
-  ///    的访客 session cookie(NMTID/NMSCVT),让后端把这次请求当成"已有会话
-  ///    的设备",避开裸 IP 直连触发云盾 10004 + phoneReuse 重定向
-  ///    (MUSICLIBRARY.md 6.2,2026-08-09 实测确认)
-  /// 2. 调 [NeteaseCloudMusicApi.login_cellphone] (走 captcha 验证码分支)
-  /// 3. 成功 → 把 Set-Cookie 灌进 SDK + 持久化 GetStorage + Get.back() 回到 Settings
-  /// 4. 失败 → 弹 SnackBar(常见:验证码错 / 风控要求扫码 / 频繁登录)
+  /// - 成功 → 启动 60s 倒计时 (期间按钮置灰, 文案显示 "重新发送(60s)")
+  /// - 失败 → 弹 SnackBar (具体错误在 [AuthController.sendCode] 内部已处理)
+  void sendCode() async {
+    if (!canSendCode) return;
+    isSendingCode.value = true;
+    try {
+      final ok = await _auth.sendCode(
+        phoneStr: phone.value,
+        countryCode: countryCode,
+      );
+      if (ok) {
+        _startCountdown();
+      } else {
+        Get.snackbar('发送失败', '请稍后重试', snackPosition: SnackPosition.BOTTOM);
+      }
+    } finally {
+      isSendingCode.value = false;
+    }
+  }
+
+  /// 登录 —— 委托给 [AuthController.login]
   ///
-  /// 注意:第 1 步失败不阻断第 2 步(applyAnonymousCookie 内部 try/catch),
-  /// 最坏情况就是回到老路径被云盾挡。
+  /// - 成功 → 弹 "登录成功" SnackBar + 回到 Settings 页
+  /// - 失败 → 弹 SnackBar 提示 (具体错误在 [AuthController.login] 内部已处理)
   void login() async {
     if (!canLogin) return;
     isLoggingIn.value = true;
-    final phoneStr = phone.value;
-    final codeStr = code.value;
     try {
-      // 1. 先建访客 session
-      await api.applyAnonymousCookie();
-      // 2. 再发登录请求(此时 SDK 全局 cookie map 已有 NMTID/NMSCVT)
-      final r = await api.call(
-        (a) => a.login_cellphone(
-          phoneStr,
-          captcha: codeStr,
-          countrycode: countryCode,
-        ),
-        what: '登录',
+      final ok = await _auth.login(
+        phoneStr: phone.value,
+        codeStr: code.value,
+        countryCode: countryCode,
       );
-      api.applyLoginCookie(r);
-      // 拉取并缓存 uid —— LibraryController 后续要调 /user/playlist 等
-      await api.fetchCurrentUid();
-      Get.back(id: AppShell.shellNavigatorId);
-      Get.snackbar(
-        '登录成功',
-        '已保存登录状态,下次启动自动恢复',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-    } on ApiException catch (e) {
-      Get.snackbar(
-        '登录失败 (code ${e.code})',
-        e.message,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      if (ok) {
+        Get.snackbar(
+          '登录成功',
+          '已保存登录状态, 下次启动自动恢复',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        Get.back(id: AppShell.shellNavigatorId);
+      } else {
+        Get.snackbar(
+          '登录失败',
+          '请检查手机号 / 验证码 (常见: 验证码错 / 风控要求扫码 / 频繁登录)',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
     } finally {
       isLoggingIn.value = false;
     }
   }
 
-  /// 退出登录(供本 controller 内调,SettingsPage 直接走 [NeteaseApi.logout])
+  /// 退出登录 —— 委托给 [AuthController.logout]
   ///
-  /// - 清 SDK cookie + GetStorage 持久化
-  /// - SnackBar 提示
-  void logout() {
-    api.logout();
-    Get.snackbar('已退出', '本地登录态已清除', snackPosition: SnackPosition.BOTTOM);
-  }
+  /// SettingsPage 的 "已登录" 项点击退出时调这个。AuthController.logout
+  /// 内部已清 SDK cookie + GetStorage + 持久化。
+  bool logout() => _auth.logout();
 }
 
-/// 登录页 binding:跟 SearchPageBinding 同款
-///
-/// 由调用方在 Get.to(..., binding: LoginPageBinding()) 时按需注入
-class LoginPageBinding extends Bindings {
-  @override
-  void dependencies() {
-    Get.lazyPut<LoginController>(() => LoginController());
-  }
-}
+/// 后面要全部重构snackbar提示，移动到view层，controller只负责业务逻辑。

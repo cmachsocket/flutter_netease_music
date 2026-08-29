@@ -5,50 +5,30 @@ import 'package:get/get.dart';
 
 import '../models/Album.dart';
 import '../models/Song.dart';
-import '../ArtistPage/Artist.dart';
-import '../sdk/api_exception.dart';
-import '../sdk/netease_api.dart';
+import '../models/Artist.dart';
 import '../services/LikedSongsService.dart';
 import '../services/PlayQueueService.dart';
 import '../services/LikedAlbumsService.dart';
 import '../services/LikedArtistsService.dart';
 import '../services/LikedPlaylistsService.dart';
-
-/// 网易云搜索 type 参数(参考 netease_cloud_music_api /search 接口)
-///
-/// 只取这四个(用户限定):
-/// - 1 单曲
-/// - 10 专辑
-/// - 100 艺人
-/// - 1000 歌单
-///
-/// 直接当 query param 传给后端
-enum SearchType {
-  song(1, '单曲'),
-  album(10, '专辑'),
-  artist(100, '艺人'),
-  playlist(1000, '歌单');
-
-  const SearchType(this.typeId, this.label);
-
-  /// 对应网易云 search API 的 type 参数
-  final int typeId;
-
-  /// UI 显示标签(segmented button 上用)
-  final String label;
-}
+import '../services/repositories/search_repository.dart';
+import '../services/repositories/song_repository.dart';
 
 /// 搜索页 controller
 ///
 /// - 4 个 [SearchType] 各自维护一份结果(切 tab 不丢旧结果)
-/// - [search] 调 SDK /search,**只查当前 type**(省钱 + 响应快)
+/// - [search] 调 [SearchRepository.search],**只查当前 type**(省钱 + 响应快)
 /// - [setType] 切 tab 时如果有当前 keyword 就**自动重搜**(旧结果跨 type 不能复用)
+///
+/// API 调用集中到 [SearchRepository] (4 种 type 解析也在那里);
+/// 补图 [SongRepository.fetchSongDetails] 集中到 [SongRepository]。
 class SearchController extends GetxController {
   final Rx<SearchType> type = SearchType.song.obs;
 
-  final NeteaseApi api = Get.find<NeteaseApi>();
   final PlayQueueService queue = Get.find<PlayQueueService>();
   final LikedSongsService _likedService = Get.find<LikedSongsService>();
+  final SongRepository _songRepo = Get.find<SongRepository>();
+  final SearchRepository _searchRepo = Get.find<SearchRepository>();
 
   /// TextField 的真实数据源 —— 必须显式绑给 [TextField.controller],
   /// 否则点清除按钮时 [TextField] 内部 state 复用了看不见的 TextEditingController,
@@ -73,7 +53,8 @@ class SearchController extends GetxController {
   final RxList<Song> songResults = <Song>[].obs;
   final RxList<Album> albumResults = <Album>[].obs;
   final RxList<Artist> artistResults = <Artist>[].obs;
-  final RxList<PlaylistSummary> playlistResults = <PlaylistSummary>[].obs;
+  final RxList<SearchPlaylistSummary> playlistResults =
+      <SearchPlaylistSummary>[].obs;
 
   /// 搜索进行中
   final RxBool isLoading = false.obs;
@@ -93,7 +74,7 @@ class SearchController extends GetxController {
   void clearKeyword() {
     textController.clear();
     keyword.value = '';
-    submittedKeyword.value = '';   // 同步清提交状态,UI 回"输入关键词"提示
+    submittedKeyword.value = ''; // 同步清提交状态,UI 回"输入关键词"提示
     _clearCurrent();
   }
 
@@ -125,147 +106,104 @@ class SearchController extends GetxController {
   }
 
   /// 触发搜索(只查当前 [type] 的结果)
-  void search(String keyword) async {
+  ///
+  /// 流程: 调 [SearchRepository.search] → Repository 返回 [SearchResult]
+  /// → 按 type 字段写对应 RxList + 触发 [enrichSongCovers](单曲类型)。
+  Future<void> search(String keyword) async {
     final k = keyword.trim();
     this.keyword.value = k;
     if (k.isEmpty) {
       _clearCurrent();
-      submittedKeyword.value = '';   // 清空提交状态 → UI 走"输入关键词"提示
+      submittedKeyword.value = '';
       return;
     }
-    submittedKeyword.value = k;       // 提交后才写,UI 判"搜过"才看这个
+    submittedKeyword.value = k;
     isLoading.value = true;
     errorMessage.value = null;
     final t = type.value;
-    try {
-      final r = await api.call(
-        (a) => a.search(k, type: t.typeId.toString(), limit: '30'),
-        what: '搜索',
-      );
-      _parseAndStore(r.body, t);
-    } on ApiException catch (e) {
-      errorMessage.value = e.message;
-      Get.snackbar(
-        '搜索失败 (code ${e.code})',
-        e.message,
-        snackPosition: SnackPosition.BOTTOM,
-      );
-    } finally {
+    final result = await _searchRepo.search(keywords: k, type: t);
+    if (result == null) {
+      errorMessage.value = '搜索失败';
+      Get.snackbar('搜索失败', '请稍后再试', snackPosition: SnackPosition.BOTTOM);
       isLoading.value = false;
+      return;
     }
+    _storeResult(result);
+    if (t == SearchType.song) {
+      // 单曲封面补图:search 接口 album 项只有 picId(数字),没 picUrl(URL)。
+      unawaited(enrichSongCovers());
+    }
+    isLoading.value = false;
   }
 
-  /// 按 type 分发到对应 RxList
-  void _parseAndStore(Map<String, dynamic> body, SearchType t) {
-    final result = body['result'];
-    if (result is! Map) return;
-    final list = result[_resultKey(t)];
-    if (list is! List) return;
-    switch (t) {
+  /// 按 type 写对应 RxList (其他类型置空)
+  void _storeResult(SearchResult r) {
+    switch (type.value) {
       case SearchType.song:
-        songResults.assignAll(
-          list
-              .whereType<Map>()
-              .map((m) => Song.fromNeteaseJson(Map<String, dynamic>.from(m)))
-              .toList(),
-        );
-        // 单曲封面补图:search 接口 album 项只有 picId(数字),没 picUrl(URL)。
-        // 批量调 /song/detail?ids=... 一次性拿所有歌的真 coverUrl 回填。
-        unawaited(_enrichSongCovers());
+        songResults.assignAll(r.songs ?? <Song>[]);
+        // albumResults / artistResults / playlistResults 跨 type 不复用,清空
+        albumResults.clear();
+        artistResults.clear();
+        playlistResults.clear();
       case SearchType.album:
-        albumResults.assignAll(
-          list
-              .whereType<Map>()
-              .map((m) => Album.fromNeteaseJson(Map<String, dynamic>.from(m)))
-              .toList(),
-        );
+        albumResults.assignAll(r.albums ?? <Album>[]);
+        songResults.clear();
+        artistResults.clear();
+        playlistResults.clear();
       case SearchType.artist:
-        artistResults.assignAll(
-          list
-              .whereType<Map>()
-              .map((m) => Artist.fromNeteaseJson(Map<String, dynamic>.from(m)))
-              .toList(),
-        );
+        artistResults.assignAll(r.artists ?? <Artist>[]);
+        songResults.clear();
+        albumResults.clear();
+        playlistResults.clear();
       case SearchType.playlist:
-        playlistResults.assignAll(
-          list
-              .whereType<Map>()
-              .map(
-                (m) => PlaylistSummary.fromNeteaseJson(
-                  Map<String, dynamic>.from(m),
-                ),
-              )
-              .toList(),
-        );
+        playlistResults.assignAll(r.playlists ?? <SearchPlaylistSummary>[]);
+        songResults.clear();
+        albumResults.clear();
+        artistResults.clear();
     }
   }
-
-  static String _resultKey(SearchType t) => switch (t) {
-    SearchType.song => 'songs',
-    SearchType.album => 'albums',
-    SearchType.artist => 'artists',
-    SearchType.playlist => 'playlists',
-  };
 
   /// 单曲封面补图
   ///
   /// - **背景**:`/search?type=1` 返回的 songs[].album 只给 `picId`(数字),
   ///   不给 `picUrl`(URL);`Image.network("数字串")` 解析 URI 失败 → 占位
-  /// - **方案**:批量调 `/song/detail?ids=id1,id2,...`(一次 API 拿全),
+  /// - **方案**:批量调 [SongRepository.fetchSongDetails] (一次 API 拿全),
   ///   响应里 songs[].album.picUrl 是真 URL,按 songId 回填
   /// - **回填方式**:Song.coverUrl 是 `final`,不可变 → 重建 Song 对象 + assignAll
-  /// - **失败处理**:catch 后静默(补图失败不阻塞搜索结果,UI 走占位)
+  /// - **失败处理**:Repository 返回空 Map 时静默(补图失败不阻塞搜索结果,UI 走占位)
   /// - **竞争**:补图回调时如果用户已经切走/清空,byId 跟当前 songResults 对不上,
   ///   按 id 匹配不上就不动 → 安全
-  Future<void> _enrichSongCovers() async {
+  Future<void> enrichSongCovers() async {
     final snapshot = songResults.toList();
     if (snapshot.isEmpty) return;
-    final ids = snapshot.map((s) => s.id).join(',');
-    try {
-      final r = await api.call((a) => a.song_detail(ids), what: '补单曲封面');
-      final songs = r.body['songs'];
-      if (songs is! List) return;
-      // 按 songId → 真 coverUrl 建索引
-      final byId = <String, String>{};
-      for (final raw in songs) {
-        if (raw is! Map) continue;
-        final m = Map<String, dynamic>.from(raw);
-        final sid = m['id']?.toString();
-        if (sid == null) continue;
-        final al = m['al'] ?? m['album'];
-        if (al is! Map) continue;
-        final picUrl = (Map<String, dynamic>.from(al)['picUrl'] ?? '')
-            .toString();
-        if (picUrl.isNotEmpty) byId[sid] = picUrl;
+    final byId = await _songRepo.fetchSongDetails(
+      snapshot.map((s) => s.id).toList(),
+    );
+    if (byId.isEmpty) return;
+    // 按当前 songResults 重建(若 songResults 已被换走,以当前为准,旧 id 跳过)
+    final updated = <Song>[];
+    var changed = false;
+    for (final s in songResults) {
+      final newCover = byId[s.id];
+      if (newCover != null && newCover != s.coverUrl) {
+        updated.add(
+          Song(
+            id: s.id,
+            title: s.title,
+            artist: s.artist,
+            artistId: s.artistId,
+            album: s.album,
+            albumId: s.albumId,
+            coverUrl: newCover,
+            duration: s.duration,
+          ),
+        );
+        changed = true;
+      } else {
+        updated.add(s);
       }
-      if (byId.isEmpty) return;
-      // 按当前 songResults 重建(若 songResults 已被换走,以当前为准,旧 id 跳过)
-      final updated = <Song>[];
-      var changed = false;
-      for (final s in songResults) {
-        final newCover = byId[s.id];
-        if (newCover != null && newCover != s.coverUrl) {
-          updated.add(
-            Song(
-              id: s.id,
-              title: s.title,
-              artist: s.artist,
-              artistId: s.artistId,
-              album: s.album,
-              albumId: s.albumId,
-              coverUrl: newCover,
-              duration: s.duration,
-            ),
-          );
-          changed = true;
-        } else {
-          updated.add(s);
-        }
-      }
-      if (changed) songResults.assignAll(updated);
-    } on ApiException {
-      // 补图失败不阻塞搜索结果,UI 走 SongRowTile._Cover 空 URL 占位
     }
+    if (changed) songResults.assignAll(updated);
   }
 
   bool isAlbumLiked(String albumId) =>
@@ -278,7 +216,9 @@ class SearchController extends GetxController {
 
   bool isPlaylistLiked(String playlistId) =>
       // ignore: invalid_use_of_protected_member
-      Get.find<LikedPlaylistsService>().likedPlaylistIds.value.contains(playlistId);
+      Get.find<LikedPlaylistsService>().likedPlaylistIds.value.contains(
+        playlistId,
+      );
 
   void toggleAlbumLike(String albumId) {
     // ignore: discarded_futures
@@ -321,39 +261,6 @@ class SearchController extends GetxController {
   /// 从这首开始播放。搜索结果有限 (limit 30)。
   Future<void> playSong(Song song) {
     return queue.playSongs(songResults.toList(), startSong: song);
-  }
-}
-
-/// 搜索结果里的歌单摘要(轻量,跟 LibraryController 的 PlaylistSummary
-/// 字段有重合但来源不同 —— 搜索结果没有 userId 等 user-only 字段,放一起会污染)
-class PlaylistSummary {
-  final String id;
-  final String name;
-  final String coverUrl;
-  final int trackCount;
-  final String creatorName;
-
-  const PlaylistSummary({
-    required this.id,
-    required this.name,
-    required this.coverUrl,
-    required this.trackCount,
-    required this.creatorName,
-  });
-
-  /// 网易云 /search?type=1000 返回的 `result.playlists[]` 元素:
-  /// - id, name, coverImgUrl, trackCount, creator.nickname
-  factory PlaylistSummary.fromNeteaseJson(Map<String, dynamic> json) {
-    final creator = json['creator'] is Map
-        ? Map<String, dynamic>.from(json['creator'] as Map)
-        : null;
-    return PlaylistSummary(
-      id: json['id'].toString(),
-      name: (json['name'] ?? '').toString(),
-      coverUrl: (json['coverImgUrl'] ?? '').toString(),
-      trackCount: (json['trackCount'] as int?) ?? 0,
-      creatorName: (creator?['nickname'] ?? '').toString(),
-    );
   }
 }
 
