@@ -197,7 +197,7 @@ class AudioPlayerHandler extends BaseAudioHandler
     }
   }
 
-  AudioPlayerHandler({required SongRepository repo}) {
+  AudioPlayerHandler({required this._repo}) {
     // 订阅 AudioPlayer 的状态 → broadcast 给系统通知/锁屏
     // _audio.player.playerStateStream.listen(_broadcastState);
     // // 订阅当前歌曲变化 → broadcast mediaItem
@@ -306,15 +306,11 @@ class AudioPlayerHandler extends BaseAudioHandler
 
   @override
   Future<void> prepareFromUri(Uri uri, [Map<String, dynamic>? extras]) async {
-    await _audio.play();
+    await _audio.setUrl(uri.toString());
   }
 
   @override
   Future<void> play() async {
-    // 6. 从 extras 中取出 URL，设置给播放器并开始播放
-    //final url = _queue[index].extras!['url'] as String;
-    //await _player.setUrl(url); // just_audio 的加载方法
-    //动态获取链接
     await _audio.play();
   }
 
