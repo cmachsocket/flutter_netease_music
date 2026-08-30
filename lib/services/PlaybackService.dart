@@ -3,8 +3,8 @@ import 'package:get/get.dart';
 import 'package:just_audio/just_audio.dart' show ProcessingState, PlayerState;
 
 import '../models/Song.dart';
+import '../models/Headers.dart';
 import '../PlayPage/PlayerController.dart';
-import '../widgets/netease_image.dart' show neteaseImageHeaders;
 import 'AudioPlayerService.dart';
 import 'LikedSongsService.dart';
 import 'PlayQueueService.dart';
@@ -39,7 +39,9 @@ class PlaybackService extends BaseAudioHandler
     _player.currentSong.listen(_broadcastMediaItem);
     // 订阅队列变化 → broadcast queue
     _queue.playlist.listen(_broadcastQueue);
-    _queue.currentIndex.listen((_) => _broadcastMediaItem(_player.currentSong.value));
+    _queue.currentIndex.listen(
+      (_) => _broadcastMediaItem(_player.currentSong.value),
+    );
     // 订阅喜欢状态变化 → 重建 controls (单按钮 toggle, 跟着 isLiked 切 like/dislike icon)
     _player.isLiked.listen((_) => _resyncControls());
     // 订阅歌曲变化也重建 controls (新歌 isLiked 状态不一样, like 按钮的 icon/label 要换)
@@ -74,9 +76,7 @@ class PlaybackService extends BaseAudioHandler
   void _resyncControls() {
     final prev = playbackState.value;
     playbackState.add(
-      prev.copyWith(
-        controls: _buildControls(isLiked: _player.isLiked.value),
-      ),
+      prev.copyWith(controls: _buildControls(isLiked: _player.isLiked.value)),
     );
   }
 
@@ -105,31 +105,23 @@ class PlaybackService extends BaseAudioHandler
       mediaItem.add(null);
       return;
     }
-    mediaItem.add(_buildMediaItem(song, withDuration: true));
+    mediaItem.add(
+      song.toMediaItem(
+        duration: _player.duration.value,
+        artHeaders: NeteaseImageHeaders.neteaseImageHeaders,
+      ),
+    );
   }
 
   void _broadcastQueue(List<Song> songs) {
-    queue.add(songs.map(_buildMediaItem).toList());
-  }
-
-  /// 从 Song 构建一个 MediaItem (系统通知 / 锁屏 / 队列列表都走这个)
-  ///
-  /// artUri / artHeaders 重要说明:
-  /// - NCM 的 `p1.music.126.net` CDN 把 Dart 默认 UA (Dart/x.x) 拉黑,会返 403
-  ///   → 系统拿不到封面,锁屏/通知栏显示默认图标
-  /// - artHeaders 走 audio_service 0.18 的 Dart 侧 `cacheManager.getSingleFile`,
-  ///   带 UA 伪装 Chrome 绕 CDN 403
-  /// - coverUrl 为空 (常见: search 接口 album 项只有 picId 没 picUrl) → 不设
-  ///   artUri,系统走默认占位图 (避免 Uri.parse('') 抛 FormatException)
-  MediaItem _buildMediaItem(Song s, {bool withDuration = false}) {
-    return MediaItem(
-      id: s.id,
-      title: s.title,
-      artist: s.artist,
-      album: s.album,
-      duration: withDuration ? _player.duration.value : null,
-      artUri: s.coverUrl.isEmpty ? null : Uri.tryParse(s.coverUrl),
-      artHeaders: neteaseImageHeaders,
+    queue.add(
+      songs
+          .map(
+            (s) => s.toMediaItem(
+              artHeaders: NeteaseImageHeaders.neteaseImageHeaders,
+            ),
+          )
+          .toList(),
     );
   }
 

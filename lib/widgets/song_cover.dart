@@ -1,7 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-
-import 'netease_image.dart' show neteaseImageHeaders;
+import '../models/Headers.dart';
 
 /// 歌曲 / 专辑 / 艺人 / 歌单封面通用 widget
 ///
@@ -34,7 +33,7 @@ class SongCover extends StatelessWidget {
     return CachedNetworkImage(
       imageUrl: url,
       fit: BoxFit.cover,
-      httpHeaders: neteaseImageHeaders,
+      httpHeaders: NeteaseImageHeaders.neteaseImageHeaders,
       errorWidget: (_, _, _) => placeholder,
     );
   }

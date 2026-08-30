@@ -25,6 +25,7 @@ import 'services/repositories/search_repository.dart';
 import 'services/repositories/playlist_repository.dart';
 import 'services/repositories/album_repository.dart';
 import 'services/repositories/artist_repository.dart';
+import 'services/repositories/library_repository.dart';
 import 'controller/AuthController.dart';
 import 'theme/AppTheme.dart';
 import 'theme/ThemeController.dart';
@@ -69,9 +70,13 @@ Future<void> main() async {
     ArtistRepository(Get.find<NeteaseApi>()),
     permanent: true,
   );
+  Get.put<LibraryRepository>(
+    LibraryRepository(Get.find<NeteaseApi>()),
+    permanent: true,
+  );
   // AuthController 是全局凭证持有者 (lib/controller/), 持有 AuthInfo (cookie + loggedIn + uid)
   // 真正的 SDK 调用走 NeteaseApi, LoginController 等 UI 层从这里拿凭证
-  Get.putAsync<AuthController>(() async {
+  await Get.putAsync<AuthController>(() async {
     final controller = AuthController();
     await controller.loadAuthInfo();
     return controller;

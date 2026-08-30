@@ -4,6 +4,7 @@ import '../../models/Song.dart';
 import '../../sdk/api_call.dart';
 import '../../models/ApiException.dart';
 import '../../sdk/netease_api.dart';
+import '../../models/Playlist.dart';
 
 /// 歌单 repository —— 集中 `/playlist/detail` + `/playlist/track/all`
 /// 两个 API 调用
@@ -71,17 +72,4 @@ class PlaylistRepository extends GetxService {
       return [];
     }
   }
-}
-
-/// 歌单元信息 (name/coverUrl/description)
-class PlaylistMeta {
-  final String name;
-  final String coverUrl;
-  final String description;
-
-  const PlaylistMeta({
-    required this.name,
-    required this.coverUrl,
-    required this.description,
-  });
 }

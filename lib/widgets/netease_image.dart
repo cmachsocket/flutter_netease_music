@@ -1,20 +1,20 @@
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../models/Headers.dart';
 
 /// NetEase 图片 CDN(`*.music.126.net`)专用请求头
 ///
 /// 关键:**`p1.music.126.net` 等子域把 Dart 默认 `User-Agent`(`Dart/x.x (dart:io)`)
 /// 拉黑 → 403 Forbidden**。伪装成 Chrome 即可。Referer / HTTPS 都不是关键。
-const Map<String, String> neteaseImageHeaders = {
-  'User-Agent':
-      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-};
 
 /// 工厂:把字符串 URL 包成带 [neteaseImageHeaders] 的 `NetworkImage`。
 /// 给 `CircleAvatar.backgroundImage` / `Image(image: ...)` 这类需要
 /// `ImageProvider` 的地方用。
 CachedNetworkImageProvider neteaseNetworkImage(String url) =>
-    CachedNetworkImageProvider(url, headers: neteaseImageHeaders);
+    CachedNetworkImageProvider(
+      url,
+      headers: NeteaseImageHeaders.neteaseImageHeaders,
+    );
 
 /// **全局** UA override —— `Image.network` 的 `headers` 参数在 Android 上
 /// 不稳定(底层 `image resource service` 可能忽略)。在 [main] 里装上
@@ -27,7 +27,7 @@ class NeteaseHttpOverrides extends HttpOverrides {
   HttpClient createHttpClient(SecurityContext? context) {
     final client = super.createHttpClient(context);
     // userAgent 会被 dart:io 自动塞进每个请求的 User-Agent 头
-    client.userAgent = neteaseImageHeaders['User-Agent']!;
+    client.userAgent = NeteaseImageHeaders.neteaseImageHeaders['User-Agent']!;
     return client;
   }
 }

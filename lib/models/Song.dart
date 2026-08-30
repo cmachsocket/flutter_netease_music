@@ -1,3 +1,5 @@
+import 'package:audio_service/audio_service.dart';
+
 class Song {
   final String id;
   final String title;
@@ -86,6 +88,27 @@ class Song {
       albumId: albumMap?['id']?.toString(),
       coverUrl: (albumMap?['picUrl'] ?? '').toString(),
       duration: Duration(milliseconds: dt),
+    );
+  }
+
+  /// 统一的 Song -> MediaItem 映射。
+  ///
+  /// 业务模型 [Song] 保留在业务层；仅在接入 audio_service 的系统通知/锁屏/队列时
+  /// 通过本扩展转换为 [MediaItem]。这样避免在两个 PlaybackService 里重复维护相同映射。
+  ///
+  /// [duration] 由调用方传入：mediaItem 展示时长需要播放器实时值，
+  /// 而 [Song.duration] 是静态元数据，两者语义不同。
+  /// [artHeaders] 由调用方传入：NCM CDN 需要伪装 UA 才能取封面。
+
+  MediaItem toMediaItem({Duration? duration, Map<String, String>? artHeaders}) {
+    return MediaItem(
+      id: id,
+      title: title,
+      artist: artist,
+      album: album,
+      duration: duration,
+      artUri: coverUrl.isEmpty ? null : Uri.tryParse(coverUrl),
+      artHeaders: artHeaders,
     );
   }
 }
