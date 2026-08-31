@@ -148,10 +148,39 @@ class AudioPlayerService extends GetxController {
     // 后续 setUrl/play 直接用,不需要再 await ready(竞态源)。
     JustAudioMediaKit.ensureInitialized();
 
+    // ---- 持久化恢复: 在 handler 构造前同步读 GetStorage, 把真相状态
+    // (queue / currentIndex / mode) 作为 handler 的初始值传入。
+    // handler 用 BehaviorSubject 在构造时 emit, wrapper 订阅后自动回放,
+    // 不再由 wrapper 的 Rx 手动 hydrate (避免 UI 恢复了而 handler 为空)。
+    final box = GetStorage();
+    final rawQueue = box.read<List>(_storageKey);
+    final savedIdx = box.read<int>(_currentIndexKey) ?? -1;
+    final savedMode = _decodeMode(box.read<String>(_modeKey));
+
+    final initialItems = <MediaItem>[
+      for (final e in rawQueue ?? const [])
+        if (e is Map)
+          Song.fromJson(Map<String, dynamic>.from(e)).toMediaItem(
+            artHeaders: NeteaseImageHeaders.neteaseImageHeaders,
+          ),
+    ];
+    final initialIndex = (savedIdx >= 0 && savedIdx < initialItems.length)
+        ? savedIdx
+        : (initialItems.isEmpty ? -1 : 0);
+
     audioHandler = await AudioService.init(
-      builder: () =>
-          AudioPlayerHandler(songRepo: _songRepo, likedService: _likedService),
+      builder: () => AudioPlayerHandler(
+        songRepo: _songRepo,
+        likedService: _likedService,
+        initialQueue: initialItems,
+        initialIndex: initialIndex,
+        initialMode: savedMode,
+      ),
     );
+
+    // mode 由 wrapper 与 handler 各自持有, handler 不回推 mode 流,
+    // 这里手动同步展示层 Rx (初始值已在上面从 GetStorage 解出)
+    _playOrderSub.value = savedMode;
 
     // ---- 聚合层:5 个来源 → 1 个 Rx -----------------------------------------
     _stateSub = audioHandler.playbackState.listen(_onPlaybackState);
@@ -167,9 +196,6 @@ class AudioPlayerService extends GetxController {
     // broadcast 无 replay: 订阅后主动刷一次,避免订阅前 handler 已 emit 过
     // 导致 wrapper 的 isCurrentSongLiked 停在初始 false
     audioHandler.refreshCurrentSongLiked();
-
-    // 业务层 hydrate (从 GetStorage 恢复 playlist / currentIndex / mode)
-    _hydrate();
   }
 
   @override
@@ -316,10 +342,8 @@ class AudioPlayerService extends GetxController {
   /// 队列里删一首 (UI 调)
   void removeSong(int index) {
     if (index < headOfTheQueue || index > tailOfTheQueue) return;
-    // 只改业务层 playlist,handler 的 removeQueueItemAt 会异步更新
-    // _queue + mediaItem/queue 流,回推 _onQueue/_onMediaItem 同步
-    // _currentIndexSub (单向流,不再手动改索引消除双写竞态)
-    playlist.removeAt(index);
+    // 不写 playlist: handler 的 removeQueueItemAt 会更新 _queue 并通过
+    // queue/mediaItem 流回推 _onQueue/_onMediaItem (彻底单向化)
     audioHandler.removeQueueItemAt(index);
     _persist();
   }
@@ -332,15 +356,14 @@ class AudioPlayerService extends GetxController {
     for (final song in songs) {
       if (seenIds.add(song.id)) uniqueSongs.add(song);
     }
-    playlist.assignAll(uniqueSongs);
+    // 不写 playlist / _currentIndexSub: 直接喂 handler, 由 queue/mediaItem
+    // 流回推 _onQueue/_onMediaItem 同步 (单向流)
     final startIndex = startSong == null
-        ? headOfTheQueue
-        : playlist.indexWhere((s) => s.id == startSong.id);
-    final finalStart = startIndex >= headOfTheQueue
-        ? startIndex
-        : headOfTheQueue;
+        ? 0
+        : uniqueSongs.indexWhere((s) => s.id == startSong.id);
+    final finalStart = startIndex >= 0 ? startIndex : 0;
     audioHandler.setQueue(
-      playlist
+      uniqueSongs
           .map(
             (s) => s.toMediaItem(
               artHeaders: NeteaseImageHeaders.neteaseImageHeaders,
@@ -349,37 +372,24 @@ class AudioPlayerService extends GetxController {
           .toList(),
       startIndex: finalStart,
     );
-    _currentIndexSub.value = finalStart;
     _persist();
   }
 
   // ---- 持久化 (从老 PlayQueueService 迁来) ------------------------------------
 
-  void _hydrate() {
-    final box = GetStorage();
-    final raw = box.read<List>(_storageKey);
-    if (raw != null && raw.isNotEmpty) {
-      playlist.assignAll(
-        raw
-            .whereType<Map>()
-            .map((e) => Song.fromJson(Map<String, dynamic>.from(e)))
-            .toList(),
-      );
-    }
-    final savedIdx = box.read<int>(_currentIndexKey) ?? 0;
-    _currentIndexSub.value =
-        (savedIdx >= headOfTheQueue && savedIdx <= tailOfTheQueue)
-        ? savedIdx
-        : headOfTheQueue;
-    final savedMode = box.read<String>(_modeKey);
-    _playOrderSub.value = _decodeMode(savedMode);
-  }
-
   void _persist() {
     final box = GetStorage();
-    box.write(_storageKey, playlist.map((s) => s.toJson()).toList());
-    box.write(_currentIndexKey, _currentIndexSub.value);
-    box.write(_modeKey, _playOrderSub.value.name);
+    // 全部读 handler 真相: 队列 / currentIndex / mode 都从 handler 取,
+    // wrapper 的 Rx 只作展示层, 不参与持久化 (彻底单向化)
+    box.write(
+      _storageKey,
+      audioHandler.persistedQueue
+          .map(_itemToSong)
+          .map((s) => s.toJson())
+          .toList(),
+    );
+    box.write(_currentIndexKey, audioHandler.persistedIndex);
+    box.write(_modeKey, audioHandler.persistedMode.name);
   }
 
   static PlayOrder _decodeMode(String? s) {
@@ -446,7 +456,18 @@ class AudioPlayerService extends GetxController {
 ///     播放顺序的位置,内部翻成 queue 索引去读 _queue
 class AudioPlayerHandler extends BaseAudioHandler
     with QueueHandler, SeekHandler {
-  AudioPlayerHandler({required this._songRepo, required this._likedService}) {
+  AudioPlayerHandler({
+    required this._songRepo,
+    required this._likedService,
+    List<MediaItem> initialQueue = const [],
+    int initialIndex = -1,
+    PlayOrder initialMode = PlayOrder.sequential,
+  }) {
+    _queue = List.of(initialQueue);
+    _currentIndex = initialIndex;
+    _playOrder = initialMode;
+    _rebuildShuffleMaps();
+
     // 初始 state: 启用 seek 系列系统手势 + 三按钮基础控件
     playbackState.add(
       playbackState.value.copyWith(
@@ -459,6 +480,12 @@ class AudioPlayerHandler extends BaseAudioHandler
         androidCompactActionIndices: const [0, 1, 2],
       ),
     );
+
+    // queue / mediaItem 是 BehaviorSubject (带当前值 replay):
+    // wrapper 订阅后立即拿到初始队列与当前歌, 真相状态在 handler 落地
+    queue.add(List.unmodifiable(_queue));
+    mediaItem.add(_currentItem);
+
     _wireAudioStreams();
   }
 
@@ -521,6 +548,11 @@ class AudioPlayerHandler extends BaseAudioHandler
       (_currentIndex >= 0 && _currentIndex < _queue.length)
           ? _queue[_currentIndex]
           : null;
+
+  /// 只读暴露给 wrapper 的 _persist 用 (避开 Rx 异步滞后的旧值)。
+  int get persistedIndex => _currentIndex;
+  PlayOrder get persistedMode => _playOrder;
+  List<MediaItem> get persistedQueue => List.unmodifiable(_queue);
   // 注:不再暴露 currentIndex 字段。wrapper 从 mediaItem.extras['queueIndex']
   // 读取当前索引,handler 在 [_playAt] / [removeQueueItemAt] 等"换索引"的地方
   // 把新索引写进对应 [MediaItem.extras] 并随 [mediaItem.add] emit。
