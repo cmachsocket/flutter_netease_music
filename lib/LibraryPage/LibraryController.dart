@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart' show IconData, Icons;
 import 'package:get/get.dart';
 
-import '../models/library_summary.dart';
+import '../models/LibrarySummary.dart';
 import '../services/LikedService.dart';
 import '../services/repositories/LibraryRepository.dart';
-import '../controller/AuthController.dart';
+import '../sdk/AuthController.dart';
 
 enum LibraryTab {
   playlists(1, '歌单', Icons.playlist_play),

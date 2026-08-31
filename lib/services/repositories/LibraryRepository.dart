@@ -1,6 +1,6 @@
 import 'package:get/get.dart';
 
-import '../../models/library_summary.dart';
+import '../../models/LibrarySummary.dart';
 import '../../sdk/ApiCall.dart';
 import '../../models/ApiException.dart';
 import '../../sdk/NeteaseApi.dart';

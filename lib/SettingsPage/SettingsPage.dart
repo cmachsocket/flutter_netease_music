@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_netease_music/controller/AuthController.dart';
+import 'package:flutter_netease_music/sdk/AuthController.dart';
 import 'package:get/get.dart';
 import '../AppShell.dart';
 import 'LoginController.dart';

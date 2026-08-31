@@ -19,7 +19,7 @@ import 'services/repositories/PlaylistRepository.dart';
 import 'services/repositories/AlbumRepository.dart';
 import 'services/repositories/ArtistRepository.dart';
 import 'services/repositories/LibraryRepository.dart';
-import 'controller/AuthController.dart';
+import 'sdk/AuthController.dart';
 import 'theme/AppTheme.dart';
 import 'theme/ThemeController.dart';
 import 'widgets/netease_image.dart' show NeteaseHttpOverrides;

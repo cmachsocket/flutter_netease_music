@@ -1,6 +1,6 @@
 import 'package:get/get.dart';
 
-import '../controller/AuthController.dart';
+import '../sdk/AuthController.dart';
 import '../models/ApiException.dart';
 import 'repositories/LikedRepository.dart';
 

@@ -4,7 +4,7 @@ import 'package:flutter/widgets.dart' show TextEditingController;
 import 'package:get/get.dart';
 
 import '../AppShell.dart';
-import '../controller/AuthController.dart';
+import '../sdk/AuthController.dart';
 
 /// 登录页 controller(手机 + 验证码)
 ///

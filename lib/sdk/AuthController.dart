@@ -2,7 +2,7 @@
 
 import 'package:get/get.dart';
 import '../models/AuthInfo.dart';
-import '../sdk/NeteaseApi.dart';
+import 'NeteaseApi.dart';
 import '../models/ApiException.dart';
 
 class AuthController extends GetxController {

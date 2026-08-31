@@ -4,7 +4,7 @@ import 'package:get/get.dart';
 import '../AppShell.dart';
 import '../ArtistPage/ArtistDetail.dart';
 import '../SongListPage/SongListCard.dart';
-import '../controller/AuthController.dart';
+import '../sdk/AuthController.dart';
 import '../widgets/aspect_driven_grid.dart';
 import 'LibraryController.dart';
 import '../models/default.dart';

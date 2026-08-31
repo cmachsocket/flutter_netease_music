@@ -1,6 +1,6 @@
 import 'package:get/get.dart';
 
-import '../models/library_summary.dart';
+import '../models/LibrarySummary.dart';
 import '../services/repositories/LibraryRepository.dart';
 
 /// 首页 controller
