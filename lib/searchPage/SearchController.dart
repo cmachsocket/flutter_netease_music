@@ -6,7 +6,7 @@ import 'package:get/get.dart';
 import '../models/Album.dart';
 import '../models/Song.dart';
 import '../models/Artist.dart';
-import '../services/LikedService.dart';
+import '../services/LikedController.dart';
 import '../services/AudioPlayerWrapper.dart';
 import '../services/repositories/SearchRepository.dart';
 import '../services/repositories/SongRepository.dart';
@@ -23,7 +23,7 @@ class SearchController extends GetxController {
   final Rx<SearchType> type = SearchType.song.obs;
 
   final AudioPlayerService queue = Get.find<AudioPlayerService>();
-  final LikedService _likedService = Get.find<LikedService>();
+  final LikedController _likedService = Get.find<LikedController>();
   final SongRepository _songRepo = Get.find<SongRepository>();
   final SearchRepository _searchRepo = Get.find<SearchRepository>();
 
@@ -234,7 +234,7 @@ class SearchController extends GetxController {
 
   /// 单曲点赞/收藏转发(搜索结果的 SongListBody 需要)
   ///
-  /// 跟 SongListController.toggleFavorite 同语义,走全局 [LikedService] (LikedType.song)
+  /// 跟 SongListController.toggleFavorite 同语义,走全局 [LikedController] (LikedType.song)
   void toggleFavorite(String songId) {
     // ignore: discarded_futures
     _likedService.toggle(songId, LikedType.song);

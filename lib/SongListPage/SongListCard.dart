@@ -31,6 +31,7 @@ class SongListCard extends StatelessWidget {
     this.onPlay,
     this.isLiked,
     this.onToggleFavorite,
+    this.showLike = true,
   });
 
   final String playlistId;
@@ -55,6 +56,12 @@ class SongListCard extends StatelessWidget {
   /// - 调用方决定调哪个 service 的 toggle
   /// - widget 内 fire-and-forget,不 await
   final VoidCallback? onToggleFavorite;
+
+  /// 是否渲染红心按钮。默认 true。
+  ///
+  /// - false: 横屏 trailing 只剩播放按钮
+  /// - 用于自建歌单等"语义上不属于收藏"的场景（自建歌单没法"再收藏一次"）
+  final bool showLike;
 
   static const cardTextMaxLines = 2;
   static const subTextMaxLines = 1;
@@ -89,11 +96,12 @@ class SongListCard extends StatelessWidget {
                 landscape: (_) => Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _LikeButton(
-                      isLiked: isLiked,
-                      onToggleFavorite: onToggleFavorite,
-                      playlistId: playlistId,
-                    ),
+                    if (showLike)
+                      _LikeButton(
+                        isLiked: isLiked,
+                        onToggleFavorite: onToggleFavorite,
+                        playlistId: playlistId,
+                      ),
                     IconButton(
                       icon: Icon(Icons.play_circle_fill_outlined),
                       onPressed: () {

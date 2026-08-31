@@ -46,7 +46,7 @@ class PlayerController extends GetxController {
   final Rxn<Song> currentSong = Rxn<Song>();
 
   /// 当前歌曲是否被喜欢。镜像 wrapper.snapshot.isCurrentSongLiked
-  /// (handler 推流;本 controller 不再订阅 LikedService.likedSongIds)。
+  /// (handler 推流;本 controller 不再订阅 LikedController.likedSongIds)。
   final RxBool isLiked = false.obs;
   // endregion
 
@@ -145,11 +145,11 @@ class PlayerController extends GetxController {
 
   /// toggle 当前歌曲的喜欢状态
   ///
-  /// - 转发给 [AudioPlayerService.toggleFavorite](内部调 LikedService.toggle)
-  /// - 不直接 Get.find<LikedService>: 走 wrapper 集中依赖(本 controller 只
+  /// - 转发给 [AudioPlayerService.toggleFavorite](内部调 LikedController.toggle)
+  /// - 不直接 Get.find<LikedController>: 走 wrapper 集中依赖(本 controller 只
   ///   依赖 wrapper 一个音频入口),handler 推流链路 (`likedSongIds → handler
   ///   监听 → currentSongLikedCtrl → wrapper.snapshot.isCurrentSongLiked →
-  ///   本 controller isLiked 镜像`)自动同步 UI, 无需本层订阅 LikedService
+  ///   本 controller isLiked 镜像`)自动同步 UI, 无需本层订阅 LikedController
   /// - 没有当前歌曲时是 no-op
   void toggleFavorite() {
     final song = currentSong.value;

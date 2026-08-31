@@ -2,7 +2,7 @@ import 'package:flutter/material.dart' show IconData, Icons;
 import 'package:get/get.dart';
 
 import '../models/LibrarySummary.dart';
-import '../services/LikedService.dart';
+import '../services/LikedController.dart';
 import '../services/repositories/LibraryRepository.dart';
 import '../sdk/AuthController.dart';
 
@@ -38,7 +38,7 @@ class LibraryController extends GetxController {
   Worker? _loginWorker;
 
   final LibraryRepository _repo = Get.find<LibraryRepository>();
-  final LikedService _likedService = Get.find<LikedService>();
+  final LikedController _likedService = Get.find<LikedController>();
   final AuthController _auth = Get.find<AuthController>();
 
   // tab 1: 歌单
@@ -124,11 +124,11 @@ class LibraryController extends GetxController {
   /// 查询某歌单 id 是否被当前用户收藏
   ///
   /// - 调用方**必须包 Obx**才能响应 likedPlaylistIds 变化
-  /// - 转发到 [LikedService.isLiked] (LikedType.playlist)
+  /// - 转发到 [LikedController.isLiked] (LikedType.playlist)
   bool isPlaylistLiked(String playlistId) =>
       _likedService.isLiked(playlistId, LikedType.playlist);
 
-  /// toggle 收藏（转发到 [LikedService.toggle], LikedType.playlist）
+  /// toggle 收藏（转发到 [LikedController.toggle], LikedType.playlist）
   void togglePlaylistLike(String playlistId) {
     // ignore: discarded_futures
     _likedService.toggle(playlistId, LikedType.playlist);

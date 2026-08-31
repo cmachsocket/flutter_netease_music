@@ -18,7 +18,7 @@ enum LikedType { song, album, artist, playlist }
 ///     (之前的旧 key 保留在 GetStorage 里但永远不会再被读,等下次用户卸载/清缓存自然消失)
 ///   - toggle 走乐观更新 + 失败回滚 + snackbar, 跟之前 LikedCollectionService 基类一致
 ///   - artist 的 syncSingle 也收口到这里 (其他类型不需要单点同步)
-class LikedService extends GetxService {
+class LikedController extends GetxController {
   final LikedRepository _repo = Get.find<LikedRepository>();
   final AuthController _auth = Get.find<AuthController>();
 

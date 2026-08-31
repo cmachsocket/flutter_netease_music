@@ -8,7 +8,7 @@ import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 
 import '../models/Headers.dart';
 import '../models/Song.dart';
-import 'LikedService.dart';
+import 'LikedController.dart';
 import 'repositories/LyricsRepository.dart';
 import 'repositories/SongRepository.dart';
 import 'AudioPlayerHandler.dart';
@@ -35,7 +35,7 @@ class AudioPlayerService extends GetxController {
   AudioPlayerService();
 
   final SongRepository _songRepo = Get.find<SongRepository>();
-  final LikedService _likedService = Get.find<LikedService>();
+  final LikedController _likedService = Get.find<LikedController>();
   final LyricsRepository _lyricsRepo = Get.find<LyricsRepository>();
   late final AudioPlayerHandler audioHandler;
 
@@ -330,8 +330,8 @@ class AudioPlayerService extends GetxController {
   /// toggle 当前歌曲的喜欢状态 (LikedType.song)
   ///
   /// 上层 (PlayerController / LyricsController 等) 想"按 like 按钮"时调
-  /// 此方法, 不直接 Get.find<LikedService>().toggle() — 走 wrapper 集中:
-  ///   - 依赖收敛: 上层 controller 只依赖 wrapper, 不需要直接 import LikedService
+  /// 此方法, 不直接 Get.find<LikedController>().toggle() — 走 wrapper 集中:
+  ///   - 依赖收敛: 上层 controller 只依赖 wrapper, 不需要直接 import LikedController
   ///   - 链路清晰: `UI → wrapper.toggleFavorite → _likedService.toggle →
   ///     likedSongIds 变化 → handler._likedSongIdsSub 监听 →
   ///     _currentSongLikedCtrl.add → wrapper snapshot.isCurrentSongLiked 更新 →

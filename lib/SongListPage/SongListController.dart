@@ -1,7 +1,7 @@
 import 'package:get/get.dart';
 
 import '../models/Song.dart';
-import '../services/LikedService.dart';
+import '../services/LikedController.dart';
 import '../services/AudioPlayerWrapper.dart';
 import '../models/ApiException.dart';
 import '../services/repositories/AlbumRepository.dart';
@@ -20,7 +20,7 @@ class SongListController extends GetxController {
   final String playlistId;
 
   final AudioPlayerService queue = Get.find<AudioPlayerService>();
-  final LikedService _likedService = Get.find<LikedService>();
+  final LikedController _likedService = Get.find<LikedController>();
   final PlaylistRepository _playlistRepo = Get.find<PlaylistRepository>();
   final AlbumRepository _albumRepo = Get.find<AlbumRepository>();
 
@@ -109,7 +109,7 @@ class SongListController extends GetxController {
     songs.assignAll(content.songs);
   }
 
-  /// 喜爱切换 → 走全局 [LikedService.toggle](LikedType.song)(乐观更新 + 后端持久化)
+  /// 喜爱切换 → 走全局 [LikedController.toggle](LikedType.song)(乐观更新 + 后端持久化)
   void toggleFavorite(String songId) {
     // ignore: discarded_futures
     _likedService.toggle(songId, LikedType.song);
@@ -118,7 +118,7 @@ class SongListController extends GetxController {
   /// 查询某首歌是否被喜欢
   ///
   /// - 调用方**必须包 Obx**才能响应 likedSongIds 变化
-  /// - 转发到 [LikedService.isLiked] (LikedType.song)
+  /// - 转发到 [LikedController.isLiked] (LikedType.song)
   bool isLiked(String songId) => _likedService.isLiked(songId, LikedType.song);
 
   /// toggle 当前 playlistId 的收藏(按 [playlistId] 前缀分流)

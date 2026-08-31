@@ -74,6 +74,8 @@ class _RecommendedGrid extends StatelessWidget {
                 title: card.name,
                 subtitle: '',
                 imageUrl: card.picUrl,
+                isLiked: () => home.isPlaylistLiked(card.id),
+                onToggleFavorite: () => home.togglePlaylistLike(card.id),
               );
             },
           );

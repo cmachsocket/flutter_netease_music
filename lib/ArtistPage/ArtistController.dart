@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import '../models/Album.dart';
 import '../models/Song.dart';
 import '../services/AudioPlayerWrapper.dart';
-import '../services/LikedService.dart';
+import '../services/LikedController.dart';
 import '../services/repositories/ArtistRepository.dart';
 import '../models/Artist.dart';
 
@@ -24,7 +24,7 @@ class ArtistController extends GetxController {
   final String artistId;
 
   final AudioPlayerService queue = Get.find<AudioPlayerService>();
-  final LikedService _likedService = Get.find<LikedService>();
+  final LikedController _likedService = Get.find<LikedController>();
   final ArtistRepository _artistRepo = Get.find<ArtistRepository>();
 
   final Rxn<Artist> artist = Rxn<Artist>();
@@ -98,7 +98,7 @@ class ArtistController extends GetxController {
 
   /// 查询某首歌是否被喜欢(同 SongListController)
   ///
-  /// - 转发到 [LikedService.isLiked] (LikedType.song)
+  /// - 转发到 [LikedController.isLiked] (LikedType.song)
   bool isLiked(String songId) => _likedService.isLiked(songId, LikedType.song);
 
   /// 查询当前艺人是否已关注

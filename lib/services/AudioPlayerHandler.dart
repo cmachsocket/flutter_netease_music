@@ -3,7 +3,7 @@ import '../models/Snapshot.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
 
-import 'LikedService.dart';
+import 'LikedController.dart';
 import 'repositories/SongRepository.dart';
 
 /// ---- 后台播放 handler (audio_service + just_audio 桥接) ------------------------
@@ -70,7 +70,7 @@ class AudioPlayerHandler extends BaseAudioHandler
   // ---- 依赖 ---------------------------------------------------------------------
 
   final SongRepository _songRepo;
-  final LikedService _likedService;
+  final LikedController _likedService;
   final AudioPlayer _audio = AudioPlayer();
 
   /// likedSongIds 变化的订阅 (用于锁屏 like 按钮 icon 实时更新)
@@ -371,7 +371,7 @@ class AudioPlayerHandler extends BaseAudioHandler
   @override
   Future<void> seek(Duration position) => _audio.seek(position);
 
-  /// 锁屏 like 按钮 → 转发到 LikedService.toggle (LikedType.song) (由 service 自己做乐观更新 + 错误提示)
+  /// 锁屏 like 按钮 → 转发到 LikedController.toggle (LikedType.song) (由 service 自己做乐观更新 + 错误提示)
   @override
   Future<dynamic> customAction(
     String name, [
@@ -380,7 +380,7 @@ class AudioPlayerHandler extends BaseAudioHandler
     if (name != 'toggleLike') return null;
     final cur = _currentItem;
     if (cur == null) return null;
-    // LikedService.toggle 接收 (id, LikedType),内部会触发 likedSongIds 变化,
+    // LikedController.toggle 接收 (id, LikedType),内部会触发 likedSongIds 变化,
     // handler 内部 listen likedSongIds.stream → _emitCurrentSongLiked →
     // 自动重建 controls + 推 currentSongLiked 给 wrapper。
     await _likedService.toggle(cur.id, LikedType.song);

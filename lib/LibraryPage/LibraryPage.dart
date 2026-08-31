@@ -121,8 +121,11 @@ class _PlaylistsView extends StatelessWidget {
                 title: p.name,
                 subtitle: '${p.trackCount} 首',
                 imageUrl: p.picUrl,
-                isLiked: () => c.isPlaylistLiked(p.id),
-                onToggleFavorite: () => c.togglePlaylistLike(p.id),
+                // 自建歌单（subscribed == false）不显示红心按钮 —— 没有"再收藏一次"的语义
+                showLike: p.subscribed,
+                isLiked: p.subscribed ? () => c.isPlaylistLiked(p.id) : null,
+                onToggleFavorite:
+                    p.subscribed ? () => c.togglePlaylistLike(p.id) : null,
               );
             },
           );

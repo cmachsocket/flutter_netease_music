@@ -10,7 +10,7 @@ import 'PlayPage/LyricsController.dart';
 import 'PlayPage/PlayerController.dart';
 import 'services/AudioPlayerWrapper.dart';
 import 'sdk/NeteaseApi.dart';
-import 'services/LikedService.dart';
+import 'services/LikedController.dart';
 import 'services/repositories/LyricsRepository.dart';
 import 'services/repositories/SongRepository.dart';
 import 'services/repositories/LikedRepository.dart';
@@ -75,9 +75,9 @@ Future<void> main() async {
     LikedRepository(Get.find<NeteaseApi>()),
     permanent: true,
   );
-  // 单一 LikedService: 之前 4 个 service (Songs/Albums/Artists/Playlists) 都合并到这里,
+  // 单一 LikedController: 之前 4 个 service (Songs/Albums/Artists/Playlists) 都合并到这里,
   // 按 LikedType 分桶, API 调用走 LikedRepository
-  Get.put<LikedService>(LikedService(), permanent: true);
+  Get.put<LikedController>(LikedController(), permanent: true);
 
   // ---- 音频服务层 (唯一入口) -----------------------------------------------
   // NewAudioPlayerService 把"PlayQueueService + 老 AudioPlayerService +
@@ -92,7 +92,7 @@ Future<void> main() async {
   //     audio_service + just_audio 桥接),单例 handler 暴露给锁屏/通知
   //
   // 注册顺序要求:
-  //   1. Repository (SongRepository / LyricsRepository / LikedService) 在前
+  //   1. Repository (SongRepository / LyricsRepository / LikedController) 在前
   //      (handler 构造依赖)
   //   2. wrapper 在 PlayerController 之前:PlayerController.onInit 会 Get.find 它
   //   3. PlayerController 在 LyricsController 之前:lyricsController 订阅 currentSong

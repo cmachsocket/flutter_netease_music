@@ -29,27 +29,38 @@ class PlaylistCard {
 }
 
 /// 我的歌单摘要（Library tab 1）。
+///
+/// `subscribed` 区分自建 vs 收藏：
+/// - `true` = 用户订阅/收藏的歌单（红心显示且可切换）
+/// - `false` = 用户自己创建的歌单（红心按钮不渲染）
+///
+/// 来源于 /user/playlist.playlist[] 元素的 `subscribed` 字段
+/// （注意：LibraryRepository.fetchPlaylists 之前丢失了这个字段，
+///  自建/收藏混在同一个 list 里渲染成一样的红心 —— 现在补回来）
 class PlaylistSummary {
   final String id;
   final String name;
   final String picUrl;
   final int trackCount;
+  final bool subscribed;
 
   const PlaylistSummary({
     required this.id,
     required this.name,
     required this.picUrl,
     required this.trackCount,
+    required this.subscribed,
   });
 
   /// /user/playlist.playlist[] 元素：
-  /// - id, name, coverImgUrl, trackCount
+  /// - id, name, coverImgUrl, trackCount, subscribed
   factory PlaylistSummary.fromNeteaseJson(Map<String, dynamic> json) =>
       PlaylistSummary(
         id: json['id'].toString(),
         name: (json['name'] ?? '').toString(),
         picUrl: (json['coverImgUrl'] ?? '').toString(),
         trackCount: (json['trackCount'] as int?) ?? 0,
+        subscribed: json['subscribed'] == true,
       );
 }
 

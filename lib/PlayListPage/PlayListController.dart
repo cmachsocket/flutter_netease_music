@@ -1,17 +1,17 @@
 import 'package:get/get.dart';
 import '../models/Snapshot.dart' show PlayOrder;
 import '../models/Song.dart';
-import '../services/LikedService.dart';
+import '../services/LikedController.dart';
 import '../services/AudioPlayerWrapper.dart';
 
 /// 播放列表页的 controller
 ///
 /// - 只负责播放列表页的渲染和交互
 /// - 实际队列数据由 [AudioPlayerService] 维护(wrapper 吸收了老 PlayQueueService)
-/// - like/dislike 走全局 [LikedService] (LikedType.song) (跟 SongListController 同思路)
+/// - like/dislike 走全局 [LikedController] (LikedType.song) (跟 SongListController 同思路)
 class PlayListController extends GetxController {
   final AudioPlayerService queue = Get.find<AudioPlayerService>();
-  final LikedService _likedService = Get.find<LikedService>();
+  final LikedController _likedService = Get.find<LikedController>();
 
   RxList<Song> get playlist => queue.playlist;
   RxInt get currentIndex => queue.currentIndex;
@@ -33,7 +33,7 @@ class PlayListController extends GetxController {
       queue.playSongs(songs, startSong: startSong);
   void removeSong(int index) => queue.removeSong(index);
 
-  /// 喜爱切换 → 走全局 [LikedService.toggle](LikedType.song)(乐观更新 + 后端持久化)
+  /// 喜爱切换 → 走全局 [LikedController.toggle](LikedType.song)(乐观更新 + 后端持久化)
   ///
   /// - 跟 [SongListController.toggleFavorite] 同思路
   /// - wrapper 不管喜爱,喜爱是个人状态,不该绑在播放队列上
@@ -45,6 +45,6 @@ class PlayListController extends GetxController {
   /// 查询某首歌是否被喜欢
   ///
   /// - 调用方**必须包 Obx**才能响应 likedSongIds 变化
-  /// - 转发到 [LikedService.isLiked] (内部走 likedSongIds.value.contains 触发 Obx 跟踪)
+  /// - 转发到 [LikedController.isLiked] (内部走 likedSongIds.value.contains 触发 Obx 跟踪)
   bool isLiked(String songId) => _likedService.isLiked(songId, LikedType.song);
 }

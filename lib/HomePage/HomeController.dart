@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 
 import '../models/LibrarySummary.dart';
+import '../services/LikedController.dart';
 import '../services/repositories/LibraryRepository.dart';
 
 /// 首页 controller
@@ -12,6 +13,7 @@ class HomeController extends GetxController {
   final RxnString errorMessage = RxnString();
 
   final LibraryRepository _repo = Get.find<LibraryRepository>();
+  final LikedController _likedController = Get.find<LikedController>();
 
   /// 推荐歌单卡片数据
   final RxList<PlaylistCard> recommended = <PlaylistCard>[].obs;
@@ -29,5 +31,18 @@ class HomeController extends GetxController {
     final list = await _repo.fetchPersonalized();
     recommended.assignAll(list);
     isLoading.value = false;
+  }
+
+  /// 查询某歌单是否被收藏
+  ///
+  /// - 调用方**必须包 Obx**才能响应 likedPlaylistIds 变化
+  /// - 转发到 [LikedController.isLiked](LikedType.playlist)
+  bool isPlaylistLiked(String playlistId) =>
+      _likedController.isLiked(playlistId, LikedType.playlist);
+
+  /// toggle 收藏（转发到 [LikedController.toggle], LikedType.playlist）
+  void togglePlaylistLike(String playlistId) {
+    // ignore: discarded_futures
+    _likedController.toggle(playlistId, LikedType.playlist);
   }
 }

@@ -44,6 +44,9 @@ class LibraryRepository extends GetxService {
   ///
   /// API: /user/playlist?uid=X&limit=50
   /// 返回空列表：API 失败 / playlist 字段缺失。
+  ///
+  /// `PlaylistSummary.subscribed` 保留后端字段，调用方（LibraryPage）
+  /// 据此决定是否渲染红心 —— 自建歌单不显示红心。
   Future<List<PlaylistSummary>> fetchPlaylists(String uid) async {
     try {
       final r = await apiCall(
