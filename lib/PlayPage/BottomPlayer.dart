@@ -6,7 +6,6 @@ import 'Player.dart';
 import '../AppShell.dart';
 import 'PlayerController.dart';
 import '../PlayListPage/PlayListPage.dart';
-import '../PlayListPage/PlayListController.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import '../models/default.dart';
@@ -14,7 +13,6 @@ import '../models/default.dart';
 /// 底部 mini 播放器
 ///
 /// - 数据来源:[PlayerController.currentSong](音视频状态)
-///           + [PlayListController.currentIndex](队列索引)
 /// - 进度条由 [PlayerController.position]/[duration] 驱动(just_audio stream 推)
 /// - 点击跳转到全屏 [Player] 页
 /// - 队列图标跳 [PlayListPage]
@@ -26,7 +24,6 @@ class BottomPlayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final player = Get.find<PlayerController>();
-    final playlist = Get.find<PlayListController>();
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     return GestureDetector(
@@ -94,7 +91,7 @@ class BottomPlayer extends StatelessWidget {
                   OrientationLayoutBuilder(
                     landscape: (_) => IconButton(
                       icon: const Icon(Icons.skip_previous),
-                      onPressed: () => _gotoPrev(playlist, player),
+                      onPressed: player.prev,
                     ),
                     portrait: (_) => SizedBox.shrink(),
                   ),
@@ -109,7 +106,7 @@ class BottomPlayer extends StatelessWidget {
 
                   IconButton(
                     icon: const Icon(Icons.skip_next),
-                    onPressed: () => _gotoNext(playlist, player),
+                    onPressed: player.next,
                   ),
                   OrientationLayoutBuilder(
                     landscape: (_) => IconButton(
@@ -135,17 +132,5 @@ class BottomPlayer extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  /// 下一首:走 [PlayerController.next()] → wrapper.skipToNext,
-  /// handler `_neighbor(1)` 按 mode 计算索引 (sequential/shuffle/repeatOne 全覆盖)
-  void _gotoNext(PlayListController playlist, PlayerController player) {
-    player.next();
-  }
-
-  /// 上一首:走 [PlayerController.prev()] → wrapper.skipToPrevious,
-  /// handler `_neighbor(-1)` 按 mode 计算索引
-  void _gotoPrev(PlayListController playlist, PlayerController player) {
-    player.prev();
   }
 }

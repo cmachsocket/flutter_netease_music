@@ -104,7 +104,7 @@ Future<void> main() async {
   //      putAsync 会 await builder() 整链,builder 内显式调 wrapper.init()
   //      等异步构造 (handler + stream 订阅) 全部就绪再返回 instance,
   //      此时 PlayerController put 进去时 wrapper.audioHandler (late) 已赋值。
-  Get.putAsync<AudioPlayerService>(() async {
+  await Get.putAsync<AudioPlayerService>(() async {
     final audioWrapper = AudioPlayerService();
     await audioWrapper.init();
     return audioWrapper;

@@ -51,6 +51,37 @@ class AudioPlayerService extends GetxController {
   static const _currentIndexKey = 'playlist_currentIndex_v1';
   static const _modeKey = 'playlist_mode_v1';
 
+  /// audio_service 后台播放配置
+  ///
+  /// 在 wrapper 这里集中构造, 不放在 main.dart — 配置是音频层的关注点
+  /// (锁屏控件 / 通知 channel / 封面降采样), 不该让 app 启动入口知道细节。
+  ///
+  /// 各字段选择:
+  ///   - `androidNotificationChannelId/Name/Description`: 通知 channel,
+  ///     用户在系统设置里能看到 ("网易云音乐播放 / 后台播放与媒体控制")
+  ///   - `androidNotificationOngoing: true`: 通知不可被滑掉 (音乐 app
+  ///     标准 — 用户误滑不会停歌)
+  ///   - `androidStopForegroundOnPause: true`: 暂停时退出 foreground service。
+  ///     **强制要求** (audio_service 的 assert: ongoing=true 时 stopOnPause
+  ///     必须 true, 否则 debug 崩溃)
+  ///   - `androidResumeOnClick: true` (默认): 点通知恢复播放
+  ///   - `preloadArtwork: true`: 加入队列就开始下载封面, 锁屏控件显示
+  ///     时不用等待下载
+  ///   - `artDownscaleWidth/Height: 800`: 网易云封面动辄 1000+px, 锁屏控件
+  ///     用 800x800 已经够清晰, 避免大图 OOM (尤其播放队列长时)
+  ///   - `fastForwardInterval/rewindInterval: 15s`: 锁屏快进/快退步长。
+  ///     比 audio_service 默认的 10s 略大, 更符合"跳到副歌"的使用习惯
+  static const AudioServiceConfig _audioServiceConfig = AudioServiceConfig(
+    androidNotificationChannelId: 'com.example.flutter_netease_music.audio',
+    androidNotificationChannelName: '网易云音乐播放',
+    androidNotificationChannelDescription: '后台播放与媒体控制',
+    androidNotificationOngoing: true,
+    androidStopForegroundOnPause: true,
+    preloadArtwork: true,
+    artDownscaleWidth: 800,
+    artDownscaleHeight: 800,
+  );
+
   int get headOfTheQueue => 0;
   int get tailOfTheQueue => playlist.length - 1;
 
@@ -144,6 +175,7 @@ class AudioPlayerService extends GetxController {
         initialIndex: initialIndex,
         initialMode: savedMode,
       ),
+      config: _audioServiceConfig,
     );
 
     // mode 不需要在 wrapper 这里手动 hydrate: handler 构造时已经把
@@ -280,6 +312,22 @@ class AudioPlayerService extends GetxController {
     // wrapper 那边订阅回调自动写 _modeRx (handler 是唯一真相源)。
     // wrapper 这里不写任何 Rx — 严格单向流。
     return audioHandler.setPlayOrder(order);
+  }
+
+  /// toggle 当前歌曲的喜欢状态 (LikedType.song)
+  ///
+  /// 上层 (PlayerController / LyricsController 等) 想"按 like 按钮"时调
+  /// 此方法, 不直接 Get.find<LikedService>().toggle() — 走 wrapper 集中:
+  ///   - 依赖收敛: 上层 controller 只依赖 wrapper, 不需要直接 import LikedService
+  ///   - 链路清晰: `UI → wrapper.toggleFavorite → _likedService.toggle →
+  ///     likedSongIds 变化 → handler._likedSongIdsSub 监听 →
+  ///     _currentSongLikedCtrl.add → wrapper snapshot.isCurrentSongLiked 更新 →
+  ///     PlayerController.isLiked 镜像 → UI Obx 刷新` (整链单向流)
+  ///
+  /// handler 内部的 [AudioPlayerHandler.customAction] (锁屏 like 按钮) 也直接调
+  /// `_likedService.toggle`, handler 是音频底层所以该处不绕 wrapper。
+  Future<void> toggleFavorite(String songId) {
+    return _likedService.toggle(songId, LikedType.song);
   }
 
   // ---- 歌词 (转发到 LyricsRepository) -----------------------------------------

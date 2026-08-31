@@ -2,7 +2,6 @@ import 'package:get/get.dart';
 
 import '../models/Snapshot.dart' show PlaybackSnapshot;
 import '../models/Song.dart';
-import '../services/LikedService.dart';
 import '../services/AudioPlayerWrapper.dart';
 
 enum CenterPage { cover, lyric }
@@ -57,7 +56,6 @@ class PlayerController extends GetxController {
   // endregion
 
   final AudioPlayerService _audio = Get.find<AudioPlayerService>();
-  final LikedService _likedService = Get.find<LikedService>();
 
   Worker? _snapshotWorker;
 
@@ -147,15 +145,17 @@ class PlayerController extends GetxController {
 
   /// toggle 当前歌曲的喜欢状态
   ///
-  /// - 转发给 [LikedService.toggle] (LikedType.song),UI 不用直接接触 service
-  /// - wrapper.snapshot.isCurrentSongLiked 会通过 handler 推流更新,
-  ///   本 controller 镜像层自动跟 (ever<PlaybackSnapshot>)
+  /// - 转发给 [AudioPlayerService.toggleFavorite](内部调 LikedService.toggle)
+  /// - 不直接 Get.find<LikedService>: 走 wrapper 集中依赖(本 controller 只
+  ///   依赖 wrapper 一个音频入口),handler 推流链路 (`likedSongIds → handler
+  ///   监听 → currentSongLikedCtrl → wrapper.snapshot.isCurrentSongLiked →
+  ///   本 controller isLiked 镜像`)自动同步 UI, 无需本层订阅 LikedService
   /// - 没有当前歌曲时是 no-op
   void toggleFavorite() {
     final song = currentSong.value;
     if (song == null) return;
     // ignore: discarded_futures
-    _likedService.toggle(song.id, LikedType.song);
+    _audio.toggleFavorite(song.id);
   }
 }
 
