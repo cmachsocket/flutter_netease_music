@@ -11,7 +11,7 @@ import '../models/Song.dart';
 import 'LikedService.dart';
 import 'repositories/LyricsRepository.dart';
 import 'repositories/SongRepository.dart';
-import 'AudioPlayerService.dart';
+import 'AudioPlayerHandler.dart';
 
 /// ---- 顶层包装层暴露给 UI 的快照 ------------------------------------------------
 
