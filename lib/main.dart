@@ -88,22 +88,27 @@ Future<void> main() async {
   //   - 音频命令: play / pause / seek / skipToNext / skipToPrevious
   //   - 状态聚合: Rx<PlaybackSnapshot> (isPlaying/processingState/position/
   //     bufferedPosition/currentSong/queue/currentIndex/playOrder/isCurrentSongLiked)
-  //   - 后台: AudioService.init 在 wrapper.onInit 里跑 (handler 内部负责
+  //   - 后台: AudioService.init 在 wrapper.init() 里跑 (handler 内部负责
   //     audio_service + just_audio 桥接),单例 handler 暴露给锁屏/通知
   //
   // 注册顺序要求:
   //   1. Repository (SongRepository / LyricsRepository / LikedService) 在前
   //      (handler 构造依赖)
-  //   2. wrapper 在 PlayerController 之前:playerController.onInit 会 Get.find 它
+  //   2. wrapper 在 PlayerController 之前:PlayerController.onInit 会 Get.find 它
   //   3. PlayerController 在 LyricsController 之前:lyricsController 订阅 currentSong
-  //   4. 用 putAsync 等 wrapper.onInit 完成(handler 构造 + GetStorage hydrate +
-  //      5 路 stream 订阅就绪),否则 PlayerController.onInit 跟 wrapper.audioHandler
-  //      有竞态 (handler 异步构造但 audioHandler 字段是 late)
-  await Get.putAsync<AudioPlayerService>(() async {
-    final wrapper = AudioPlayerService();
-    // Get.putAsync 会等 onInit future 完成才 resolve
-    return wrapper;
-  }, permanent: true);
+  //   4. **用 Get.putAsync + builder 内 await wrapper.init()** —— 不能用
+  //      Get.put 后再显式 await init()(留一个"已注册但未初始化"的中间态
+  //      易被并发 Get.find 误用),也不能 override wrapper.onInit 放异步链
+  //      (GetX 的 `_onStart` 同步调用 onInit() 并丢弃 future,见
+  //      package:get/get_instance/src/lifecycle.dart _onStart)。
+  //      putAsync 会 await builder() 整链,builder 内显式调 wrapper.init()
+  //      等异步构造 (handler + stream 订阅) 全部就绪再返回 instance,
+  //      此时 PlayerController put 进去时 wrapper.audioHandler (late) 已赋值。
+  Get.putAsync<AudioPlayerService>(() async {
+    final audioWrapper = AudioPlayerService();
+    await audioWrapper.init();
+    return audioWrapper;
+  });
 
   Get.put<PlayerController>(PlayerController(), permanent: true);
   // LyricsController 依赖 PlayerController (订阅 currentSong) + wrapper.fetchLyric。

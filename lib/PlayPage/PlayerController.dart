@@ -85,7 +85,7 @@ class PlayerController extends GetxController {
     // emit(0 → 真值), snapshot.currentSong 会跟着更新)
     if (s.currentSong != null) {
       duration.value = s.currentSong!.duration;
-    } else if (!_audio.playlist.isEmpty &&
+    } else if (_audio.playlist.isNotEmpty &&
         _audio.currentIndex.value >= 0 &&
         _audio.currentIndex.value < _audio.playlist.length) {
       // currentSong 还没 emit (handler 异步 _playAt 中) 但 playlist 已经有,

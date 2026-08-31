@@ -117,8 +117,8 @@ class AudioPlayerService extends GetxController {
   final RxInt _currentIndexSub = (-1).obs;
 
   /// 播放顺序 (从 snapshot 读)
-  Rx<PlayOrder> get mode => _playOrderSub;
-  final Rx<PlayOrder> _playOrderSub = PlayOrder.sequential.obs;
+  Rx<PlayOrder> get mode => _modeRx;
+  final Rx<PlayOrder> _modeRx = PlayOrder.sequential.obs;
 
   /// UI 唯一订阅点。任何播放相关变化都聚合到这一个 Rx。
   final Rx<PlaybackSnapshot> snapshot = Rx<PlaybackSnapshot>(
@@ -139,12 +139,33 @@ class AudioPlayerService extends GetxController {
   StreamSubscription<MediaItem?>? _itemSub;
   StreamSubscription<List<MediaItem>>? _queueSub;
   StreamSubscription<bool>? _currentSongLikedSub;
+  StreamSubscription<PlayOrder>? _playOrderSub;
 
-  @override
-  Future<void> onInit() async {
-    super.onInit();
+  // 不 override onInit: GetX 的 _onStart 同步调用 onInit() 并丢弃 future
+  // (见 package:get/get_instance/src/lifecycle.dart _onStart):
+  //   void _onStart() {
+  //     if (_initialized) return;
+  //     onInit();           // 同步调用,future 被丢弃
+  //     _initialized = true;
+  //   }
+  // 所以 onInit 不能放 await 链 (AudioService.init / handler 异步构造等),
+  // 否则 handler 还没就绪 PlayerController.onInit 已经跑完, 会出现
+  // wrapper.audioHandler (late) 还未赋值就被访问的崩溃。
+  //
+  // 异步初始化挪到下面的 [init] 方法, 由 main.dart 用 `Get.putAsync` 在
+  // builder 内 `await wrapper.init()` (跟 AuthController 同模式)。
+  // putAsync 会 await builder() 整链, 等 handler + 5 路 stream 就绪
+  // 再返回 instance, 之后 put PlayerController / LyricsController 时
+  // wrapper.audioHandler (late) 已赋值。
 
-    // MediaKit init 是同步阻塞,在 onInit 里完成。
+  /// 异步初始化: 启动 MediaKit + 读持久化 + 构造 handler + 订阅 5 路 stream
+  ///
+  /// **必须由 main.dart 通过 `Get.putAsync` builder 内 `await init()` 调用**,
+  /// 不能 override `onInit`(GetX 同步调用 + 丢 future), 也不能 `Get.put`
+  /// 后再 await init() (留"已注册未初始化"中间态, 后续 Get.find 会拿到
+  /// 未就绪的 wrapper)。见上面注释里 `_onStart` 的引用。
+  Future<void> init() async {
+    // MediaKit init 是同步阻塞,在 init() 里完成。
     // 后续 setUrl/play 直接用,不需要再 await ready(竞态源)。
     JustAudioMediaKit.ensureInitialized();
 
@@ -182,9 +203,10 @@ class AudioPlayerService extends GetxController {
       ),
     );
 
-    // mode 由 wrapper 与 handler 各自持有, handler 不回推 mode 流,
-    // 这里手动同步展示层 Rx (初始值已在上面从 GetStorage 解出)
-    _playOrderSub.value = savedMode;
+    // mode 不需要在 wrapper 这里手动 hydrate: handler 构造时已经把
+    // initialMode 写进 _playOrder 字段,并在构造尾部 emit 一次到
+    // _playOrderCtrl 流, 下面订阅就会拿到 → _modeRx 自动同步。
+    // (handler 是 mode 唯一真相源, wrapper 只读不写, 单向流)
 
     // ---- 聚合层:5 个来源 → 1 个 Rx -----------------------------------------
     _stateSub = audioHandler.playbackState.listen(_onPlaybackState);
@@ -200,6 +222,16 @@ class AudioPlayerService extends GetxController {
     // broadcast 无 replay: 订阅后主动刷一次,避免订阅前 handler 已 emit 过
     // 导致 wrapper 的 isCurrentSongLiked 停在初始 false
     audioHandler.refreshCurrentSongLiked();
+
+    // 订阅 handler 推的 playOrder 流 → _modeRx (handler 内部改 _playOrder
+    // 后主动 emit, wrapper 只读不写, 单向流)
+    _playOrderSub = audioHandler.playOrder.listen((order) {
+      _modeRx.value = order;
+    });
+    // broadcast 无 replay: 兜底刷一次 (handler 构造时已 emit 初始值, 但
+    // 如果 init() 跑在 handler 构造**之前** (本次不会,但兜底), 订阅就会
+    // 漏掉初始 emit)
+    audioHandler.refreshPlayOrder();
   }
 
   @override
@@ -208,6 +240,7 @@ class AudioPlayerService extends GetxController {
     _itemSub?.cancel();
     _queueSub?.cancel();
     _currentSongLikedSub?.cancel();
+    _playOrderSub?.cancel();
     audioHandler.stop();
     super.onClose();
   }
@@ -300,7 +333,9 @@ class AudioPlayerService extends GetxController {
   }
 
   Future<void> setPlayOrder(PlayOrder order) {
-    _playOrderSub.value = order;
+    // 纯 forward: handler 改完 _playOrder 后 emit 到 _playOrderCtrl 流,
+    // wrapper 那边订阅回调自动写 _modeRx (handler 是唯一真相源)。
+    // wrapper 这里不写任何 Rx — 严格单向流。
     return audioHandler.setPlayOrder(order);
   }
 
@@ -500,6 +535,11 @@ class AudioPlayerHandler extends BaseAudioHandler
     // wrapper 订阅后立即拿到初始队列与当前歌, 真相状态在 handler 落地
     queue.add(List.unmodifiable(_queue));
     mediaItem.add(_currentItem);
+    // playOrder 是 broadcast (无 replay): handler 构造时 emit 一次初始值,
+    // wrapper 订阅后立刻拿到 (或在 onInit 里调 refreshPlayOrder 兜底)。
+    // 之所以不用 BehaviorSubject 是因为 mode 只有 3 个枚举值, 没有"replay
+    // 历史"语义, broadcast 更轻量。
+    _playOrderCtrl.add(_playOrder);
 
     _wireAudioStreams();
   }
@@ -530,11 +570,27 @@ class AudioPlayerHandler extends BaseAudioHandler
   /// 主动刷一次当前歌的 liked 状态 (broadcast 无 replay,wrapper 订阅后兜底用)
   void refreshCurrentSongLiked() => _emitCurrentSongLiked();
 
+  /// 播放顺序变化流 — 推送给 wrapper 同步 _playOrderSub
+  ///
+  /// 设计: 跟 currentSongLiked 一样,handler 是真相持有者 ([_playOrder] 私有
+  /// 字段),改完模式后主动 emit, wrapper 只订阅不写自己的 Rx。
+  /// 这样 wrapper.setPlayOrder 只是个 forward (audioHandler.setPlayOrder(...)),
+  /// _playOrderSub 的更新全部由这条流驱动 — 单一真相源, 严格单向流。
+  final StreamController<PlayOrder> _playOrderCtrl =
+      StreamController<PlayOrder>.broadcast();
+
+  /// 公开给 wrapper 订阅 (handler 主动 emit 播放顺序)
+  Stream<PlayOrder> get playOrder => _playOrderCtrl.stream;
+
+  /// 主动刷一次当前 playOrder (broadcast 无 replay, wrapper 订阅后兜底用)
+  void refreshPlayOrder() => _playOrderCtrl.add(_playOrder);
+
   /// 释放 handler 持有的订阅 (handler dispose 时由 audio_service 框架调用)
   void dispose() {
     _likedSongIdsSub?.cancel();
     _likedSongIdsSub = null;
     _currentSongLikedCtrl.close();
+    _playOrderCtrl.close();
   }
 
   // ---- 唯一可变状态 -------------------------------------------------------------
@@ -819,6 +875,8 @@ class AudioPlayerHandler extends BaseAudioHandler
     // 切模式后重生成 shuffle 表 + 反向表
     _rebuildShuffleMaps();
     // currentIndex 已经是 queue 索引,不需要变
+    // 推 wrapper 同步展示层 Rx (handler 是唯一真相源, _playOrderSub 由这条流镜像)
+    _playOrderCtrl.add(order);
   }
 
   /// (re)build shuffle 模式下的 _shuffleOrder 和 _shufflePosOfQueueIndex。
