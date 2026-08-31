@@ -2,9 +2,7 @@ import 'package:flutter/material.dart' show IconData, Icons;
 import 'package:get/get.dart';
 
 import '../models/library_summary.dart';
-import '../services/LikedAlbumsService.dart';
-import '../services/LikedArtistsService.dart';
-import '../services/LikedPlaylistsService.dart';
+import '../services/LikedService.dart';
 import '../services/repositories/library_repository.dart';
 import '../controller/AuthController.dart';
 
@@ -40,10 +38,7 @@ class LibraryController extends GetxController {
   Worker? _loginWorker;
 
   final LibraryRepository _repo = Get.find<LibraryRepository>();
-  final LikedPlaylistsService _likedPlaylists =
-      Get.find<LikedPlaylistsService>();
-  final LikedAlbumsService _likedAlbums = Get.find<LikedAlbumsService>();
-  final LikedArtistsService _likedArtists = Get.find<LikedArtistsService>();
+  final LikedService _likedService = Get.find<LikedService>();
   final AuthController _auth = Get.find<AuthController>();
 
   // tab 1: 歌单
@@ -129,35 +124,29 @@ class LibraryController extends GetxController {
   /// 查询某歌单 id 是否被当前用户收藏
   ///
   /// - 调用方**必须包 Obx**才能响应 likedPlaylistIds 变化
-  /// - 读 .value 触发 Obx 跟踪（contains 走内部 _value 不跟踪）
-  bool isPlaylistLiked(String playlistId) {
-    // ignore: invalid_use_of_protected_member
-    return _likedPlaylists.likedPlaylistIds.value.contains(playlistId);
-  }
+  /// - 转发到 [LikedService.isLiked] (LikedType.playlist)
+  bool isPlaylistLiked(String playlistId) =>
+      _likedService.isLiked(playlistId, LikedType.playlist);
 
-  /// toggle 收藏（转发到 LikedPlaylistsService）
+  /// toggle 收藏（转发到 [LikedService.toggle], LikedType.playlist）
   void togglePlaylistLike(String playlistId) {
     // ignore: discarded_futures
-    _likedPlaylists.toggle(playlistId);
+    _likedService.toggle(playlistId, LikedType.playlist);
   }
 
   /// 查询某专辑 id 是否被收藏
-  bool isAlbumLiked(String albumId) {
-    // ignore: invalid_use_of_protected_member
-    return _likedAlbums.likedAlbumIds.value.contains(albumId);
-  }
+  bool isAlbumLiked(String albumId) =>
+      _likedService.isLiked(albumId, LikedType.album);
 
   /// toggle 专辑收藏
   void toggleAlbumLike(String albumId) {
     // ignore: discarded_futures
-    _likedAlbums.toggle(albumId);
+    _likedService.toggle(albumId, LikedType.album);
   }
 
   /// 查询某艺人 id 是否被关注
-  bool isArtistLiked(String artistId) {
-    // ignore: invalid_use_of_protected_member
-    return _likedArtists.likedArtistIds.value.contains(artistId);
-  }
+  bool isArtistLiked(String artistId) =>
+      _likedService.isLiked(artistId, LikedType.artist);
 
   /// toggle 关注 + 主动同步后端真值
   ///
@@ -165,16 +154,16 @@ class LibraryController extends GetxController {
   /// （本 controller 不再负责卡片首次 build 触发，那是 widget 层职责）
   void toggleArtistLike(String artistId) {
     // ignore: discarded_futures
-    _likedArtists.toggle(artistId);
+    _likedService.toggle(artistId, LikedType.artist);
   }
 
   /// 主动同步单点艺人的后端关注状态
   ///
   /// LibraryPage 关注艺人列表 card 首次 build 时调一次
-  /// （Service 启动 hydrate 只拉 /artist/sublist 全量，单点 id 不在里面）
+  /// （Service 启动 loadAll 只拉 /artist/sublist 全量，单点 id 不在里面）
   Future<void> syncArtistFollowState(String artistId) {
     // ignore: discarded_futures
-    return _likedArtists.syncSingle(artistId);
+    return _likedService.syncArtistLike(artistId);
   }
 
   @override

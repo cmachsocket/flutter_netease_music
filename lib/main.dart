@@ -14,10 +14,7 @@ import 'services/LyricsService.dart';
 import 'services/PlaybackService.dart';
 import 'services/PlayQueueService.dart';
 import 'sdk/netease_api.dart';
-import 'services/LikedSongsService.dart';
-import 'services/LikedAlbumsService.dart';
-import 'services/LikedArtistsService.dart';
-import 'services/LikedPlaylistsService.dart';
+import 'services/LikedService.dart';
 import 'services/repositories/lyrics_repository.dart';
 import 'services/repositories/song_repository.dart';
 import 'services/repositories/liked_repository.dart';
@@ -85,12 +82,9 @@ Future<void> main() async {
     LikedRepository(Get.find<NeteaseApi>()),
     permanent: true,
   );
-  // Liked 4 个 service 现在都继承 LikedCollectionService 基类 (构造接 NeteaseApi),
-  // API 调用走对应的 Repository。
-  Get.put<LikedSongsService>(LikedSongsService(), permanent: true);
-  Get.put<LikedAlbumsService>(LikedAlbumsService(), permanent: true);
-  Get.put<LikedArtistsService>(LikedArtistsService(), permanent: true);
-  Get.put<LikedPlaylistsService>(LikedPlaylistsService(), permanent: true);
+  // 单一 LikedService: 之前 4 个 service (Songs/Albums/Artists/Playlists) 都合并到这里,
+  // 按 LikedType 分桶, API 调用走 LikedRepository
+  Get.put<LikedService>(LikedService(), permanent: true);
   // PlayerController 必须在 AudioService.init 之前 put,
   // 因为 PlaybackService 内部 Get.find<PlayerController>() 依赖它存在
 

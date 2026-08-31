@@ -3,9 +3,7 @@ import 'package:get/get.dart';
 import '../models/Album.dart';
 import '../models/Song.dart';
 import '../services/PlayQueueService.dart';
-import '../services/LikedAlbumsService.dart';
-import '../services/LikedArtistsService.dart';
-import '../services/LikedSongsService.dart';
+import '../services/LikedService.dart';
 import '../services/repositories/artist_repository.dart';
 import '../models/Artist.dart';
 
@@ -26,8 +24,7 @@ class ArtistController extends GetxController {
   final String artistId;
 
   final PlayQueueService queue = Get.find<PlayQueueService>();
-  final LikedSongsService _likedService = Get.find<LikedSongsService>();
-  final LikedArtistsService _likedArtists = Get.find<LikedArtistsService>();
+  final LikedService _likedService = Get.find<LikedService>();
   final ArtistRepository _artistRepo = Get.find<ArtistRepository>();
 
   final Rxn<Artist> artist = Rxn<Artist>();
@@ -91,34 +88,30 @@ class ArtistController extends GetxController {
     // 乐观更新本地状态(纯 UI 反映,后端 toggle 交由 service)
     isFollowing.toggle();
     // ignore: discarded_futures
-    _likedArtists.toggle(artistId);
+    _likedService.toggle(artistId, LikedType.artist);
   }
 
   void toggleFavorite(String songId) {
     // ignore: discarded_futures
-    _likedService.toggle(songId);
+    _likedService.toggle(songId, LikedType.song);
   }
 
   /// 查询某首歌是否被喜欢(同 SongListController)
   ///
-  /// - 读 .value 触发 Obx 跟踪(contains 走内部 _value 不跟踪)
+  /// - 转发到 [LikedService.isLiked] (LikedType.song)
   bool isLiked(String songId) =>
-      // ignore: invalid_use_of_protected_member
-      _likedService.likedIds.value.contains(songId);
+      _likedService.isLiked(songId, LikedType.song);
 
   /// 查询当前艺人是否已关注
   bool isArtistLiked() => isFollowing.value;
 
   /// 查询某张专辑是否被收藏
-  ///
-  /// - 读 .value 触发 Obx 跟踪
   bool isAlbumLiked(String albumId) =>
-      // ignore: invalid_use_of_protected_member
-      Get.find<LikedAlbumsService>().likedAlbumIds.value.contains(albumId);
+      _likedService.isLiked(albumId, LikedType.album);
 
   void toggleAlbumFavorite(String albumId) {
     // ignore: discarded_futures
-    Get.find<LikedAlbumsService>().toggle(albumId);
+    _likedService.toggle(albumId, LikedType.album);
   }
 
   void playSong(Song song) {

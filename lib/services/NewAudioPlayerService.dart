@@ -1,14 +1,13 @@
 import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
-import 'package:flutter_netease_music/services/repositories/liked_repository.dart';
 import 'package:get/get.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 
 import '../models/Headers.dart';
 import '../models/Song.dart';
-import 'LikedSongsService.dart';
+import 'LikedService.dart';
 import 'repositories/song_repository.dart';
 
 /// 播放顺序。影响 [AudioPlayerHandler._playOrder] 的索引推进策略。
@@ -83,12 +82,12 @@ class PlaybackSnapshot {
 ///   2. handler.mediaItem       → currentSong (Song)
 ///   3. handler.queue           → queue
 ///   4. handler.currentIndex    → currentIndex
-///   5. LikedSongsService 订阅  → isLiked
+///   5. 上层 (controller/ui) likedIds 变了 → audioHandler.refreshIsLiked() → 重建 controls
 class AudioPlayerService extends GetxController {
   AudioPlayerService();
 
   final SongRepository _songRepo = Get.find<SongRepository>();
-  final LikedRepository _likedRepo = Get.find<LikedRepository>();
+  final LikedService _likedService = Get.find<LikedService>();
   late final AudioPlayerHandler audioHandler;
 
   /// UI 唯一订阅点。任何播放相关变化都聚合到这一个 Rx。
@@ -120,7 +119,7 @@ class AudioPlayerService extends GetxController {
 
     audioHandler = await AudioService.init(
       builder: () =>
-          AudioPlayerHandler(songRepo: _songRepo, likedRepo: _likedRepo),
+          AudioPlayerHandler(songRepo: _songRepo, likedService: _likedService),
     );
 
     // ---- 聚合层:5 个来源 → 1 个 Rx -----------------------------------------
@@ -128,10 +127,18 @@ class AudioPlayerService extends GetxController {
     _itemSub = audioHandler.mediaItem.listen(_onMediaItem);
     _queueSub = audioHandler.queue.listen(_onQueue);
 
-    // isLiked 跟 currentSong 一起算
-    Get.find<LikedSongsService>().likedIds.listen((_) => _refreshIsLiked());
-    // 换歌也刷一次 isLiked
-    audioHandler.mediaItem.listen((_) => _refreshIsLiked());
+    // 换歌后刷一次 isLiked (随 mediaItem 流);后续 likedIds 变化靠上层 controller/ui
+    // 调 audioHandler.refreshIsLiked() 推送,handler 不订阅 LikedSongsService,
+    // wrapper 也不订阅 — 双向耦合的避免,让 liked 状态变化走显式入口。
+    audioHandler.mediaItem.listen((_) {
+      final song = snapshot.value.currentSong;
+      if (song == null) {
+        snapshot.value = snapshot.value.copyWith(isLiked: false);
+      } else {
+        final liked = _likedService.isLiked(song.id, LikedType.song);
+        snapshot.value = snapshot.value.copyWith(isLiked: liked);
+      }
+    });
   }
 
   @override
@@ -174,16 +181,6 @@ class AudioPlayerService extends GetxController {
 
   void _onQueue(List<MediaItem> q) {
     snapshot.value = snapshot.value.copyWith(queue: q);
-  }
-
-  void _refreshIsLiked() {
-    final song = snapshot.value.currentSong;
-    if (song == null) {
-      snapshot.value = snapshot.value.copyWith(isLiked: false);
-      return;
-    }
-    final liked = Get.find<LikedSongsService>().likedIds.contains(song.id);
-    snapshot.value = snapshot.value.copyWith(isLiked: liked);
   }
 
   // 注意:不再单独订阅 handler 的 currentIndex 变化。currentIndex 由 handler
@@ -288,7 +285,7 @@ class AudioPlayerService extends GetxController {
 ///     播放顺序的位置,内部翻成 queue 索引去读 _queue
 class AudioPlayerHandler extends BaseAudioHandler
     with QueueHandler, SeekHandler {
-  AudioPlayerHandler({required this._songRepo, required this._likedRepo}) {
+  AudioPlayerHandler({required this._songRepo, required this._likedService}) {
     // 初始 state: 启用 seek 系列系统手势 + 三按钮基础控件
     playbackState.add(
       playbackState.value.copyWith(
@@ -307,7 +304,7 @@ class AudioPlayerHandler extends BaseAudioHandler
   // ---- 依赖 ---------------------------------------------------------------------
 
   final SongRepository _songRepo;
-  final LikedRepository _likedRepo;
+  final LikedService _likedService;
   final AudioPlayer _audio = AudioPlayer();
 
   // ---- 唯一可变状态 -------------------------------------------------------------
@@ -343,11 +340,18 @@ class AudioPlayerHandler extends BaseAudioHandler
   void _wireAudioStreams() {
     // 1. 播放状态 → playbackState
     _audio.playerStateStream.listen((state) {
+      // liked 状态查 _likedService.isLiked (实时查,不缓存);
+      // liked 变化驱动走 [refreshIsLiked] (上层 controller/ui 调) ,
+      // 这里在 playerStateStream 顺带把 controls 同步上,避免切歌后按钮还是老的
+      final liked = _likedService.isLiked(
+        _lastEmittedItem?.id ?? '',
+        LikedType.song,
+      );
       playbackState.add(
         playbackState.value.copyWith(
           playing: state.playing,
           processingState: _mapProcessingState(state.processingState),
-          controls: _buildControls(isLiked: _resolveIsLiked()),
+          controls: _buildControls(isLiked: liked),
           speed: 1.0,
         ),
       );
@@ -383,14 +387,7 @@ class AudioPlayerHandler extends BaseAudioHandler
       playbackState.add(playbackState.value.copyWith(bufferedPosition: buf));
     });
 
-    // 6. like 状态变化 (锁屏 like 按钮) → 重建 controls
-    Get.find<LikedSongsService>().likedIds.listen((_) {
-      playbackState.add(
-        playbackState.value.copyWith(
-          controls: _buildControls(isLiked: _resolveIsLiked()),
-        ),
-      );
-    });
+    // 6. like 状态变化由上层调 [refreshIsLiked] 推送 (handler 不主动 .listen likedIds,避免双向耦合)
   }
 
   // ---- BaseAudioHandler API override ---------------------------------------------
@@ -473,7 +470,10 @@ class AudioPlayerHandler extends BaseAudioHandler
       if (index < _currentIndex) {
         _currentIndex--;
         _queue[_currentIndex] = _queue[_currentIndex].copyWith(
-          extras: {...?_queue[_currentIndex].extras, 'queueIndex': _currentIndex},
+          extras: {
+            ...?_queue[_currentIndex].extras,
+            'queueIndex': _currentIndex,
+          },
         );
         _lastEmittedItem = _queue[_currentIndex];
         mediaItem.add(_queue[_currentIndex]);
@@ -511,7 +511,7 @@ class AudioPlayerHandler extends BaseAudioHandler
   @override
   Future<void> seek(Duration position) => _audio.seek(position);
 
-  /// 锁屏 like 按钮 → 转发到 LikedSongsService
+  /// 锁屏 like 按钮 → 转发到 LikedSongsService.toggle (由 service 自己做乐观更新 + 错误提示)
   @override
   Future<dynamic> customAction(
     String name, [
@@ -520,9 +520,24 @@ class AudioPlayerHandler extends BaseAudioHandler
     if (name != 'toggleLike') return null;
     final cur = _lastEmittedItem;
     if (cur == null) return null;
-    // LikedSongsService.toggle 接收 String id
-    await Get.find<LikedSongsService>().toggle(cur.id);
+    // LikedService.toggle 接收 (id, LikedType),内部会触发 likedSongIds 变化,
+    // 上层 controller/ui 监听到 likedSongIds 变化后会调 [refreshIsLiked] 推送 controls。
+    await _likedService.toggle(cur.id, LikedType.song);
     return null;
+  }
+
+  /// like 状态变化推送入口。
+  ///
+  /// 由上层 controller/ui 监听 LikedSongsService.likedIds 后调用
+  /// (而不是 handler 自己 .listen,避免双向耦合)。
+  /// 内部重新查 likedIds 重建 playbackState.controls (锁屏 like 按钮 icon/label)。
+  Future<void> refreshIsLiked() async {
+    final cur = _lastEmittedItem;
+    if (cur == null) return;
+    final liked = _likedService.isLiked(cur.id, LikedType.song);
+    playbackState.add(
+      playbackState.value.copyWith(controls: _buildControls(isLiked: liked)),
+    );
   }
 
   // ---- 播放顺序控制 -------------------------------------------------------------
@@ -640,7 +655,8 @@ class AudioPlayerHandler extends BaseAudioHandler
           // 防御: 反向表长度对不上就重建
           _rebuildShuffleMaps();
         }
-        final pos = _currentIndex >= 0 && _currentIndex < _shufflePosOfQueueIndex.length
+        final pos =
+            _currentIndex >= 0 && _currentIndex < _shufflePosOfQueueIndex.length
             ? _shufflePosOfQueueIndex[_currentIndex]
             : -1;
         if (pos < 0) {
@@ -677,12 +693,6 @@ class AudioPlayerHandler extends BaseAudioHandler
         customAction: const CustomMediaAction(name: 'toggleLike'),
       ),
     ];
-  }
-
-  bool _resolveIsLiked() {
-    final cur = _lastEmittedItem;
-    if (cur == null) return false;
-    return Get.find<LikedSongsService>().likedIds.contains(cur.id);
   }
 
   AudioProcessingState _mapProcessingState(ProcessingState s) {

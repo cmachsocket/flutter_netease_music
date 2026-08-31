@@ -6,7 +6,7 @@ import '../models/Song.dart';
 import '../models/Headers.dart';
 import '../PlayPage/PlayerController.dart';
 import 'AudioPlayerService.dart';
-import 'LikedSongsService.dart';
+import 'LikedService.dart';
 import 'PlayQueueService.dart';
 
 /// 后台播放 handler —— audio_service 0.18 的 [BaseAudioHandler]
@@ -169,9 +169,9 @@ class PlaybackService extends BaseAudioHandler
 
   // ---- 自定义 action: 锁屏/通知栏"喜欢"按钮 ----
 
-  /// 锁屏/通知栏按 like 按钮 → 调 [LikedSongsService.toggle]
+  /// 锁屏/通知栏按 like 按钮 → 调 [LikedService.toggle] (LikedType.song)
   ///
-  /// 不重复 try/catch: LikedSongsService.toggle 内部已经做了
+  /// 不重复 try/catch: LikedService.toggle 内部已经做了
   /// 乐观更新 + 失败回滚 + SnackBar 错误提示,这里只负责转发
   @override
   Future<dynamic> customAction(
@@ -181,7 +181,7 @@ class PlaybackService extends BaseAudioHandler
     if (name != 'toggleLike') return null;
     final song = _player.currentSong.value;
     if (song == null) return null;
-    await Get.find<LikedSongsService>().toggle(song.id);
+    await Get.find<LikedService>().toggle(song.id, LikedType.song);
     return null;
   }
 

@@ -1,9 +1,7 @@
 import 'package:get/get.dart';
 
 import '../models/Song.dart';
-import '../services/LikedSongsService.dart';
-import '../services/LikedAlbumsService.dart';
-import '../services/LikedPlaylistsService.dart';
+import '../services/LikedService.dart';
 import '../services/PlayQueueService.dart';
 import '../models/ApiException.dart';
 import '../services/repositories/album_repository.dart';
@@ -22,10 +20,7 @@ class SongListController extends GetxController {
   final String playlistId;
 
   final PlayQueueService queue = Get.find<PlayQueueService>();
-  final LikedSongsService _likedService = Get.find<LikedSongsService>();
-  final LikedAlbumsService _likedAlbums = Get.find<LikedAlbumsService>();
-  final LikedPlaylistsService _likedPlaylists =
-      Get.find<LikedPlaylistsService>();
+  final LikedService _likedService = Get.find<LikedService>();
   final PlaylistRepository _playlistRepo = Get.find<PlaylistRepository>();
   final AlbumRepository _albumRepo = Get.find<AlbumRepository>();
 
@@ -114,48 +109,48 @@ class SongListController extends GetxController {
     songs.assignAll(content.songs);
   }
 
-  /// 喜爱切换 → 走全局 [LikedSongsService](乐观更新 + 后端持久化)
+  /// 喜爱切换 → 走全局 [LikedService.toggle](LikedType.song)(乐观更新 + 后端持久化)
   void toggleFavorite(String songId) {
     // ignore: discarded_futures
-    _likedService.toggle(songId);
+    _likedService.toggle(songId, LikedType.song);
   }
 
   /// 查询某首歌是否被喜欢
   ///
-  /// - 调用方**必须包 Obx**才能响应 likedIds 变化
-  /// - 转发到 [LikedSongsService.likedIds](RxSet)的 contains 查询
-  /// - 读 .value 触发 Obx 跟踪(contains 走内部 _value 不跟踪)
+  /// - 调用方**必须包 Obx**才能响应 likedSongIds 变化
+  /// - 转发到 [LikedService.isLiked] (LikedType.song)
   bool isLiked(String songId) =>
-      // ignore: invalid_use_of_protected_member
-      _likedService.likedIds.value.contains(songId);
+      _likedService.isLiked(songId, LikedType.song);
 
   /// toggle 当前 playlistId 的收藏(按 [playlistId] 前缀分流)
   ///
-  /// - `'album-<id>'` → [LikedAlbumsService]
-  /// - 纯数字 → [LikedPlaylistsService]
+  /// - `'album-<id>'` → LikedType.album
+  /// - 纯数字 → LikedType.playlist
   /// - controller 是"playlistId 是什么"唯一知道的地方,widget 不用分流
   void togglePlaylistFavorite() {
     if (playlistId.startsWith(_albumPrefix)) {
       // ignore: discarded_futures
-      _likedAlbums.toggle(playlistId.substring(_albumPrefix.length));
+      _likedService.toggle(
+        playlistId.substring(_albumPrefix.length),
+        LikedType.album,
+      );
     } else {
       // ignore: discarded_futures
-      _likedPlaylists.toggle(playlistId);
+      _likedService.toggle(playlistId, LikedType.playlist);
     }
   }
 
   /// 查询当前 playlistId 是否被收藏
   ///
-  /// - 调用方**必须包 Obx**才能响应 likedXxxIds 变化
+  /// - 调用方**必须包 Obx**才能响应 likedAlbumIds / likedPlaylistIds 变化
   bool isPlaylistFavorite() {
     if (playlistId.startsWith(_albumPrefix)) {
-      // ignore: invalid_use_of_protected_member
-      return _likedAlbums.likedAlbumIds.value.contains(
+      return _likedService.isLiked(
         playlistId.substring(_albumPrefix.length),
+        LikedType.album,
       );
     }
-    // ignore: invalid_use_of_protected_member
-    return _likedPlaylists.likedPlaylistIds.value.contains(playlistId);
+    return _likedService.isLiked(playlistId, LikedType.playlist);
   }
 
   /// 播放当前歌单里的某首歌:把整个歌单作为播放列表，再从这首开始播。

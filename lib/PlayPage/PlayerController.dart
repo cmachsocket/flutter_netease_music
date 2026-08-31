@@ -5,7 +5,7 @@ import 'package:get/get.dart';
 
 import '../models/Song.dart';
 import '../services/PlayQueueService.dart';
-import '../services/LikedSongsService.dart';
+import '../services/LikedService.dart';
 import '../models/ApiException.dart';
 import '../services/AudioPlayerService.dart';
 import '../services/repositories/song_repository.dart';
@@ -41,7 +41,7 @@ class PlayerController extends GetxController {
   /// 当前加载是否进行中(用来显示 loading 状态,避免重复触发)
   final RxBool isLoadingSong = false.obs;
 
-  /// 当前歌曲是否被喜欢(联动 currentSong + LikedSongsService.likedIds)
+  /// 当前歌曲是否被喜欢(联动 currentSong + LikedService.likedSongIds)
   ///
   /// UI 读 `controller.isLiked.value` 即可响应式刷新
   final RxBool isLiked = false.obs;
@@ -69,7 +69,7 @@ class PlayerController extends GetxController {
   bool _autoNextFired = false;
   // endregion
 
-  final LikedSongsService _likedService = Get.find<LikedSongsService>();
+  final LikedService _likedService = Get.find<LikedService>();
 
   final PlayQueueService queue = Get.find<PlayQueueService>();
   final SongRepository _songRepo = Get.find<SongRepository>();
@@ -107,10 +107,10 @@ class PlayerController extends GetxController {
       (_) => _scheduleQueueSync(),
     );
 
-    // 当前歌 + likedIds 联动 → isLiked
+    // 当前歌 + likedSongIds 联动 → isLiked
     _currentSongWorker = ever<Song?>(currentSong, (_) => _refreshIsLiked());
     _likedIdsWorker = ever<Set<String>>(
-      _likedService.likedIds,
+      _likedService.likedSongIds,
       (_) => _refreshIsLiked(),
     );
   }
@@ -345,19 +345,19 @@ class PlayerController extends GetxController {
 
   /// toggle 当前歌曲的喜欢状态
   ///
-  /// - 转发给 [LikedSongsService],UI 不用直接接触 service
+  /// - 转发给 [LikedService.toggle] (LikedType.song),UI 不用直接接触 service
   /// - 没有当前歌曲时是 no-op
   void toggleFavorite() {
     final song = currentSong.value;
     if (song == null) return;
     // ignore: discarded_futures
-    _likedService.toggle(song.id);
+    _likedService.toggle(song.id, LikedType.song);
   }
   // endregion
 
   void _refreshIsLiked() {
     final song = currentSong.value;
-    isLiked.value = song != null && _likedService.likedIds.contains(song.id);
+    isLiked.value = song != null && _likedService.isLiked(song.id, LikedType.song);
   }
 }
 

@@ -2,17 +2,17 @@ import 'package:get/get.dart';
 
 import '../models/Song.dart';
 import '../PlayPage/PlayerController.dart';
-import '../services/LikedSongsService.dart';
+import '../services/LikedService.dart';
 import '../services/PlayQueueService.dart';
 
 /// 播放列表页的 controller
 ///
 /// - 只负责播放列表页的渲染和交互
 /// - 实际队列数据由 [PlayQueueService] 维护
-/// - like/dislike 走全局 [LikedSongsService] (跟 SongListController 同思路)
+/// - like/dislike 走全局 [LikedService] (LikedType.song) (跟 SongListController 同思路)
 class PlayListController extends GetxController {
   final PlayQueueService queue = Get.find<PlayQueueService>();
-  final LikedSongsService _likedService = Get.find<LikedSongsService>();
+  final LikedService _likedService = Get.find<LikedService>();
 
   RxList<Song> get playlist => queue.playlist;
   RxInt get currentIndex => queue.currentIndex;
@@ -34,20 +34,18 @@ class PlayListController extends GetxController {
       queue.playSongs(songs, startSong: startSong);
   void removeSong(int index) => queue.removeSong(index);
 
-  /// 喜爱切换 → 走全局 [LikedSongsService](乐观更新 + 后端持久化)
+  /// 喜爱切换 → 走全局 [LikedService.toggle](LikedType.song)(乐观更新 + 后端持久化)
   ///
   /// - 跟 [SongListController.toggleFavorite] 同思路
   /// - PlayQueueService 不管喜爱,喜爱是个人状态,不该绑在播放队列上
   void toggleFavorite(String songId) {
     // ignore: discarded_futures
-    _likedService.toggle(songId);
+    _likedService.toggle(songId, LikedType.song);
   }
 
   /// 查询某首歌是否被喜欢
   ///
-  /// - 调用方**必须包 Obx**才能响应 likedIds 变化
-  /// - 读 .value 触发 Obx 跟踪(contains 走内部 _value 不跟踪)
-  bool isLiked(String songId) =>
-      // ignore: invalid_use_of_protected_member
-      _likedService.likedIds.value.contains(songId);
+  /// - 调用方**必须包 Obx**才能响应 likedSongIds 变化
+  /// - 转发到 [LikedService.isLiked] (内部走 likedSongIds.value.contains 触发 Obx 跟踪)
+  bool isLiked(String songId) => _likedService.isLiked(songId, LikedType.song);
 }

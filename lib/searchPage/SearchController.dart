@@ -6,11 +6,8 @@ import 'package:get/get.dart';
 import '../models/Album.dart';
 import '../models/Song.dart';
 import '../models/Artist.dart';
-import '../services/LikedSongsService.dart';
+import '../services/LikedService.dart';
 import '../services/PlayQueueService.dart';
-import '../services/LikedAlbumsService.dart';
-import '../services/LikedArtistsService.dart';
-import '../services/LikedPlaylistsService.dart';
 import '../services/repositories/search_repository.dart';
 import '../services/repositories/song_repository.dart';
 
@@ -26,7 +23,7 @@ class SearchController extends GetxController {
   final Rx<SearchType> type = SearchType.song.obs;
 
   final PlayQueueService queue = Get.find<PlayQueueService>();
-  final LikedSongsService _likedService = Get.find<LikedSongsService>();
+  final LikedService _likedService = Get.find<LikedService>();
   final SongRepository _songRepo = Get.find<SongRepository>();
   final SearchRepository _searchRepo = Get.find<SearchRepository>();
 
@@ -207,53 +204,47 @@ class SearchController extends GetxController {
   }
 
   bool isAlbumLiked(String albumId) =>
-      // ignore: invalid_use_of_protected_member
-      Get.find<LikedAlbumsService>().likedAlbumIds.value.contains(albumId);
+      _likedService.isLiked(albumId, LikedType.album);
 
   bool isArtistLiked(String artistId) =>
-      // ignore: invalid_use_of_protected_member
-      Get.find<LikedArtistsService>().likedArtistIds.value.contains(artistId);
+      _likedService.isLiked(artistId, LikedType.artist);
 
   bool isPlaylistLiked(String playlistId) =>
-      // ignore: invalid_use_of_protected_member
-      Get.find<LikedPlaylistsService>().likedPlaylistIds.value.contains(
-        playlistId,
-      );
+      _likedService.isLiked(playlistId, LikedType.playlist);
 
   void toggleAlbumLike(String albumId) {
     // ignore: discarded_futures
-    Get.find<LikedAlbumsService>().toggle(albumId);
+    _likedService.toggle(albumId, LikedType.album);
   }
 
   void toggleArtistLike(String artistId) {
     // ignore: discarded_futures
-    Get.find<LikedArtistsService>().toggle(artistId);
+    _likedService.toggle(artistId, LikedType.artist);
   }
 
   void togglePlaylistLike(String playlistId) {
     // ignore: discarded_futures
-    Get.find<LikedPlaylistsService>().toggle(playlistId);
+    _likedService.toggle(playlistId, LikedType.playlist);
   }
 
   void syncArtistLike(String artistId) {
     // ignore: discarded_futures
-    Get.find<LikedArtistsService>().syncSingle(artistId);
+    _likedService.syncArtistLike(artistId);
   }
 
   /// 单曲点赞/收藏转发(搜索结果的 SongListBody 需要)
   ///
-  /// 跟 SongListController.toggleFavorite 同语义,走全局 [LikedSongsService]
+  /// 跟 SongListController.toggleFavorite 同语义,走全局 [LikedService] (LikedType.song)
   void toggleFavorite(String songId) {
     // ignore: discarded_futures
-    _likedService.toggle(songId);
+    _likedService.toggle(songId, LikedType.song);
   }
 
   /// 查询单曲点赞状态(同 SongListController.isLiked)
   ///
-  /// 调用方需要包 Obx 才能响应 likedIds 变化
+  /// 调用方需要包 Obx 才能响应 likedSongIds 变化
   bool isLiked(String songId) =>
-      // ignore: invalid_use_of_protected_member
-      _likedService.likedIds.value.contains(songId);
+      _likedService.isLiked(songId, LikedType.song);
 
   /// 播放搜索结果里的某首歌
   ///

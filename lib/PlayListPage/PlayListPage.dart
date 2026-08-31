@@ -10,7 +10,7 @@ import '../AppShell.dart';
 /// - 数据来自 [PlayListController.playlist] (RxList,外面套 Obx 才会响应)
 /// - 复用 [SongListBody] 默认 [SongRowTile] (fav + play 双按钮)
 /// - 喜爱 / 不喜爱走 [PlayListController.isLiked] / [PlayListController.toggleFavorite]
-///   (委托到全局 [LikedSongsService])
+///   (委托到全局 [LikedService], LikedType.song)
 class PlayListPage extends StatelessWidget {
   const PlayListPage({super.key});
 
