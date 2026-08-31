@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 
 import '../models/library_summary.dart';
 import '../services/LikedService.dart';
-import '../services/repositories/library_repository.dart';
+import '../services/repositories/LibraryRepository.dart';
 import '../controller/AuthController.dart';
 
 enum LibraryTab {

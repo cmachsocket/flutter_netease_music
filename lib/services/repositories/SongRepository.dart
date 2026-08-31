@@ -1,8 +1,8 @@
 import 'package:get/get.dart';
 
-import '../../sdk/api_call.dart';
+import '../../sdk/ApiCall.dart';
 import '../../models/ApiException.dart';
-import '../../sdk/netease_api.dart';
+import '../../sdk/NeteaseApi.dart';
 
 /// Song repository —— 集中歌曲相关 API 调用 + URL 字段提取
 ///

@@ -7,9 +7,9 @@ import '../models/Album.dart';
 import '../models/Song.dart';
 import '../models/Artist.dart';
 import '../services/LikedService.dart';
-import '../services/NewAudioPlayerService.dart';
-import '../services/repositories/search_repository.dart';
-import '../services/repositories/song_repository.dart';
+import '../services/AudioPlayerWrapper.dart';
+import '../services/repositories/SearchRepository.dart';
+import '../services/repositories/SongRepository.dart';
 
 /// 搜索页 controller
 ///
@@ -243,8 +243,7 @@ class SearchController extends GetxController {
   /// 查询单曲点赞状态(同 SongListController.isLiked)
   ///
   /// 调用方需要包 Obx 才能响应 likedSongIds 变化
-  bool isLiked(String songId) =>
-      _likedService.isLiked(songId, LikedType.song);
+  bool isLiked(String songId) => _likedService.isLiked(songId, LikedType.song);
 
   /// 播放搜索结果里的某首歌
   ///

@@ -1,10 +1,11 @@
 import 'dart:async';
 
+import '../models/Snapshot.dart' show PlaybackSnapshot;
 import 'package:flutter_lyric/flutter_lyric.dart';
 import 'package:get/get.dart';
 
 import '../models/Song.dart';
-import '../services/NewAudioPlayerService.dart';
+import '../services/AudioPlayerWrapper.dart';
 
 /// 歌词控制器 —— 直接订阅 [AudioPlayerService.snapshot] 拉歌词、推进度。
 ///

@@ -1,9 +1,9 @@
 import 'package:get/get.dart';
 
 import '../../models/Song.dart';
-import '../../sdk/api_call.dart';
+import '../../sdk/ApiCall.dart';
 import '../../models/ApiException.dart';
-import '../../sdk/netease_api.dart';
+import '../../sdk/NeteaseApi.dart';
 import '../../models/Playlist.dart';
 
 /// 歌单 repository —— 集中 `/playlist/detail` + `/playlist/track/all`

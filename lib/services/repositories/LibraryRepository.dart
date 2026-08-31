@@ -1,9 +1,9 @@
 import 'package:get/get.dart';
 
 import '../../models/library_summary.dart';
-import '../../sdk/api_call.dart';
+import '../../sdk/ApiCall.dart';
 import '../../models/ApiException.dart';
-import '../../sdk/netease_api.dart';
+import '../../sdk/NeteaseApi.dart';
 
 /// 首页推荐 + 我的页三个 tab 的 API 集中仓库。
 ///
@@ -32,9 +32,7 @@ class LibraryRepository extends GetxService {
       return list
           .whereType<Map>()
           .map(
-            (m) => PlaylistCard.fromNeteaseJson(
-              Map<String, dynamic>.from(m),
-            ),
+            (m) => PlaylistCard.fromNeteaseJson(Map<String, dynamic>.from(m)),
           )
           .toList();
     } on ApiException {
@@ -57,9 +55,8 @@ class LibraryRepository extends GetxService {
       return list
           .whereType<Map>()
           .map(
-            (m) => PlaylistSummary.fromNeteaseJson(
-              Map<String, dynamic>.from(m),
-            ),
+            (m) =>
+                PlaylistSummary.fromNeteaseJson(Map<String, dynamic>.from(m)),
           )
           .toList();
     } on ApiException {
@@ -83,9 +80,7 @@ class LibraryRepository extends GetxService {
       return list
           .whereType<Map>()
           .map(
-            (m) => AlbumSummary.fromNeteaseJson(
-              Map<String, dynamic>.from(m),
-            ),
+            (m) => AlbumSummary.fromNeteaseJson(Map<String, dynamic>.from(m)),
           )
           .toList();
     } on ApiException {
@@ -100,11 +95,7 @@ class LibraryRepository extends GetxService {
   Future<List<ArtistSummary>> fetchFollowedArtists(String uid) async {
     try {
       final r = await apiCall(
-        () => _api.raw.user_follow_mixed(
-          size: '50',
-          cursor: '0',
-          scene: '1',
-        ),
+        () => _api.raw.user_follow_mixed(size: '50', cursor: '0', scene: '1'),
         what: '我的关注艺人',
       );
       final data = r.body['data'];
@@ -115,9 +106,7 @@ class LibraryRepository extends GetxService {
           .map((record) => record['artistInfo'])
           .whereType<Map>()
           .map(
-            (m) => ArtistSummary.fromNeteaseJson(
-              Map<String, dynamic>.from(m),
-            ),
+            (m) => ArtistSummary.fromNeteaseJson(Map<String, dynamic>.from(m)),
           )
           .toList();
     } on ApiException {

@@ -2,7 +2,7 @@ import 'package:get/get.dart';
 
 import '../controller/AuthController.dart';
 import '../models/ApiException.dart';
-import 'repositories/liked_repository.dart';
+import 'repositories/LikedRepository.dart';
 
 /// 收藏类型。统一所有 liked 状态 (歌曲 / 专辑 / 艺人 / 歌单) 走同一个 service,
 /// 按 type 分桶存。UI / controller 调 toggle(id, type) / isLiked(id, type)。

@@ -1,14 +1,23 @@
 import 'package:get/get.dart';
 
+import '../models/Snapshot.dart' show PlaybackSnapshot;
 import '../models/Song.dart';
 import '../services/LikedService.dart';
-import '../services/NewAudioPlayerService.dart';
+import '../services/AudioPlayerWrapper.dart';
 
 enum CenterPage { cover, lyric }
 
-/// 播放页 UI 控制器 — 跟 PlayPage widget 生命周期一致 (permanent: true,
-/// 跨 tab 路由活)
-/// ## 架构定位(自 NewAudioPlayerService 接管音频底层后)
+/// 播放页 UI 控制器 — 镜像 wrapper.snapshot 给 UI 用的薄 facade
+///
+/// 故意**不** `permanent: true` (main.dart 用 `Get.put<PlayerController>(...)`):
+/// 跨路由切换 (PlayerPage pop → 再 push) 时 GetX 智能管理会销毁并重建本 controller,
+/// 重建成本极低 (onInit 里 ever<PlaybackSnapshot> 立刻从 wrapper.snapshot 镜像
+/// 一次最新状态), Player UI (Obx) 看到的还是 wrapper 的实时数据, 用户无感。
+///
+/// 解耦点: PlayerController 跟 LyricsController **生命周期独立** —
+/// LyricsController 因为 flutter_lyric 的 LyricController 实例持有 lyric state
+/// (高亮位置 / 已加载 lyric) 必须 permanent; PlayerController 只是镜像 facade,
+/// 不持这种 state, 不需要 permanent。
 ///
 /// 所有音频事实状态(`playlist` / `currentSong` / `position` / `duration` /
 /// `buffered` / `isPlaying` / `isCurrentSongLiked` / `mode`)由

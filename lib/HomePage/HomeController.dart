@@ -1,7 +1,7 @@
 import 'package:get/get.dart';
 
 import '../models/library_summary.dart';
-import '../services/repositories/library_repository.dart';
+import '../services/repositories/LibraryRepository.dart';
 
 /// 首页 controller
 ///

@@ -2,10 +2,10 @@ import 'package:get/get.dart';
 
 import '../models/Song.dart';
 import '../services/LikedService.dart';
-import '../services/NewAudioPlayerService.dart';
+import '../services/AudioPlayerWrapper.dart';
 import '../models/ApiException.dart';
-import '../services/repositories/album_repository.dart';
-import '../services/repositories/playlist_repository.dart';
+import '../services/repositories/AlbumRepository.dart';
+import '../services/repositories/PlaylistRepository.dart';
 
 /// 歌单详情页 controller
 ///
@@ -119,8 +119,7 @@ class SongListController extends GetxController {
   ///
   /// - 调用方**必须包 Obx**才能响应 likedSongIds 变化
   /// - 转发到 [LikedService.isLiked] (LikedType.song)
-  bool isLiked(String songId) =>
-      _likedService.isLiked(songId, LikedType.song);
+  bool isLiked(String songId) => _likedService.isLiked(songId, LikedType.song);
 
   /// toggle 当前 playlistId 的收藏(按 [playlistId] 前缀分流)
   ///

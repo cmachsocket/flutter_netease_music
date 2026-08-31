@@ -3,9 +3,9 @@ import 'package:get/get.dart';
 import '../../models/Artist.dart';
 import '../../models/Album.dart';
 import '../../models/Song.dart';
-import '../../sdk/api_call.dart';
+import '../../sdk/ApiCall.dart';
 import '../../models/ApiException.dart';
-import '../../sdk/netease_api.dart';
+import '../../sdk/NeteaseApi.dart';
 
 /// 艺人 repository —— 集中 `/artists` + `/artist/album` + `/artist/songs`
 /// 三个 API 调用

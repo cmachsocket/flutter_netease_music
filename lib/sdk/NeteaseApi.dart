@@ -5,7 +5,7 @@ import 'package:musiclibrary/music_library.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 
-import 'api_call.dart';
+import 'ApiCall.dart';
 
 /// 全局网易云 API 单例 + cookie 持久化
 ///

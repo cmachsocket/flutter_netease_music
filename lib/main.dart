@@ -8,17 +8,17 @@ import 'AppShell.dart';
 import 'AppShellController.dart';
 import 'PlayPage/LyricsController.dart';
 import 'PlayPage/PlayerController.dart';
-import 'services/NewAudioPlayerService.dart';
-import 'sdk/netease_api.dart';
+import 'services/AudioPlayerWrapper.dart';
+import 'sdk/NeteaseApi.dart';
 import 'services/LikedService.dart';
-import 'services/repositories/lyrics_repository.dart';
-import 'services/repositories/song_repository.dart';
-import 'services/repositories/liked_repository.dart';
-import 'services/repositories/search_repository.dart';
-import 'services/repositories/playlist_repository.dart';
-import 'services/repositories/album_repository.dart';
-import 'services/repositories/artist_repository.dart';
-import 'services/repositories/library_repository.dart';
+import 'services/repositories/LyricsRepository.dart';
+import 'services/repositories/SongRepository.dart';
+import 'services/repositories/LikedRepository.dart';
+import 'services/repositories/SearchRepository.dart';
+import 'services/repositories/PlaylistRepository.dart';
+import 'services/repositories/AlbumRepository.dart';
+import 'services/repositories/ArtistRepository.dart';
+import 'services/repositories/LibraryRepository.dart';
 import 'controller/AuthController.dart';
 import 'theme/AppTheme.dart';
 import 'theme/ThemeController.dart';
@@ -110,11 +110,19 @@ Future<void> main() async {
     return audioWrapper;
   });
 
-  Get.put<PlayerController>(PlayerController(), permanent: true);
+  Get.lazyPut<PlayerController>(() => PlayerController());
   // LyricsController 依赖 PlayerController (订阅 currentSong) + wrapper.fetchLyric。
   // 注册顺序: wrapper → PlayerController → LyricsController。
-  // permanent: true 是为了 LyricController 跨 PlayPage 路由活 (跟 PlayerController 同生命周期),
-  // 保证 Lyrics widget 任何时候 mount 都能从 lyricNotifier.value 拿到当前 lyric.
+  // **LyricsController 必须 permanent: true** — flutter_lyric 自己的 LyricController
+  // 实例持有高亮行/滚动位置/已加载 lyric 等状态, 跨 PlayPage 路由切换 (push/pop
+  // 后再进) 不重建才能保留这些状态; GetX 智能管理在路由 pop 时会销毁非 permanent
+  // controller (LyricsController.onClose 触发 lyricController.dispose()), lyric 状态
+  // 丢失。LyricsController **onInit 内的 wrapper.snapshot 订阅也会被 cancel + 重订**,
+  // 重建后立刻镜像一次 wrapper.snapshot, 但 LyricController 实例换新 → 高亮位置归零。
+  //
+  // PlayerController 不 permanent: 重建成本低 (onInit 里 ever<PlaybackSnapshot>
+  // 订阅立刻从 wrapper.snapshot 镜像一次), 跨路由切换重建不影响 Player UI
+  // (Obx 读到 wrapper 实时状态), 跟 LyricsController 解耦。
   Get.put<LyricsController>(LyricsController(), permanent: true);
 
   runApp(const FlutterNeteaseMusicApp());

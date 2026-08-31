@@ -2,9 +2,9 @@ import 'package:get/get.dart';
 
 import '../models/Album.dart';
 import '../models/Song.dart';
-import '../services/NewAudioPlayerService.dart';
+import '../services/AudioPlayerWrapper.dart';
 import '../services/LikedService.dart';
-import '../services/repositories/artist_repository.dart';
+import '../services/repositories/ArtistRepository.dart';
 import '../models/Artist.dart';
 
 /// 艺人详情页 tab 枚举
@@ -99,8 +99,7 @@ class ArtistController extends GetxController {
   /// 查询某首歌是否被喜欢(同 SongListController)
   ///
   /// - 转发到 [LikedService.isLiked] (LikedType.song)
-  bool isLiked(String songId) =>
-      _likedService.isLiked(songId, LikedType.song);
+  bool isLiked(String songId) => _likedService.isLiked(songId, LikedType.song);
 
   /// 查询当前艺人是否已关注
   bool isArtistLiked() => isFollowing.value;

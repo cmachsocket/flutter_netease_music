@@ -9,7 +9,7 @@ import '../SongListPage/SongListDetail.dart';
 import '../models/Album.dart';
 import '../models/Artist.dart';
 import '../widgets/aspect_driven_grid.dart';
-import '../services/repositories/search_repository.dart'
+import '../services/repositories/SearchRepository.dart'
     show SearchType, SearchPlaylistSummary;
 import 'SearchController.dart';
 

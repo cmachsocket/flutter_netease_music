@@ -1,8 +1,8 @@
 import 'package:get/get.dart';
-
+import '../models/Snapshot.dart' show PlayOrder;
 import '../models/Song.dart';
 import '../services/LikedService.dart';
-import '../services/NewAudioPlayerService.dart';
+import '../services/AudioPlayerWrapper.dart';
 
 /// 播放列表页的 controller
 ///

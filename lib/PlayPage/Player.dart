@@ -6,10 +6,10 @@ import 'PlayerController.dart';
 import '../models/default.dart';
 import '../PlayListPage/PlayListPage.dart';
 import '../PlayListPage/PlayListController.dart';
-import '../services/NewAudioPlayerService.dart';
 import '../widgets/linked_detail_text.dart';
 import 'MusicProgressbar.dart';
 import '../AppShell.dart';
+import '../models/Snapshot.dart' show PlayOrder;
 
 class Player extends StatelessWidget {
   Player({super.key});

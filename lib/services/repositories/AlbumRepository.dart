@@ -1,9 +1,9 @@
 import 'package:get/get.dart';
 
 import '../../models/Song.dart';
-import '../../sdk/api_call.dart';
+import '../../sdk/ApiCall.dart';
 import '../../models/ApiException.dart';
-import '../../sdk/netease_api.dart';
+import '../../sdk/NeteaseApi.dart';
 
 /// 专辑 repository —— 集中 `/album?id=X` 一个 API 调用
 ///
