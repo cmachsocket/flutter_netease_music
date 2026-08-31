@@ -203,3 +203,12 @@ class Player extends StatelessWidget {
     }
   }
 }
+
+/// 启动时注册(在 main.dart 里调)
+class PlayerBinding extends Bindings {
+  @override
+  void dependencies() {
+    Get.lazyPut(() => PlayerController());
+    Get.lazyPut(() => PlayListController());
+  }
+}

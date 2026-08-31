@@ -158,9 +158,3 @@ class PlayerController extends GetxController {
     _audio.toggleFavorite(song.id);
   }
 }
-
-/// 启动时注册(在 main.dart 里调)
-class PlayerBinding extends Bindings {
-  @override
-  void dependencies() => Get.lazyPut(() => PlayerController());
-}

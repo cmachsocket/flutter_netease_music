@@ -42,3 +42,10 @@ class Lyrics extends StatelessWidget {
     );
   }
 }
+
+class LyricsBinding extends Bindings {
+  @override
+  void dependencies() {
+    Get.lazyPut<LyricsController>(() => LyricsController());
+  }
+}
