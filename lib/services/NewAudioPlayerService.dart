@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:get/get.dart';
@@ -103,10 +102,6 @@ class AudioPlayerService extends GetxController {
   /// handler 走 [snapshot.queue] (MediaItem) 走 audio_service。
   final RxList<Song> playlist = <Song>[].obs;
 
-  /// shuffle 模式专用: 这一轮里已播过的 song id 集合
-  /// 一轮播完清空,重新随机
-  final Set<String> _shufflePlayed = <String>{};
-  final Random _rng = Random();
 
   // 持久化 (从老的 PlayQueueService 迁来)
   static const _storageKey = 'playlist_v1';
@@ -169,6 +164,9 @@ class AudioPlayerService extends GetxController {
     _currentSongLikedSub = audioHandler.currentSongLiked.listen((liked) {
       snapshot.value = snapshot.value.copyWith(isCurrentSongLiked: liked);
     });
+    // broadcast 无 replay: 订阅后主动刷一次,避免订阅前 handler 已 emit 过
+    // 导致 wrapper 的 isCurrentSongLiked 停在初始 false
+    audioHandler.refreshCurrentSongLiked();
 
     // 业务层 hydrate (从 GetStorage 恢复 playlist / currentIndex / mode)
     _hydrate();
@@ -282,13 +280,9 @@ class AudioPlayerService extends GetxController {
   /// 选某一首开始播放 (UI 点队列里的某一首)
   void selectIndex(int index) {
     if (index < 0 || index >= playlist.length) return;
-    _currentIndexSub.value = index;
+    // 不手动写 _currentIndexSub: handler skipToQueueItem → _playAt →
+    // mediaItem.add 会回推 _onMediaItem,由它更新 (单向流,消除双写竞态)
     audioHandler.skipToQueueItem(index);
-    if (mode.value == PlayOrder.shuffle) {
-      _shufflePlayed
-        ..clear()
-        ..add(playlist[index].id);
-    }
     _persist();
   }
 
@@ -299,7 +293,7 @@ class AudioPlayerService extends GetxController {
       case PlayOrder.sequential:
         return (_currentIndexSub.value + 1) % playlist.length;
       case PlayOrder.shuffle:
-        return _nextShuffleIndex();
+        return audioHandler.peekNeighbor(1);
       case PlayOrder.repeatOne:
         return _currentIndexSub.value;
     }
@@ -313,51 +307,20 @@ class AudioPlayerService extends GetxController {
         final p = _currentIndexSub.value - 1;
         return p < headOfTheQueue ? tailOfTheQueue : p;
       case PlayOrder.shuffle:
-        return _nextShuffleIndex();
+        return audioHandler.peekNeighbor(-1);
       case PlayOrder.repeatOne:
         return _currentIndexSub.value;
     }
   }
 
-  int _nextShuffleIndex() {
-    if (playlist.length == 1) return headOfTheQueue;
-
-    final allPlayed = _shufflePlayed.length >= playlist.length;
-    if (allPlayed) {
-      _shufflePlayed.clear();
-    }
-
-    final candidates = <int>[];
-    for (var i = headOfTheQueue; i < playlist.length; i++) {
-      if (!_shufflePlayed.contains(playlist[i].id)) {
-        candidates.add(i);
-      }
-    }
-    if (candidates.isEmpty) return _currentIndexSub.value;
-
-    final pick = candidates[_rng.nextInt(candidates.length)];
-    _shufflePlayed.add(playlist[pick].id);
-    return pick;
-  }
-
   /// 队列里删一首 (UI 调)
   void removeSong(int index) {
     if (index < headOfTheQueue || index > tailOfTheQueue) return;
-    if (mode.value == PlayOrder.shuffle &&
-        _shufflePlayed.contains(playlist[index].id)) {
-      _shufflePlayed.remove(playlist[index].id);
-    }
+    // 只改业务层 playlist,handler 的 removeQueueItemAt 会异步更新
+    // _queue + mediaItem/queue 流,回推 _onQueue/_onMediaItem 同步
+    // _currentIndexSub (单向流,不再手动改索引消除双写竞态)
     playlist.removeAt(index);
     audioHandler.removeQueueItemAt(index);
-    if (playlist.isEmpty) {
-      _currentIndexSub.value = 0;
-    } else if (index < _currentIndexSub.value) {
-      _currentIndexSub.value -= 1;
-    } else if (index == _currentIndexSub.value) {
-      if (_currentIndexSub.value >= playlist.length) {
-        _currentIndexSub.value = tailOfTheQueue;
-      }
-    }
     _persist();
   }
 
@@ -387,16 +350,7 @@ class AudioPlayerService extends GetxController {
       startIndex: finalStart,
     );
     _currentIndexSub.value = finalStart;
-    _resetShuffleRound();
     _persist();
-  }
-
-  /// shuffle 轮询重置 (queue 替换/清空时调)
-  void _resetShuffleRound() {
-    _shufflePlayed.clear();
-    if (mode.value == PlayOrder.shuffle && playlist.isNotEmpty) {
-      _shufflePlayed.add(playlist[_currentIndexSub.value].id);
-    }
   }
 
   // ---- 持久化 (从老 PlayQueueService 迁来) ------------------------------------
@@ -530,6 +484,9 @@ class AudioPlayerHandler extends BaseAudioHandler
 
   /// 公开给 wrapper 订阅 (handler 主动 emit 当前歌的 like 状态)
   Stream<bool> get currentSongLiked => _currentSongLikedCtrl.stream;
+
+  /// 主动刷一次当前歌的 liked 状态 (broadcast 无 replay,wrapper 订阅后兜底用)
+  void refreshCurrentSongLiked() => _emitCurrentSongLiked();
 
   /// 释放 handler 持有的订阅 (handler dispose 时由 audio_service 框架调用)
   void dispose() {
@@ -861,6 +818,9 @@ class AudioPlayerHandler extends BaseAudioHandler
     // 准备 URL:从 repo 拉真实 url,写到 MediaItem.extras 里
     final url = await _songRepo.fetchSongUrl(_queue[queueIndex].id);
     if (url == null) return; // 取不到 URL 直接放弃 (上层 snackbar 另说)
+    // stale request 校验: await 期间用户可能又切了别的歌,
+    // 此刻 _currentIndex 已不是本次目标,丢弃这个过期的 fetch 结果
+    if (_currentIndex != queueIndex) return;
     _queue[queueIndex] = _queue[queueIndex].copyWith(
       extras: {
         ...?_queue[queueIndex].extras,
@@ -880,7 +840,15 @@ class AudioPlayerHandler extends BaseAudioHandler
       // repeatOne 但不是同一首 (从外部点过来的):重新 prepare 然后播
       await _audio.play();
     }
+
+    // 切歌完成,同步当前歌的 liked 状态给 wrapper (修复: 旧实现只在
+    // likedSongIds 变化时 emit,切歌后 isCurrentSongLiked 会停留在旧值)
+    _emitCurrentSongLiked();
   }
+
+  /// 只读窥探下一首/上一首的 queue 索引 (不改状态)。
+  /// 供 wrapper 的 nextIndex/prevIndex 转发,消除 wrapper 层重复的 shuffle 状态。
+  int peekNeighbor(int delta) => _neighbor(delta);
 
   /// 计算下一个/上一个 [_queue] 索引。
   ///
