@@ -373,10 +373,16 @@ class AudioPlayerService extends GetxController {
     final startIndex = startSong == null
         ? headOfTheQueue
         : playlist.indexWhere((s) => s.id == startSong.id);
-    final finalStart = startIndex >= headOfTheQueue ? startIndex : headOfTheQueue;
+    final finalStart = startIndex >= headOfTheQueue
+        ? startIndex
+        : headOfTheQueue;
     audioHandler.setQueue(
       playlist
-          .map((s) => s.toMediaItem(artHeaders: NeteaseImageHeaders.neteaseImageHeaders))
+          .map(
+            (s) => s.toMediaItem(
+              artHeaders: NeteaseImageHeaders.neteaseImageHeaders,
+            ),
+          )
           .toList(),
       startIndex: finalStart,
     );
@@ -407,7 +413,8 @@ class AudioPlayerService extends GetxController {
       );
     }
     final savedIdx = box.read<int>(_currentIndexKey) ?? 0;
-    _currentIndexSub.value = (savedIdx >= headOfTheQueue && savedIdx <= tailOfTheQueue)
+    _currentIndexSub.value =
+        (savedIdx >= headOfTheQueue && savedIdx <= tailOfTheQueue)
         ? savedIdx
         : headOfTheQueue;
     final savedMode = box.read<String>(_modeKey);
@@ -515,7 +522,7 @@ class AudioPlayerHandler extends BaseAudioHandler
   /// 设计: 不用 refreshIsLiked() 公开方法让上层调,handler 主动 emit bool 流,
   /// wrapper 直接订阅 ([_currentSongLiked] getter)。事件源两个:
   ///   1. likedSongIds 变化 (在 _wireAudioStreams 里 listen)
-  ///   2. _lastEmittedItem 变化 (在 _playAt / removeQueueItemAt 等 emit mediaItem 时
+  ///   2. _currentItem 变化 (在 _playAt / removeQueueItemAt 等 emit mediaItem 时
   ///      顺手 _currentSongLiked.add(...))
   /// wrapper 拿到 bool 后,copyWith(snapshot.isCurrentSongLiked) 一行搞定
   final StreamController<bool> _currentSongLikedCtrl =
@@ -552,9 +559,11 @@ class AudioPlayerHandler extends BaseAudioHandler
   /// 非 shuffle 模式时为空 (sequential 不需要反向查)。
   List<int> _shufflePosOfQueueIndex = [];
 
-  /// 当前 MediaItem 缓存 (用于在 stream 回调里判定是否需要重发)
-  MediaItem? _lastEmittedItem;
-
+  /// 当前播放的 MediaItem（== _queue[_currentIndex]，带边界保护）。
+  MediaItem? get _currentItem =>
+      (_currentIndex >= 0 && _currentIndex < _queue.length)
+          ? _queue[_currentIndex]
+          : null;
   // 注:不再暴露 currentIndex 字段。wrapper 从 mediaItem.extras['queueIndex']
   // 读取当前索引,handler 在 [_playAt] / [removeQueueItemAt] 等"换索引"的地方
   // 把新索引写进对应 [MediaItem.extras] 并随 [mediaItem.add] emit。
@@ -569,7 +578,7 @@ class AudioPlayerHandler extends BaseAudioHandler
       // 这里在 playerStateStream 顺带把 controls 同步上 (因为 controls 含 playing
       // 状态,play 状态变化时也要 rebuild,此时再带一次最新 liked)
       final liked = _likedService.isLiked(
-        _lastEmittedItem?.id ?? '',
+        _currentItem?.id ?? '',
         LikedType.song,
       );
       playbackState.add(
@@ -592,11 +601,10 @@ class AudioPlayerHandler extends BaseAudioHandler
     // 3. 时长变化 → 更新当前 MediaItem 的 duration
     _audio.durationStream.listen((dur) {
       if (dur == null) return;
-      final item = _lastEmittedItem;
+      final item = _currentItem;
       if (item == null) return;
+      if (item.duration == dur) return; // 没变就别 add (避免无效广播)
       final updated = item.copyWith(duration: dur);
-      if (updated == item) return; // 没变就别 add (避免无效广播)
-      _lastEmittedItem = updated;
       // 同步更新 _queue 里这份 (媒体时长是只读属性,放 extras 也行,这里直接改 MediaItem)
       _queue[_currentIndex] = updated;
       mediaItem.add(updated);
@@ -625,11 +633,10 @@ class AudioPlayerHandler extends BaseAudioHandler
 
   /// 查当前歌的 like 状态 → emit 给 wrapper + 重建 controls
   ///
-  /// 由 (a) likedSongIds 变化 (b) _lastEmittedItem 变化 触发。
+  /// 由 (a) likedSongIds 变化 (b) _currentItem 变化 触发。
   void _emitCurrentSongLiked() {
-    final cur = _lastEmittedItem;
-    final liked = cur != null &&
-        _likedService.isLiked(cur.id, LikedType.song);
+    final cur = _currentItem;
+    final liked = cur != null && _likedService.isLiked(cur.id, LikedType.song);
     // 推 wrapper
     _currentSongLikedCtrl.add(liked);
     // 重建锁屏 controls
@@ -725,9 +732,8 @@ class AudioPlayerHandler extends BaseAudioHandler
             'queueIndex': _currentIndex,
           },
         );
-        _lastEmittedItem = _queue[_currentIndex];
         mediaItem.add(_queue[_currentIndex]);
-        // _lastEmittedItem 还是同一首歌,只是 index 调整 — isCurrentSongLiked
+        // _currentItem 还是同一首歌,只是 index 调整 — isCurrentSongLiked
         // 的值没变,这里不重复 emit (wrapper 那边 isCurrentSongLiked 也不会变)
       }
       // 删除后面的歌:_currentIndex 不变,queue 已经更新,wrapper 通过 _onQueue 收新列表
@@ -770,7 +776,7 @@ class AudioPlayerHandler extends BaseAudioHandler
     Map<String, dynamic>? extras,
   ]) async {
     if (name != 'toggleLike') return null;
-    final cur = _lastEmittedItem;
+    final cur = _currentItem;
     if (cur == null) return null;
     // LikedService.toggle 接收 (id, LikedType),内部会触发 likedSongIds 变化,
     // handler 内部 listen likedSongIds.stream → _emitCurrentSongLiked →
@@ -864,7 +870,6 @@ class AudioPlayerHandler extends BaseAudioHandler
     );
 
     await _audio.setUrl(url);
-    _lastEmittedItem = _queue[queueIndex];
     mediaItem.add(_queue[queueIndex]);
 
     // repeatOne 不需要重新 prepare;sequential/shuffle 已经在 setUrl 后 just_audio
