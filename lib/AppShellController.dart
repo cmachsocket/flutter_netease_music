@@ -1,6 +1,5 @@
 import 'package:get/get.dart';
 
-import 'PlayPage/PlayerController.dart';
 import 'PlayListPage/PlayListController.dart';
 
 class AppShellController extends GetxController {
@@ -12,7 +11,9 @@ class AppShellBinding extends Bindings {
   @override
   void dependencies() {
     Get.lazyPut<AppShellController>(() => AppShellController());
-    Get.lazyPut<PlayerController>(() => PlayerController());
+    // PlayerController 在 main.dart 里 `Get.put(..., permanent: true)` 已经
+    // 注册,跨 tab 路由活。这里不重复 lazyPut,避免 GetX 内部 find 已有后又
+    // 创建的浪费。
     Get.lazyPut<PlayListController>(() => PlayListController());
   }
 }

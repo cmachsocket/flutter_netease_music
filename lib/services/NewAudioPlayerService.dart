@@ -575,7 +575,7 @@ class AudioPlayerHandler extends BaseAudioHandler
   // ---- 订阅接线 (在构造里跑一次) -------------------------------------------------
 
   void _wireAudioStreams() {
-    // 1. 播放状态 → playbackState
+    // 1. 播放状态 → playbackState + 自动跳下一首
     _audio.playerStateStream.listen((state) {
       // liked 状态查 _likedService.isLiked (实时查,不缓存);
       // 切歌后的 likes 同步走 _emitCurrentSongLiked (在 _playAt 末尾调),
@@ -593,6 +593,25 @@ class AudioPlayerHandler extends BaseAudioHandler
           speed: 1.0,
         ),
       );
+      // 自然播完 → 自动下一首
+      //
+      // - just_audio 在 setUrl 单曲驱动模式下:currentIndexStream 永远 = 0,
+      //   它**不会**在 playlist 走完时自动 skipToNext(那是 ConcatenatingAudioSource
+      //   的行为),所以这里手动监听 completed → 调 _neighbor(1) 推进。
+      // - sequential: +1 wrap;shuffle: 走 _shuffleOrder;repeatOne: 返回
+      //   _currentIndex → 重播同首(走 _playAt 重新 prepare + play)。
+      // - 无需防抖:skipToNext → _playAt → _audio.setUrl → processingState
+      //   立刻进 loading/idle,不会再回 completed,不存在循环。
+      // - **handler 内做**而不是 wrapper/PlayerController:handler 是 just_audio
+      //   流唯一订阅者,生命周期跟 app 同步,无 PlayerController 销毁后
+      //   自动切歌失效的隐患。
+      if (state.processingState == ProcessingState.completed) {
+        final next = _neighbor(1);
+        if (next >= 0) {
+          // ignore: discarded_futures
+          _playAt(next);
+        }
+      }
     });
 
     // 2. 当前索引 → mediaItem

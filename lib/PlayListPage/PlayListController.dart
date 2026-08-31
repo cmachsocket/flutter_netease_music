@@ -1,7 +1,6 @@
 import 'package:get/get.dart';
 
 import '../models/Song.dart';
-import '../PlayPage/PlayerController.dart';
 import '../services/LikedService.dart';
 import '../services/NewAudioPlayerService.dart';
 
@@ -18,14 +17,14 @@ class PlayListController extends GetxController {
   RxInt get currentIndex => queue.currentIndex;
   Rx<PlayOrder> get mode => queue.mode;
 
-  /// 选某一首开始播放 —— 走 PlayerController.selectIndex
+  /// 选某一首开始播放 —— 走 [AudioPlayerService.selectIndex],
+  /// wrapper.handler 内部 skipToQueueItem → _playAt → fetch URL → setUrl
+  /// → mediaItem.add 流回推 snapshot,UI 通过 snapshot.currentSong 自动刷新
   ///
-  /// - **不直接调 queue.selectIndex**:那个只改 currentIndex,如果值没变
-  ///   (`ever<int>` worker 不补 fire,常见场景:点当前正在播的 / 从缓存恢复后
-  ///   点 currentIndex 那首),永远不触发 `_syncQueueState` → 不播
-  /// - PlayerController.selectIndex 改完 currentIndex 后手动调 `_scheduleQueueSync`,
-  ///   无论值变没变都触发一次同步
-  void selectIndex(int index) => Get.find<PlayerController>().selectIndex(index);
+  /// 之前是 Get.find<PlayerController>().selectIndex(index) (绕一层 facade),
+  /// 现在 PlayerController.selectIndex 只是 wrapper 的薄转发,中间这层没意义,
+  /// PlayListController 直接调 wrapper,避免业务路径拉长。
+  void selectIndex(int index) => queue.selectIndex(index);
   void setMode(PlayOrder m) => queue.setPlayOrder(m);
   int nextIndex() => queue.nextIndex();
   int prevIndex() => queue.prevIndex();

@@ -1,5 +1,4 @@
 import 'package:get/get.dart';
-import 'package:just_audio/just_audio.dart' show ProcessingState;
 
 import '../models/Song.dart';
 import '../services/LikedService.dart';
@@ -17,9 +16,9 @@ enum CenterPage { cover, lyric }
 ///   - 持有 [AudioPlayer] 引用
 ///   - 直接调 `setUrl()` / `fetchSongUrl()` — handler `_playAt` 内部完成
 ///   - 维护 queue / mode 真相 — wrapper.playlist / currentIndex / mode 才是
-///   - 自己监听 playerStateStream 算"自然结束 → next()" — handler 不再叠
-///     这层逻辑(它只把 processingState 镜像给 playbackState),由本 controller
-///     在 snapshot.processingState 进 completed 时调 next() 兜底
+///   - 自己监听 playerStateStream 算"自然结束 → next()" — 这是 [AudioPlayerHandler]
+///     在底层流的职责(handler 生命周期 = app,不会因 PlayerController 销毁失效),
+///     wrapper/上层 controller 不再叠这层逻辑
 ///
 /// 本 controller 只做 3 件事:
 ///   1. **UI facade**:把 wrapper.snapshot 的字段镜像成同名的 Rx
@@ -53,23 +52,16 @@ class PlayerController extends GetxController {
 
   Worker? _snapshotWorker;
 
-  /// 防止同一首歌自然结束时重复触发 next() (handler 不再叠防抖,
-  /// 由 PlayerController 在镜像层兜底一次)
-  ///
-  /// 时序:
-  ///   - 切歌 / repeatOne 重播 / 跳到下一首:会重新调用 _playAt,
-  ///     handler emit 新 mediaItem → snapshot.currentSong 变化 → 镜像层
-  ///     自动 reset (见 [selectIndex]/[next]/[prev] 的 _resetAutoNext())
-  ///   - 自然播完:just_audio playerStateStream 进 completed → snapshot
-  ///     触发镜像 → 这里 if completed && !_autoNextFired → next() + flag=true
-  bool _autoNextFired = false;
-
   @override
   void onInit() {
     super.onInit();
     // 镜像 wrapper.snapshot 到 UI Rx (Obx 触发保持不变)。
     // duration 字段也在 _onSnapshot 里更新 (snapshot.currentSong.duration →
     // 即时 currentSong 的最新 duration,handler durationStream 实时维护)
+    //
+    // **自然播完 → 下一首** 由 [AudioPlayerHandler] 在 _audio.playerStateStream
+    // 里处理 (completed → _neighbor(1) → _playAt),handler 生命周期 = app,
+    // 无需 PlayerController 在镜像层兜底 (之前的 _maybeAutoNext 已删)
     _snapshotWorker = ever<PlaybackSnapshot>(_audio.snapshot, _onSnapshot);
     _onSnapshot(_audio.snapshot.value);
   }
@@ -80,7 +72,7 @@ class PlayerController extends GetxController {
     super.onClose();
   }
 
-  /// snapshot 镜像 + 自然播完 → 下一首
+  /// snapshot 镜像
   void _onSnapshot(PlaybackSnapshot s) {
     isPlaying.value = s.isPlaying;
     position.value = s.position;
@@ -102,30 +94,7 @@ class PlayerController extends GetxController {
     } else {
       duration.value = Duration.zero;
     }
-    _maybeAutoNext(s);
   }
-
-  /// 自然播完 → next()
-  ///
-  /// - snapshot.processingState 进 completed 时触发 (handler 把 just_audio
-  ///   的 processingState 镜像给 audio_service, 再被 wrapper 镜像给 snapshot)
-  /// - _autoNextFired 防抖:同首歌只触发一次
-  /// - 任何"非 completed"且有当前歌的状态(loading/buffering/ready)都视为
-  ///   新歌 / 重播开始 → reset 防抖,允许下一次播完后再次触发
-  void _maybeAutoNext(PlaybackSnapshot s) {
-    if (s.processingState == ProcessingState.completed) {
-      if (_autoNextFired) return;
-      _autoNextFired = true;
-      next();
-    } else if (s.currentSong != null) {
-      _autoNextFired = false;
-    }
-  }
-
-  /// 当前歌的时长已经在 [_onSnapshot] 里覆盖 (snapshot.currentSong.duration),
-  /// 这里只是注释说明,不再单独 worker:切歌 → handler emit → snapshot 触发
-  /// _onSnapshot → duration 自动刷新。
-  // (旧的 _refreshDuration() 已删,duration 跟随 snapshot 镜像)
 
   // region 命令转发 (UI 调用)
 
