@@ -133,11 +133,6 @@ class LikedService extends GetxService {
       } else {
         bucket.add(id);
       }
-      Get.snackbar(
-        next ? '操作失败' : '取消失败',
-        e.message,
-        snackPosition: SnackPosition.BOTTOM,
-      );
     }
   }
 

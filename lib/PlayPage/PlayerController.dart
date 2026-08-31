@@ -61,7 +61,7 @@ class PlayerController extends GetxController {
   Worker? _queueIndexWorker;
   Worker? _queuePlaylistWorker;
   Worker? _currentSongWorker;
-  Worker? _likedIdsWorker;
+  StreamSubscription<Set<String>>? _likedIdsSub;
   bool _queueSyncScheduled = false;
 
   /// 自然结束自动切歌的防抖标志：同一首歌只触发一次 next()，
@@ -109,10 +109,10 @@ class PlayerController extends GetxController {
 
     // 当前歌 + likedSongIds 联动 → isLiked
     _currentSongWorker = ever<Song?>(currentSong, (_) => _refreshIsLiked());
-    _likedIdsWorker = ever<Set<String>>(
-      _likedService.likedSongIds,
-      (_) => _refreshIsLiked(),
-    );
+    // RxSet.stream = Stream<Set<String>> (跟 RxInt/RxString 一样的 API)
+    _likedIdsSub = _likedService.likedSongIds.stream.listen((_) {
+      _refreshIsLiked();
+    });
   }
 
   @override
@@ -125,7 +125,7 @@ class PlayerController extends GetxController {
     _queueIndexWorker?.dispose();
     _queuePlaylistWorker?.dispose();
     _currentSongWorker?.dispose();
-    _likedIdsWorker?.dispose();
+    _likedIdsSub?.cancel();
     // lyricController 不再 dispose, 由 [LyricsService] (permanent: true) 跨 widget 生命周期拥有
     super.onClose();
   }
