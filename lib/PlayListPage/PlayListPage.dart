@@ -18,41 +18,45 @@ class PlayListPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Get.find<PlayListController>();
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
-        Get.back(id: AppShell.shellNavigatorId);
-        return;
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            onPressed: () => Get.back(id: AppShell.shellNavigatorId),
-            icon: const Icon(Icons.arrow_back),
-          ),
-          title: const Text('播放列表'),
+    // return PopScope(
+    //   canPop: false,
+    //   onPopInvokedWithResult: (didPop, result) {
+    //     Get.back();
+    //     return;
+    //   },
+    //   child: Scaffold(
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          onPressed: () => Get.back(),
+          icon: const Icon(Icons.arrow_back),
         ),
-        body: Obx(() {
-          // playlist / likedIds 变化都会触发整个列表重建
-          // SongRowTile 内部 Obx 进一步控制 fav button 精细重建
-          return SongListBody(
-            songs: controller.playlist.toList(),
-            isLoading: false,
-            // SongListBody.onPlay 收 Song；controller.selectIndex 收 int
-            onPlay: (song) {
-              final list = controller.playlist;
-              final i = list.indexWhere((s) => s.id == song.id);
-              if (i >= 0) controller.selectIndex(i);
-            },
-            // 喜爱 / 不喜爱 (isLiked 内部读 likedIds.value → Obx 跟踪)
-            isLiked: (song) => controller.isLiked(song.id),
-            onToggleFavorite: (song) => controller.toggleFavorite(song.id),
-            extraTrailing: (song, index) =>
-                RemoveIconButton(song: song, index: index),
-            selectedHighlight: controller.currentIndex.value,
-          );
-        }),
+        title: const Text('播放列表'),
       ),
+      body: Obx(() {
+        // playlist / likedIds 变化都会触发整个列表重建
+        // SongRowTile 内部 Obx 进一步控制 fav button 精细重建
+        if (Get.isLogEnable) {
+          Get.log('[PlayListPage] Obx rebuild playlist.length=${controller.playlist.length}');
+        }
+        return SongListBody(
+          songs: controller.playlist.toList(),
+          isLoading: false,
+          // SongListBody.onPlay 收 Song；controller.selectIndex 收 int
+          onPlay: (song) {
+            final list = controller.playlist;
+            final i = list.indexWhere((s) => s.id == song.id);
+            if (i >= 0) controller.selectIndex(i);
+          },
+          // 喜爱 / 不喜爱 (isLiked 内部读 likedIds.value → Obx 跟踪)
+          isLiked: (song) => controller.isLiked(song.id),
+          onToggleFavorite: (song) => controller.toggleFavorite(song.id),
+          extraTrailing: (song, index) =>
+              RemoveIconButton(song: song, index: index),
+          selectedHighlight: controller.currentIndex.value,
+        );
+      }),
+      // ),
     );
   }
 }

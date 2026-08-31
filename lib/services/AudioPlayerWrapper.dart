@@ -114,6 +114,12 @@ class AudioPlayerService extends GetxController {
   StreamSubscription<List<MediaItem>>? _queueSub;
   StreamSubscription<bool>? _currentSongLikedSub;
   StreamSubscription<PlayOrder>? _playOrderSub;
+  // 持久化触发器: handler.mediaItem / .queue / .playOrder 任一变化 → debounce → _persist()
+  // 覆盖 wrapper 没显式包装的命令 (skipToNext/Previous/自然播完/seek/setPlayOrder)
+  Timer? _persistDebounce;
+  // 启动恢复期间不写盘: init() 末尾的 skipToQueueItem+pause 会触发 mediaItem/queue 流,
+  // 这时若挂上 persist listener 会把"刚恢复的值"再写回磁盘,虽然语义上等价但属于浪费 IO。
+  bool _persistReady = false;
 
   // 不 override onInit: GetX 的 _onStart 同步调用 onInit() 并丢弃 future
   // (见 package:get/get_instance/src/lifecycle.dart _onStart):
@@ -202,6 +208,7 @@ class AudioPlayerService extends GetxController {
     // 后主动 emit, wrapper 只读不写, 单向流)
     _playOrderSub = audioHandler.playOrder.listen((order) {
       _modeRx.value = order;
+      _schedulePersist(); // 模式切换也要写盘 (之前 setPlayOrder 漏掉了)
     });
     // broadcast 无 replay: 兜底刷一次 (handler 构造时已 emit 初始值, 但
     // 如果 init() 跑在 handler 构造**之前** (本次不会,但兜底), 订阅就会
@@ -220,10 +227,30 @@ class AudioPlayerService extends GetxController {
       await audioHandler.skipToQueueItem(initialIndex);
       await audioHandler.pause();
     }
+
+    // ---- 持久化自动触发已就绪 ----
+    // init() 上半段 (行 187-209) 已经在 _onMediaItem / _onQueue / playOrder
+    // listener 内部追加了 _schedulePersist() 调用,覆盖所有状态变化路径:
+    //   - skipToNext/Previous → handler 内部 _playAt → mediaItem.add
+    //   - 自然播完推进      → playerStateStream.completed → _playAt → mediaItem.add
+    //   - skipToQueueItem   → 同上
+    //   - setPlayOrder      → handler 内部 _playOrder = ... → playOrder.add
+    //   - setQueue/updateQueue → queue.add
+    // 设置 flag 让 listener 在恢复期结束后开始写盘 (避免 init() 末尾的
+    // skipToQueueItem+pause 触发的 emit 把"刚恢复的值"再写回 —— 虽然语义
+    // 上等价,但属于浪费 IO,且容易干扰调试日志)。
+    _persistReady = true;
   }
 
   @override
   void onClose() {
+    // 兜底: app 退出前最后写一次盘, 把 debounce 期间未刷的状态落盘
+    // (Android 杀进程时不保证 onClose 跑, 但 iOS / 用户主动 kill / GetX
+    //  路由销毁等场景能覆盖)
+    _persistDebounce?.cancel();
+    if (_persistReady) {
+      _persist();
+    }
     _stateSub?.cancel();
     _itemSub?.cancel();
     _queueSub?.cancel();
@@ -263,12 +290,17 @@ class AudioPlayerService extends GetxController {
     );
     // 业务层 currentIndex 同步
     _currentIndexSub.value = idx;
+    _schedulePersist(); // 当前索引变化 → 写盘 (覆盖 skipToNext/Previous/自然播完/skipToQueueItem/_playAt)
   }
 
   void _onQueue(List<MediaItem> q) {
+    if (Get.isLogEnable) {
+      Get.log('[AudioWrapper] _onQueue len=${q.length}');
+    }
     snapshot.value = snapshot.value.copyWith(queue: q);
     // 业务层同步:MediaItem 列表 → Song 列表
     playlist.assignAll(q.map(_itemToSong));
+    _schedulePersist(); // 队列变化 → 写盘 (覆盖 updateQueue/setQueue/addToQueue/insertToQueue)
   }
 
   // 注意:不再单独订阅 handler 的 currentIndex 变化。currentIndex 由 handler
@@ -359,7 +391,7 @@ class AudioPlayerService extends GetxController {
     // 不手动写 _currentIndexSub: handler skipToQueueItem → _playAt →
     // mediaItem.add 会回推 _onMediaItem,由它更新 (单向流,消除双写竞态)
     audioHandler.skipToQueueItem(index);
-    _persist();
+    _persist(); // 立即同步写一次 (handler 流上的 debounce 会再合并一次, 双保险)
   }
 
   /// 计算"下一首要播的索引"(不修改 currentIndex)
@@ -395,7 +427,7 @@ class AudioPlayerService extends GetxController {
     // 不写 playlist: handler 的 removeQueueItemAt 会更新 _queue 并通过
     // queue/mediaItem 流回推 _onQueue/_onMediaItem (彻底单向化)
     audioHandler.removeQueueItemAt(index);
-    _persist();
+    _persist(); // 立即同步写一次 (handler 流上的 debounce 会再合并一次, 双保险)
   }
 
   /// 加载多首歌作为整个队列(UI 调, 比如歌单页"播放全部")
@@ -430,6 +462,17 @@ class AudioPlayerService extends GetxController {
   }
 
   // ---- 持久化 (从老 PlayQueueService 迁来) ------------------------------------
+
+  /// debounce 写盘: 状态变化频繁时合并成一次磁盘 IO
+  ///
+  /// - 200ms 间隔足以合并 _playAt 中途的多次 mediaItem.add
+  ///   (handler 内部 _playAt 大约 emit 2 次: loading → ready)
+  /// - _persistReady = false 时跳过 (启动恢复期间不写盘,见 init 末尾注释)
+  void _schedulePersist() {
+    if (!_persistReady) return;
+    _persistDebounce?.cancel();
+    _persistDebounce = Timer(const Duration(milliseconds: 200), _persist);
+  }
 
   void _persist() {
     final box = GetStorage();

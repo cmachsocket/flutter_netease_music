@@ -114,7 +114,6 @@ class BottomPlayer extends StatelessWidget {
                       onPressed: () => Get.to(
                         () => PlayListPage(),
                         binding: PlayListBinding(),
-                        id: AppShell.shellNavigatorId,
                       ),
                     ),
                     portrait: (_) => SizedBox.shrink(),

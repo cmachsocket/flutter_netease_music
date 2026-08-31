@@ -144,10 +144,7 @@ class Player extends StatelessWidget {
               }),
               IconButton(
                 icon: const Icon(Icons.playlist_play),
-                onPressed: () => Get.to(
-                  () => const PlayListPage(),
-                  id: AppShell.shellNavigatorId,
-                ),
+                onPressed: () => Get.to(() => const PlayListPage()),
               ),
             ],
           ),
