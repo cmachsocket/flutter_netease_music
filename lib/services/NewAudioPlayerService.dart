@@ -162,6 +162,10 @@ class AudioPlayerService extends GetxController {
         if (e is Map)
           Song.fromJson(Map<String, dynamic>.from(e)).toMediaItem(
             artHeaders: NeteaseImageHeaders.neteaseImageHeaders,
+            // 传 Song.duration → MediaItem.duration → wrapper._itemToSong 时
+            // 还能正确还原 Song.duration (不然恢复后 playlist[i].duration == 0,
+            // UI 进度条 / 队列列表显示 0:00)
+            duration: Duration(seconds: (e['duration'] as int?) ?? 0),
           ),
     ];
     final initialIndex = (savedIdx >= 0 && savedIdx < initialItems.length)
@@ -266,11 +270,18 @@ class AudioPlayerService extends GetxController {
       audioHandler.skipToQueueItem(index);
 
   /// 替换整个队列。传入 Song 列表,内部翻成 MediaItem 并刷新 shuffle 映射。
+  ///
+  /// `duration: s.duration` 一起传入 MediaItem —— wrapper._itemToSong 翻译
+  /// 时会取回 Song.duration,这样 `playlist[i].duration` 在切歌前就有合理值
+  /// (否则 UI 进度条 / 队列列表里非当前歌曲显示 0:00)。
+  /// handler `_playAt` 后 just_audio durationStream 会 emit 真值,handler
+  /// 再用 `item.copyWith(duration: dur)` 覆盖一次(更准)。
   Future<void> setQueue(List<Song> songs, {int startIndex = 0}) {
     final items = songs
         .map(
           (s) => s.toMediaItem(
             artHeaders: NeteaseImageHeaders.neteaseImageHeaders,
+            duration: s.duration,
           ),
         )
         .toList();
@@ -349,7 +360,10 @@ class AudioPlayerService extends GetxController {
   }
 
   /// 加载多首歌作为整个队列(UI 调, 比如歌单页"播放全部")
-  void playSongs(List<Song> songs, {Song? startSong}) {
+  ///
+  /// 返回 [Future<void>] 让上层 controller 可以 await (e.g.
+  /// `SongListController.playPlaylistById` 等首屏数据 load 完再触发)。
+  Future<void> playSongs(List<Song> songs, {Song? startSong}) async {
     if (songs.isEmpty) return;
     final uniqueSongs = <Song>[];
     final seenIds = <String>{};
@@ -362,11 +376,12 @@ class AudioPlayerService extends GetxController {
         ? 0
         : uniqueSongs.indexWhere((s) => s.id == startSong.id);
     final finalStart = startIndex >= 0 ? startIndex : 0;
-    audioHandler.setQueue(
+    await audioHandler.setQueue(
       uniqueSongs
           .map(
             (s) => s.toMediaItem(
               artHeaders: NeteaseImageHeaders.neteaseImageHeaders,
+              duration: s.duration,
             ),
           )
           .toList(),

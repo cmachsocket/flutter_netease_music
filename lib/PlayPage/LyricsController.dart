@@ -14,9 +14,10 @@ import 'PlayerController.dart';
 /// API 走 wrapper。
 ///
 /// 生命周期:
-/// - **跟 PlayPage widget 走** (per-tab Get.lazyPut in HomePageBinding 这套
-///   GetxController 创建/销毁模式) — 不再 permanent
-/// - lyricController 实例跨切歌复用,但跨页路由销毁
+/// - **permanent: true**(main.dart 注册),跟 PlayerController 同生命周期
+/// - lyricController 实例跨切歌复用,跨页路由销毁
+/// - permanent 是为了跨路由(从 PlayerPage 跳到 PlayListPage 再回来)LyricView
+///   重新 mount 时能从 lyricNotifier.value 立刻拿到当前 lyric,不再重拉
 class LyricsController extends GetxController {
   final LyricController lyricController = LyricController();
 

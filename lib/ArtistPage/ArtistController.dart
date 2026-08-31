@@ -2,7 +2,7 @@ import 'package:get/get.dart';
 
 import '../models/Album.dart';
 import '../models/Song.dart';
-import '../services/PlayQueueService.dart';
+import '../services/NewAudioPlayerService.dart';
 import '../services/LikedService.dart';
 import '../services/repositories/artist_repository.dart';
 import '../models/Artist.dart';
@@ -23,7 +23,7 @@ class ArtistController extends GetxController {
   /// 路由传进来的艺人 ID
   final String artistId;
 
-  final PlayQueueService queue = Get.find<PlayQueueService>();
+  final AudioPlayerService queue = Get.find<AudioPlayerService>();
   final LikedService _likedService = Get.find<LikedService>();
   final ArtistRepository _artistRepo = Get.find<ArtistRepository>();
 

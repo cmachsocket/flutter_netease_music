@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -9,10 +8,7 @@ import 'AppShell.dart';
 import 'AppShellController.dart';
 import 'PlayPage/LyricsController.dart';
 import 'PlayPage/PlayerController.dart';
-import 'services/AudioPlayerService.dart';
-import 'services/LyricsService.dart';
-import 'services/PlaybackService.dart';
-import 'services/PlayQueueService.dart';
+import 'services/NewAudioPlayerService.dart';
 import 'sdk/netease_api.dart';
 import 'services/LikedService.dart';
 import 'services/repositories/lyrics_repository.dart';
@@ -35,9 +31,6 @@ Future<void> main() async {
   HttpOverrides.global = NeteaseHttpOverrides();
   await GetStorage.init();
   Get.put<ThemeController>(ThemeController(), permanent: true);
-  // services 除外:仍然在启动时创建,controller 交给各组件自己的 binding
-  Get.put<PlayQueueService>(PlayQueueService(), permanent: true);
-  Get.put<AudioPlayerService>(AudioPlayerService(), permanent: true);
   // 网易云 SDK:创建 NeteaseCloudMusicApi 实例 + 恢复持久化 cookie
   // (必须在 GetStorage.init 之后)
   await initNeteaseApi();
@@ -85,33 +78,40 @@ Future<void> main() async {
   // 单一 LikedService: 之前 4 个 service (Songs/Albums/Artists/Playlists) 都合并到这里,
   // 按 LikedType 分桶, API 调用走 LikedRepository
   Get.put<LikedService>(LikedService(), permanent: true);
-  // PlayerController 必须在 AudioService.init 之前 put,
-  // 因为 PlaybackService 内部 Get.find<PlayerController>() 依赖它存在
 
-  // LyricsService 内部 Get.find<LyricsRepository>, 上面 Repository 已 put
-  Get.put<LyricsService>(LyricsService(), permanent: true);
+  // ---- 音频服务层 (唯一入口) -----------------------------------------------
+  // NewAudioPlayerService 把"PlayQueueService + 老 AudioPlayerService +
+  // PlaybackService + LyricsService"四者吸收到一个 wrapper + handler:
+  //   - 业务 API: playlist / currentIndex / mode / selectIndex / setMode /
+  //     playSong / playSongs / removeSong / nextIndex / prevIndex / fetchLyric /
+  //     invalidateLyric
+  //   - 音频命令: play / pause / seek / skipToNext / skipToPrevious
+  //   - 状态聚合: Rx<PlaybackSnapshot> (isPlaying/processingState/position/
+  //     bufferedPosition/currentSong/queue/currentIndex/playOrder/isCurrentSongLiked)
+  //   - 后台: AudioService.init 在 wrapper.onInit 里跑 (handler 内部负责
+  //     audio_service + just_audio 桥接),单例 handler 暴露给锁屏/通知
+  //
+  // 注册顺序要求:
+  //   1. Repository (SongRepository / LyricsRepository / LikedService) 在前
+  //      (handler 构造依赖)
+  //   2. wrapper 在 PlayerController 之前:playerController.onInit 会 Get.find 它
+  //   3. PlayerController 在 LyricsController 之前:lyricsController 订阅 currentSong
+  //   4. 用 putAsync 等 wrapper.onInit 完成(handler 构造 + GetStorage hydrate +
+  //      5 路 stream 订阅就绪),否则 PlayerController.onInit 跟 wrapper.audioHandler
+  //      有竞态 (handler 异步构造但 audioHandler 字段是 late)
+  await Get.putAsync<AudioPlayerService>(() async {
+    final wrapper = AudioPlayerService();
+    // Get.putAsync 会等 onInit future 完成才 resolve
+    return wrapper;
+  }, permanent: true);
+
   Get.put<PlayerController>(PlayerController(), permanent: true);
-  // LyricsController 依赖 PlayerController (订阅 currentSong) + LyricsService (拉歌词).
-  // 注册顺序: LyricsService → PlayerController → LyricsController.
+  // LyricsController 依赖 PlayerController (订阅 currentSong) + wrapper.fetchLyric。
+  // 注册顺序: wrapper → PlayerController → LyricsController。
   // permanent: true 是为了 LyricController 跨 PlayPage 路由活 (跟 PlayerController 同生命周期),
   // 保证 Lyrics widget 任何时候 mount 都能从 lyricNotifier.value 拿到当前 lyric.
   Get.put<LyricsController>(LyricsController(), permanent: true);
-  // LyricsService 依赖 PlayerController (订阅 currentSong 自动拉歌词),
-  // audio_service: 初始化后台播放 handler
-  // - 必须在 WidgetsFlutterBinding.ensureInitialized() 之后 (官方文档要求)
-  // - 必须在 AudioPlayerService 注册之后 (PlaybackService 内部 Get.find 依赖)
-  // - builder 返回 PlaybackService 实例, AudioService.init 内部会立刻实例化一次
-  //   然后把它作为 AudioHandler 暴露给 native 侧
-  final playback = await AudioService.init<PlaybackService>(
-    builder: () => PlaybackService(),
-    config: const AudioServiceConfig(
-      androidNotificationChannelId: 'com.example.flutter_netease_music.audio',
-      androidNotificationChannelName: '网易云音乐播放',
-      androidNotificationOngoing: true,
-    ),
-  );
-  // 把 handler 也通过 Get 暴露给业务层(单例)
-  Get.put<PlaybackService>(playback, permanent: true);
+
   runApp(const FlutterNeteaseMusicApp());
 }
 

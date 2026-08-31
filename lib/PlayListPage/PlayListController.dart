@@ -3,20 +3,20 @@ import 'package:get/get.dart';
 import '../models/Song.dart';
 import '../PlayPage/PlayerController.dart';
 import '../services/LikedService.dart';
-import '../services/PlayQueueService.dart';
+import '../services/NewAudioPlayerService.dart';
 
 /// 播放列表页的 controller
 ///
 /// - 只负责播放列表页的渲染和交互
-/// - 实际队列数据由 [PlayQueueService] 维护
+/// - 实际队列数据由 [AudioPlayerService] 维护(wrapper 吸收了老 PlayQueueService)
 /// - like/dislike 走全局 [LikedService] (LikedType.song) (跟 SongListController 同思路)
 class PlayListController extends GetxController {
-  final PlayQueueService queue = Get.find<PlayQueueService>();
+  final AudioPlayerService queue = Get.find<AudioPlayerService>();
   final LikedService _likedService = Get.find<LikedService>();
 
   RxList<Song> get playlist => queue.playlist;
   RxInt get currentIndex => queue.currentIndex;
-  Rx<PlayMode> get mode => queue.mode;
+  Rx<PlayOrder> get mode => queue.mode;
 
   /// 选某一首开始播放 —— 走 PlayerController.selectIndex
   ///
@@ -26,7 +26,7 @@ class PlayListController extends GetxController {
   /// - PlayerController.selectIndex 改完 currentIndex 后手动调 `_scheduleQueueSync`,
   ///   无论值变没变都触发一次同步
   void selectIndex(int index) => Get.find<PlayerController>().selectIndex(index);
-  void setMode(PlayMode m) => queue.setMode(m);
+  void setMode(PlayOrder m) => queue.setPlayOrder(m);
   int nextIndex() => queue.nextIndex();
   int prevIndex() => queue.prevIndex();
   Future<void> playSong(Song song) => queue.playSong(song);
@@ -37,7 +37,7 @@ class PlayListController extends GetxController {
   /// 喜爱切换 → 走全局 [LikedService.toggle](LikedType.song)(乐观更新 + 后端持久化)
   ///
   /// - 跟 [SongListController.toggleFavorite] 同思路
-  /// - PlayQueueService 不管喜爱,喜爱是个人状态,不该绑在播放队列上
+  /// - wrapper 不管喜爱,喜爱是个人状态,不该绑在播放队列上
   void toggleFavorite(String songId) {
     // ignore: discarded_futures
     _likedService.toggle(songId, LikedType.song);

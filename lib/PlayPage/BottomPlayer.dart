@@ -7,7 +7,6 @@ import '../AppShell.dart';
 import 'PlayerController.dart';
 import '../PlayListPage/PlayListPage.dart';
 import '../PlayListPage/PlayListController.dart';
-import '../services/PlayQueueService.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import '../models/default.dart';
@@ -138,25 +137,15 @@ class BottomPlayer extends StatelessWidget {
     );
   }
 
-  /// 下一首:走 [PlayQueueService.nextIndex],由它决定 sequential/shuffle/repeatOne
+  /// 下一首:走 [PlayerController.next()] → wrapper.skipToNext,
+  /// handler `_neighbor(1)` 按 mode 计算索引 (sequential/shuffle/repeatOne 全覆盖)
   void _gotoNext(PlayListController playlist, PlayerController player) {
-    final next = playlist.nextIndex();
-    if (next < 0) return;
-    playlist.selectIndex(next);
-    if (playlist.mode.value == PlayMode.repeatOne) {
-      player.seek(Duration.zero);
-      player.play();
-    }
+    player.next();
   }
 
-  /// 上一首:走 [PlayQueueService.prevIndex]
+  /// 上一首:走 [PlayerController.prev()] → wrapper.skipToPrevious,
+  /// handler `_neighbor(-1)` 按 mode 计算索引
   void _gotoPrev(PlayListController playlist, PlayerController player) {
-    final prev = playlist.prevIndex();
-    if (prev < 0) return;
-    playlist.selectIndex(prev);
-    if (playlist.mode.value == PlayMode.repeatOne) {
-      player.seek(Duration.zero);
-      player.play();
-    }
+    player.prev();
   }
 }

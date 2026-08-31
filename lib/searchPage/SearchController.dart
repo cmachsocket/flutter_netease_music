@@ -7,7 +7,7 @@ import '../models/Album.dart';
 import '../models/Song.dart';
 import '../models/Artist.dart';
 import '../services/LikedService.dart';
-import '../services/PlayQueueService.dart';
+import '../services/NewAudioPlayerService.dart';
 import '../services/repositories/search_repository.dart';
 import '../services/repositories/song_repository.dart';
 
@@ -22,7 +22,7 @@ import '../services/repositories/song_repository.dart';
 class SearchController extends GetxController {
   final Rx<SearchType> type = SearchType.song.obs;
 
-  final PlayQueueService queue = Get.find<PlayQueueService>();
+  final AudioPlayerService queue = Get.find<AudioPlayerService>();
   final LikedService _likedService = Get.find<LikedService>();
   final SongRepository _songRepo = Get.find<SongRepository>();
   final SearchRepository _searchRepo = Get.find<SearchRepository>();

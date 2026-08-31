@@ -6,7 +6,7 @@ import 'PlayerController.dart';
 import '../models/default.dart';
 import '../PlayListPage/PlayListPage.dart';
 import '../PlayListPage/PlayListController.dart';
-import '../services/PlayQueueService.dart';
+import '../services/NewAudioPlayerService.dart';
 import '../widgets/linked_detail_text.dart';
 import 'MusicProgressbar.dart';
 import '../AppShell.dart';
@@ -157,57 +157,48 @@ class Player extends StatelessWidget {
   }
 
   void _gotoNext() {
-    final next = playlist.nextIndex();
-    if (next < 0) return;
-    playlist.selectIndex(next);
-    // repeatOne: nextIndex 返回同一首 → _syncQueueState 不会 reload,
-    // 手动 seek 到 0 重启播放
-    if (playlist.mode.value == PlayMode.repeatOne) {
-      controller.seek(Duration.zero);
-      controller.play();
-    }
+    // wrapper.skipToNext 内部 _neighbor(1) 按 mode 计算索引:
+    //   - sequential: +1 wrap
+    //   - shuffle:    走 _shuffleOrder 序列
+    //   - repeatOne:  返回 _currentIndex → handler _playAt 重置+play(同首从头)
+    // 一行覆盖三模式,不再需要上层判断 + 手动 seek(0) + play()
+    controller.next();
   }
 
   void _gotoPrev() {
-    final prev = playlist.prevIndex();
-    if (prev < 0) return;
-    playlist.selectIndex(prev);
-    if (playlist.mode.value == PlayMode.repeatOne) {
-      controller.seek(Duration.zero);
-      controller.play();
-    }
+    controller.prev();
   }
 
   /// 顺/乱/单 三模式循环 (sequential → shuffle → repeatOne → sequential)
-  static PlayMode _nextMode(PlayMode m) {
+  static PlayOrder _nextMode(PlayOrder m) {
     switch (m) {
-      case PlayMode.sequential:
-        return PlayMode.shuffle;
-      case PlayMode.shuffle:
-        return PlayMode.repeatOne;
-      case PlayMode.repeatOne:
-        return PlayMode.sequential;
+      case PlayOrder.sequential:
+        return PlayOrder.shuffle;
+      case PlayOrder.shuffle:
+        return PlayOrder.repeatOne;
+      case PlayOrder.repeatOne:
+        return PlayOrder.sequential;
     }
   }
 
-  static IconData _modeIcon(PlayMode m) {
+  static IconData _modeIcon(PlayOrder m) {
     switch (m) {
-      case PlayMode.sequential:
+      case PlayOrder.sequential:
         return Icons.repeat;
-      case PlayMode.shuffle:
+      case PlayOrder.shuffle:
         return Icons.shuffle;
-      case PlayMode.repeatOne:
+      case PlayOrder.repeatOne:
         return Icons.repeat_one;
     }
   }
 
-  static String _modeTooltip(PlayMode m) {
+  static String _modeTooltip(PlayOrder m) {
     switch (m) {
-      case PlayMode.sequential:
+      case PlayOrder.sequential:
         return '顺序播放';
-      case PlayMode.shuffle:
+      case PlayOrder.shuffle:
         return '随机播放';
-      case PlayMode.repeatOne:
+      case PlayOrder.repeatOne:
         return '单曲循环';
     }
   }
