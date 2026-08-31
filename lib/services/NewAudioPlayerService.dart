@@ -1,13 +1,16 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 
 import '../models/Headers.dart';
 import '../models/Song.dart';
 import 'LikedService.dart';
+import 'repositories/lyrics_repository.dart';
 import 'repositories/song_repository.dart';
 
 /// 播放顺序。影响 [AudioPlayerHandler._playOrder] 的索引推进策略。
@@ -90,7 +93,37 @@ class AudioPlayerService extends GetxController {
 
   final SongRepository _songRepo = Get.find<SongRepository>();
   final LikedService _likedService = Get.find<LikedService>();
+  final LyricsRepository _lyricsRepo = Get.find<LyricsRepository>();
   late final AudioPlayerHandler audioHandler;
+
+  // ---- 业务层 Rx 集合 (跟 UI / 上层 controller 交互用) ------------------------
+
+  /// 业务层队列 (Song 列表) — 与 handler 内部 [_queue] (MediaItem) 对应,
+  /// 由 [_onQueue] / [setQueue] 双向同步。UI / controller 走 [playlist] 拿 Song,
+  /// handler 走 [snapshot.queue] (MediaItem) 走 audio_service。
+  final RxList<Song> playlist = <Song>[].obs;
+
+  /// shuffle 模式专用: 这一轮里已播过的 song id 集合
+  /// 一轮播完清空,重新随机
+  final Set<String> _shufflePlayed = <String>{};
+  final Random _rng = Random();
+
+  // 持久化 (从老的 PlayQueueService 迁来)
+  static const _storageKey = 'playlist_v1';
+  static const _currentIndexKey = 'playlist_currentIndex_v1';
+  static const _modeKey = 'playlist_mode_v1';
+
+  int get headOfTheQueue => 0;
+  int get tailOfTheQueue => playlist.length - 1;
+
+  /// UI 订阅的 [currentIndex] (从 snapshot 读)。 走 wrapper 而不是 [snapshot.currentIndex]
+  /// 是为了跟其他 Rx (playlist) 同步变化触发 Obx 刷新。
+  RxInt get currentIndex => _currentIndexSub;
+  final RxInt _currentIndexSub = (-1).obs;
+
+  /// 播放顺序 (从 snapshot 读)
+  Rx<PlayOrder> get mode => _playOrderSub;
+  final Rx<PlayOrder> _playOrderSub = PlayOrder.sequential.obs;
 
   /// UI 唯一订阅点。任何播放相关变化都聚合到这一个 Rx。
   final Rx<PlaybackSnapshot> snapshot = Rx<PlaybackSnapshot>(
@@ -136,6 +169,9 @@ class AudioPlayerService extends GetxController {
     _currentSongLikedSub = audioHandler.currentSongLiked.listen((liked) {
       snapshot.value = snapshot.value.copyWith(isCurrentSongLiked: liked);
     });
+
+    // 业务层 hydrate (从 GetStorage 恢复 playlist / currentIndex / mode)
+    _hydrate();
   }
 
   @override
@@ -165,6 +201,7 @@ class AudioPlayerService extends GetxController {
         clearCurrentSong: true,
         currentIndex: -1,
       );
+      _currentIndexSub.value = -1;
       return;
     }
     final song = _itemToSong(item);
@@ -175,10 +212,14 @@ class AudioPlayerService extends GetxController {
       currentSong: song,
       currentIndex: idx,
     );
+    // 业务层 currentIndex 同步
+    _currentIndexSub.value = idx;
   }
 
   void _onQueue(List<MediaItem> q) {
     snapshot.value = snapshot.value.copyWith(queue: q);
+    // 业务层同步:MediaItem 列表 → Song 列表
+    playlist.assignAll(q.map(_itemToSong));
   }
 
   // 注意:不再单独订阅 handler 的 currentIndex 变化。currentIndex 由 handler
@@ -223,8 +264,169 @@ class AudioPlayerService extends GetxController {
     await setQueue([song], startIndex: 0);
   }
 
-  Future<void> setPlayOrder(PlayOrder order) =>
-      audioHandler.setPlayOrder(order);
+  Future<void> setPlayOrder(PlayOrder order) {
+    _playOrderSub.value = order;
+    return audioHandler.setPlayOrder(order);
+  }
+
+  // ---- 歌词 (转发到 LyricsRepository) -----------------------------------------
+
+  /// 拉取 songId 的歌词 (按 songId 缓存)。LyricsService 删了,走这里。
+  Future<String?> fetchLyric(String songId) => _lyricsRepo.fetch(songId);
+
+  /// 清歌词缓存 (用户手动刷新时调)。
+  void invalidateLyric([String? songId]) => _lyricsRepo.invalidate(songId);
+
+  // ---- 队列/模式业务 API (从老 PlayQueueService 迁来) -------------------------
+
+  /// 选某一首开始播放 (UI 点队列里的某一首)
+  void selectIndex(int index) {
+    if (index < 0 || index >= playlist.length) return;
+    _currentIndexSub.value = index;
+    audioHandler.skipToQueueItem(index);
+    if (mode.value == PlayOrder.shuffle) {
+      _shufflePlayed
+        ..clear()
+        ..add(playlist[index].id);
+    }
+    _persist();
+  }
+
+  /// 计算"下一首要播的索引"(不修改 currentIndex)
+  int nextIndex() {
+    if (playlist.isEmpty) return -1;
+    switch (mode.value) {
+      case PlayOrder.sequential:
+        return (_currentIndexSub.value + 1) % playlist.length;
+      case PlayOrder.shuffle:
+        return _nextShuffleIndex();
+      case PlayOrder.repeatOne:
+        return _currentIndexSub.value;
+    }
+  }
+
+  /// 计算"上一首要播的索引"(不修改 currentIndex)
+  int prevIndex() {
+    if (playlist.isEmpty) return -1;
+    switch (mode.value) {
+      case PlayOrder.sequential:
+        final p = _currentIndexSub.value - 1;
+        return p < headOfTheQueue ? tailOfTheQueue : p;
+      case PlayOrder.shuffle:
+        return _nextShuffleIndex();
+      case PlayOrder.repeatOne:
+        return _currentIndexSub.value;
+    }
+  }
+
+  int _nextShuffleIndex() {
+    if (playlist.length == 1) return headOfTheQueue;
+
+    final allPlayed = _shufflePlayed.length >= playlist.length;
+    if (allPlayed) {
+      _shufflePlayed.clear();
+    }
+
+    final candidates = <int>[];
+    for (var i = headOfTheQueue; i < playlist.length; i++) {
+      if (!_shufflePlayed.contains(playlist[i].id)) {
+        candidates.add(i);
+      }
+    }
+    if (candidates.isEmpty) return _currentIndexSub.value;
+
+    final pick = candidates[_rng.nextInt(candidates.length)];
+    _shufflePlayed.add(playlist[pick].id);
+    return pick;
+  }
+
+  /// 队列里删一首 (UI 调)
+  void removeSong(int index) {
+    if (index < headOfTheQueue || index > tailOfTheQueue) return;
+    if (mode.value == PlayOrder.shuffle &&
+        _shufflePlayed.contains(playlist[index].id)) {
+      _shufflePlayed.remove(playlist[index].id);
+    }
+    playlist.removeAt(index);
+    audioHandler.removeQueueItemAt(index);
+    if (playlist.isEmpty) {
+      _currentIndexSub.value = 0;
+    } else if (index < _currentIndexSub.value) {
+      _currentIndexSub.value -= 1;
+    } else if (index == _currentIndexSub.value) {
+      if (_currentIndexSub.value >= playlist.length) {
+        _currentIndexSub.value = tailOfTheQueue;
+      }
+    }
+    _persist();
+  }
+
+  /// 加载多首歌作为整个队列(UI 调, 比如歌单页"播放全部")
+  void playSongs(List<Song> songs, {Song? startSong}) {
+    if (songs.isEmpty) return;
+    final uniqueSongs = <Song>[];
+    final seenIds = <String>{};
+    for (final song in songs) {
+      if (seenIds.add(song.id)) uniqueSongs.add(song);
+    }
+    playlist.assignAll(uniqueSongs);
+    final startIndex = startSong == null
+        ? headOfTheQueue
+        : playlist.indexWhere((s) => s.id == startSong.id);
+    final finalStart = startIndex >= headOfTheQueue ? startIndex : headOfTheQueue;
+    audioHandler.setQueue(
+      playlist
+          .map((s) => s.toMediaItem(artHeaders: NeteaseImageHeaders.neteaseImageHeaders))
+          .toList(),
+      startIndex: finalStart,
+    );
+    _currentIndexSub.value = finalStart;
+    _resetShuffleRound();
+    _persist();
+  }
+
+  /// shuffle 轮询重置 (queue 替换/清空时调)
+  void _resetShuffleRound() {
+    _shufflePlayed.clear();
+    if (mode.value == PlayOrder.shuffle && playlist.isNotEmpty) {
+      _shufflePlayed.add(playlist[_currentIndexSub.value].id);
+    }
+  }
+
+  // ---- 持久化 (从老 PlayQueueService 迁来) ------------------------------------
+
+  void _hydrate() {
+    final box = GetStorage();
+    final raw = box.read<List>(_storageKey);
+    if (raw != null && raw.isNotEmpty) {
+      playlist.assignAll(
+        raw
+            .whereType<Map>()
+            .map((e) => Song.fromJson(Map<String, dynamic>.from(e)))
+            .toList(),
+      );
+    }
+    final savedIdx = box.read<int>(_currentIndexKey) ?? 0;
+    _currentIndexSub.value = (savedIdx >= headOfTheQueue && savedIdx <= tailOfTheQueue)
+        ? savedIdx
+        : headOfTheQueue;
+    final savedMode = box.read<String>(_modeKey);
+    _playOrderSub.value = _decodeMode(savedMode);
+  }
+
+  void _persist() {
+    final box = GetStorage();
+    box.write(_storageKey, playlist.map((s) => s.toJson()).toList());
+    box.write(_currentIndexKey, _currentIndexSub.value);
+    box.write(_modeKey, _playOrderSub.value.name);
+  }
+
+  static PlayOrder _decodeMode(String? s) {
+    for (final m in PlayOrder.values) {
+      if (m.name == s) return m;
+    }
+    return PlayOrder.sequential;
+  }
 
   // ---- helpers -----------------------------------------------------------------
 

@@ -127,7 +127,7 @@ class LikedService extends GetxService {
     }
     try {
       await _toggleApi(id, next, type);
-    } on ApiException catch (e) {
+    } on ApiException {
       if (next) {
         bucket.remove(id);
       } else {
