@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' hide SearchController;
 import 'package:get/get.dart';
 
+import '../models/default.dart';
 import '../AppShell.dart';
 import '../ArtistPage/ArtistDetail.dart';
 import '../SongListPage/SongListBody.dart';
@@ -119,7 +120,7 @@ class _AlbumGridView extends StatelessWidget {
         toCard: (a) => SongListCard(
           playlistId: 'album-${a.id}',
           title: a.name,
-          subtitle: '${a.type.label} · ${a.songCount}首',
+          subtitle: '${a.songCount}首',
           imageUrl: a.coverUrl,
           isLiked: () => c.isAlbumLiked(a.id),
           onToggleFavorite: () => c.toggleAlbumLike(a.id),
@@ -196,7 +197,7 @@ class _PlaylistGridView extends StatelessWidget {
         toCard: (p) => SongListCard(
           playlistId: p.id,
           title: p.name,
-          subtitle: '${p.creatorName} · ${p.trackCount}首',
+          subtitle: '${p.trackCount}首',
           imageUrl: p.coverUrl,
           isLiked: () => c.isPlaylistLiked(p.id),
           onToggleFavorite: () => c.togglePlaylistLike(p.id),
@@ -216,9 +217,17 @@ Widget _grid<T>({
   required List<T> items,
   required Widget Function(T item) toCard,
 }) {
-  return AspectDrivenGrid(
-    itemCount: items.length,
-    itemBuilder: (context, index) => toCard(items[index]),
+  return OrientationBuilder(
+    builder: (context, orientation) {
+      final aspectRatio = orientation == Orientation.portrait
+          ? DefaultValues.portraitGridChildAspectRatio
+          : DefaultValues.landscopeGridChildAspectRatio;
+      return AspectDrivenGrid(
+        childAspectRatio: aspectRatio,
+        itemCount: items.length,
+        itemBuilder: (context, index) => toCard(items[index]),
+      );
+    },
   );
 }
 

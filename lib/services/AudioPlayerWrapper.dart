@@ -207,6 +207,19 @@ class AudioPlayerService extends GetxController {
     // 如果 init() 跑在 handler 构造**之前** (本次不会,但兜底), 订阅就会
     // 漏掉初始 emit)
     audioHandler.refreshPlayOrder();
+
+    // ---- 启动恢复: 触发 _playAt → fetch URL → setUrl -----------------------
+    // 之前 handler 只接了 initialQueue/initialIndex, 从不调 _playAt,
+    // 所以 just_audio 从未 setUrl, 用户点播放时 _audio.play() 是 no-op (没 source)
+    // 这里 skipToQueueItem 走 handler override (行 274) → _playAt(index),
+    // 会 fetch URL + setUrl + 把 currentIndex 写进 MediaItem.extras。
+    // 紧跟一个 pause() 保持"已恢复但不自动出声", 等用户点播放才 resume。
+    // (后续如果想恢复 wasPlaying 状态, 改成持久化 + 读 bool 即可,
+    //  本次先解决"点了没反应"这个最低优先级问题)
+    if (initialIndex >= 0 && initialItems.isNotEmpty) {
+      await audioHandler.skipToQueueItem(initialIndex);
+      await audioHandler.pause();
+    }
   }
 
   @override
