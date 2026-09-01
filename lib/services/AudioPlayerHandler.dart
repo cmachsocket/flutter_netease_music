@@ -56,7 +56,11 @@ class AudioPlayerHandler extends BaseAudioHandler
 
     // queue / mediaItem 是 BehaviorSubject (带当前值 replay):
     // wrapper 订阅后立即拿到初始队列与当前歌, 真相状态在 handler 落地
-    queue.add(List.unmodifiable(_queue));
+    // 跟 super.updateQueue 同样的原因: audio_service QueueHandler.updateQueue
+    // 内部对 nvalue 做原地修改, 这里 add 的 list 会被缓存进 nvalue, 之后
+    // 任何 setQueue/updateQueue 调用都会因为 replaceRange unmodifiable 抛错。
+    // 所以推可变 list 进去 (用 .toList() 防止外部后续改 _queue 影响 nvalue)。
+    queue.add(_queue.toList());
     mediaItem.add(_currentItem);
     // playOrder 是 broadcast (无 replay): handler 构造时 emit 一次初始值,
     // wrapper 订阅后立刻拿到 (或在 onInit 里调 refreshPlayOrder 兜底)。
@@ -267,7 +271,12 @@ class AudioPlayerHandler extends BaseAudioHandler
 
     final clampedStart = startIndex.clamp(0, _queue.length - 1);
     await _playAt(clampedStart);
-    await super.updateQueue(List.unmodifiable(_queue));
+    // 传 _queue.toList() 而不是 List.unmodifiable(_queue):
+    // audio_service QueueHandler.updateQueue 内部对传入 list 做 replaceRange
+    // 原地修改, 传 unmodifiable 第二次调用就会抛
+    // "Cannot remove from an unmodifiable list" (这个 list 会被缓存进 nvalue)。
+    // 这里 _queue 本身就是可变的 List, 直接给一个浅拷贝即可。
+    await super.updateQueue(_queue.toList());
   }
 
   @override
@@ -340,7 +349,10 @@ class AudioPlayerHandler extends BaseAudioHandler
       }
       // 删除后面的歌:_currentIndex 不变,queue 已经更新,wrapper 通过 _onQueue 收新列表
     }
-    await super.updateQueue(List.unmodifiable(_queue));
+    // 跟 setQueue 同样的原因: audio_service QueueHandler.updateQueue 内部
+    // 会对 nvalue 做原地修改, 不能传 unmodifiable (会抛 "Cannot remove from
+    // an unmodifiable list" 且 nvalue 缓存了 unmodifiable 之后所有路径都炸)
+    await super.updateQueue(_queue.toList());
   }
 
   @override

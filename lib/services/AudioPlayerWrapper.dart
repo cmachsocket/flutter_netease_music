@@ -65,8 +65,14 @@ class AudioPlayerService extends GetxController {
   ///     **强制要求** (audio_service 的 assert: ongoing=true 时 stopOnPause
   ///     必须 true, 否则 debug 崩溃)
   ///   - `androidResumeOnClick: true` (默认): 点通知恢复播放
-  ///   - `preloadArtwork: true`: 加入队列就开始下载封面, 锁屏控件显示
-  ///     时不用等待下载
+  ///   - `preloadArtwork: false` (原本是 true): 加入队列时 audio_service 后台
+  ///     isolate 会启动 `_loadAllArtwork` 异步下载所有歌的封面, 但它迭代的
+  ///     list 跟 QueueHandler.updateQueue 内部 `nvalue..replaceRange` 是同一份
+  ///     (audio_service 0.18.19 QueueHandler.updateQueue.dart:3323 在 nvalue 上
+  ///     原地修改而不是换 nvalue 实例) —— 频繁 setQueue 时下次 iteration 期间
+  ///     上次迭代还没跑完, nvalue 被原地改 → "Concurrent modification during
+  ///     iteration" unhandled exception。锁屏/通知封面只在显示时才下载, 延迟
+  ///     一两秒换来不崩, 划算。
   ///   - `artDownscaleWidth/Height: 800`: 网易云封面动辄 1000+px, 锁屏控件
   ///     用 800x800 已经够清晰, 避免大图 OOM (尤其播放队列长时)
   ///   - `fastForwardInterval/rewindInterval: 15s`: 锁屏快进/快退步长。
@@ -77,7 +83,7 @@ class AudioPlayerService extends GetxController {
     androidNotificationChannelDescription: '后台播放与媒体控制',
     androidNotificationOngoing: true,
     androidStopForegroundOnPause: true,
-    preloadArtwork: true,
+    preloadArtwork: false,
     artDownscaleWidth: 800,
     artDownscaleHeight: 800,
   );
