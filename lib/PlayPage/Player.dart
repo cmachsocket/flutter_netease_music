@@ -8,7 +8,6 @@ import '../PlayListPage/PlayListPage.dart';
 import '../PlayListPage/PlayListController.dart';
 import '../widgets/linked_detail_text.dart';
 import 'MusicProgressbar.dart';
-import '../AppShell.dart';
 import '../models/Snapshot.dart' show PlayOrder;
 
 class Player extends StatelessWidget {

@@ -3,7 +3,6 @@ import '../widgets/song_cover.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'Player.dart';
-import '../AppShell.dart';
 import 'PlayerController.dart';
 import '../PlayListPage/PlayListPage.dart';
 import 'package:responsive_builder/responsive_builder.dart';

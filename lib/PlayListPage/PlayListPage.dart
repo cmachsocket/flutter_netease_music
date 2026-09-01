@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 import '../SongListPage/SongListBody.dart';
 import 'PlayListController.dart';
 import '../models/Song.dart';
-import '../AppShell.dart';
 
 /// 播放列表页
 ///
@@ -37,7 +36,9 @@ class PlayListPage extends StatelessWidget {
         // playlist / likedIds 变化都会触发整个列表重建
         // SongRowTile 内部 Obx 进一步控制 fav button 精细重建
         if (Get.isLogEnable) {
-          Get.log('[PlayListPage] Obx rebuild playlist.length=${controller.playlist.length}');
+          Get.log(
+            '[PlayListPage] Obx rebuild playlist.length=${controller.playlist.length}',
+          );
         }
         return SongListBody(
           songs: controller.playlist.toList(),
