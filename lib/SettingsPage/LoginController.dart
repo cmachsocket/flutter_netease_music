@@ -128,7 +128,10 @@ class LoginController extends GetxController {
 
   /// 登录 —— 委托给 [AuthController.login]
   ///
-  /// - 成功 → 弹 "登录成功" SnackBar + 回到 Settings 页
+  /// - 成功 → 先 [Get.back] 退回 Settings, 再弹"登录成功" SnackBar
+  ///   (顺序重要: 先 back 让 LoginPage 销毁、Settings 进入当前路由, 再 snackbar
+  ///   才能挂在 Settings 的 overlay 上; 反过来 snackbar 会在 LoginPage 被 pop
+  ///   时一起被销毁, 用户看不到任何提示)
   /// - 失败 → 弹 SnackBar 提示 (具体错误在 [AuthController.login] 内部已处理)
   void login() async {
     if (!canLogin) return;
@@ -140,12 +143,14 @@ class LoginController extends GetxController {
         countryCode: countryCode,
       );
       if (ok) {
+        Get.back(id: AppShell.shellNavigatorId);
+        // snackbar 在 back 之后调, 挂在 Settings 的 overlay 上,
+        // 不会被 back 的 route dispose 一起干掉
         Get.snackbar(
           '登录成功',
           '已保存登录状态, 下次启动自动恢复',
           snackPosition: SnackPosition.BOTTOM,
         );
-        Get.back(id: AppShell.shellNavigatorId);
       } else {
         Get.snackbar(
           '登录失败',

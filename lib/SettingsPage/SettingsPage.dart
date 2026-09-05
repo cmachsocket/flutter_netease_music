@@ -21,9 +21,12 @@ class Settings extends StatelessWidget {
   );
 
   /// 退出登录入口(已登录态才显示):走 [AuthController.logout],
-  /// 不依赖 LoginController(用户可能从没进过 LoginPage,LoginController 未注入)
   static void _doLogout() {
-    Get.find<LoginController>().logout();
+    final loginCtrl = Get.isRegistered<LoginController>()
+        ? Get.find<LoginController>()
+        : Get.put(LoginController());
+    loginCtrl.logout();
+    Get.delete<LoginController>();
     Get.snackbar('已退出', '本地登录态已清除', snackPosition: SnackPosition.BOTTOM);
   }
 

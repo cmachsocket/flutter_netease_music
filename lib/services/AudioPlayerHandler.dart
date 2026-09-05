@@ -488,7 +488,46 @@ class AudioPlayerHandler extends BaseAudioHandler
       },
     );
 
-    await _audio.setUrl(url);
+    // setUrl 内部走 ExoPlayer prepare,会因 url 过期 / VIP / 地区限制 / 临时
+    // 5xx 抛 PlatformException (codec 0 = SourceError)。不 catch 会沿
+    // main.dart:107 Get.putAsync 的 builder await 链冒泡,GetX putAsync
+    // 不吞 future 异常 → app 启动直接 unhandled 崩。这里 catch 后 emit
+    // idle playbackState,wrapper 端 UI 能感知到失败;具体要不要自动 skipToNext
+    // 由 wrapper/UI 层决定 (handler 不替上层做播放策略, 单向流)。
+    try {
+      await _audio.setUrl(url);
+    } catch (e, st) {
+      // stale 校验同上面: await 期间用户切歌就丢弃这次失败,别污染当前状态
+      if (_currentIndex != queueIndex) return;
+      // 标识这首起不来,UI 可以走 snackbar 路径
+      _queue[queueIndex] = _queue[queueIndex].copyWith(
+        extras: {
+          ...?_queue[queueIndex].extras,
+          'loadError': e.toString(),
+        },
+      );
+      mediaItem.add(_queue[queueIndex]);
+      playbackState.add(playbackState.value.copyWith(
+        playing: false,
+        processingState: AudioProcessingState.idle,
+        controls: _buildControls(isCurrentSongLiked: _likedService.isLiked(
+          _queue[queueIndex].id,
+          LikedType.song,
+        )),
+        // audio_service exposes this as an integer (there is no
+        // AudioServiceErrorCode enum in the version used by this project).
+        errorCode: 0,
+        errorMessage: 'setUrl failed: $e',
+      ));
+      // 跟 playerStateStream listener 一样保留 stack,debug 时能看
+      assert(() {
+        // ignore: avoid_print
+        print('AudioPlayerHandler._playAt: setUrl failed at idx=$queueIndex\n$st');
+        return true;
+      }());
+      return;
+    }
+
     mediaItem.add(_queue[queueIndex]);
 
     // repeatOne 不需要重新 prepare;sequential/shuffle 已经在 setUrl 后 just_audio

@@ -104,10 +104,12 @@ class NeteaseApi extends GetxService {
   /// - 解析 `headers['Set-Cookie']` 字符串(多 cookie 用逗号分隔)
   /// - 写到 GetStorage
   /// - 调用 [raw.set_cookie] 让后续请求带身份
-  ///  - 返回 false: 没拿到任何 cookie,不写入 SDK / GetStorage
+  ///  - 返回空 Map: 没拿到任何 cookie,不写入 SDK / GetStorage
+  ///    (返回 `{}` 而不是 `const {}` —— 后者会被 dart 类型推断成 const empty
+  ///    Map, 虽然这里使用没问题, 但避免调用方误判 `== const {}`)
   Map<String, String> applyLoginCookie(MusicResponse response) {
     final cookies = parseCookieString(response.cookies);
-    if (cookies.isEmpty) return const {};
+    if (cookies.isEmpty) return <String, String>{};
     raw.set_cookie(cookies);
     final box = GetStorage();
     box.write(_cookieStorageKey, cookies);
@@ -184,6 +186,29 @@ class NeteaseApi extends GetxService {
     box.remove(_uidStorageKey);
     box.write(_loggedInKey, false);
     return true;
+  }
+
+  /// 当前是否已登录 (从 GetStorage `_loggedInKey` 读, 跟 SDK cookie 状态一致)
+  ///
+  /// - 之前 AuthController 想判断登录态走 [getCookiesByCheckLogin] (/login/status),
+  ///   但那个接口响应不 Set-Cookie, 永远返回空 Map, 拿不到登录态
+  /// - 这个 getter 直接读 SDK 自己写的 `_loggedInKey` flag (applyLoginCookie
+  ///   写 true, logout 写 false), 单一真相源, 不依赖接口响应
+  bool isLoggedIn() => GetStorage().read<bool>(_loggedInKey) ?? false;
+
+  /// 读 SDK 持久化的身份 cookie map (登录后才有内容)
+  ///
+  /// - applyLoginCookie 写到 `_cookieStorageKey` 的那份 (auth cookie, MUSIC_U 等)
+  /// - 跟匿名 cookie (`_anonCookieStorageKey`, NMTID/NMSCVT) 区分:
+  ///   调用方 (AuthController.loadAuthInfo) 只关心身份 cookie,匿名的不算登录
+  /// - 返回类型稳定为 Map<String, String>: GetStorage 读出来是 Map<dynamic, dynamic>,
+  ///   转一层 key/value.toString()
+  Map<String, String> getSavedAuthCookie() {
+    final raw = GetStorage().read<Map>(_cookieStorageKey);
+    if (raw == null || raw.isEmpty) return <String, String>{};
+    return {
+      for (final e in raw.entries) e.key.toString(): e.value.toString(),
+    };
   }
 
   /// 获取并应用**游客 cookie**(`/register/anonimous`)
