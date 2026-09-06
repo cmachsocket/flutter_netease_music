@@ -37,7 +37,12 @@ class SongRepository extends GetxService {
       if (data is! List || data.isEmpty) return null;
       final first = data.first;
       if (first is! Map) return null;
-      return (first['url'] as String?)?.toString();
+      final rawUrl = (first['url'] as String?)?.toString();
+      if (rawUrl == null || rawUrl.isEmpty) return null;
+      final url = rawUrl.startsWith('http://')
+          ? rawUrl.replaceFirst('http://', 'https://')
+          : rawUrl;
+      return url;
     } on ApiException {
       return null;
     }
