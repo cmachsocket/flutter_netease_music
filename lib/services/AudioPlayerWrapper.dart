@@ -153,7 +153,18 @@ class AudioPlayerService extends GetxController {
   Future<void> init() async {
     // MediaKit init 是同步阻塞,在 init() 里完成。
     // 后续 setUrl/play 直接用,不需要再 await ready(竞态源)。
-    JustAudioMediaKit.ensureInitialized();
+    //
+    // 显式按平台 enable: pubspec 装齐了 android/linux/windows lib 包,
+    // 但默认 android/iOS/macOS 是 false。如果不显式打开,Android 上
+    // media_kit 后端永远不会被激活,setUrl 走 just_audio 默认 ExoPlayer
+    // (网易云 CDN + ExoPlayer 首 chunk 同步 sniff 是打开 Player 冻屏的根因)。
+    // 各平台 flag 跟 pubspec 装的 *_libs_<platform>_audio 包一一对应,
+    // 删包同步删 flag (忘删会抛 Cannot find libmpv.so)。
+    JustAudioMediaKit.ensureInitialized(
+      android: true, // dependency: media_kit_libs_android_audio
+      linux: true, // dependency: media_kit_libs_linux
+      windows: true, // dependency: media_kit_libs_windows_audio
+    );
 
     // ---- 持久化恢复: 在 handler 构造前同步读 GetStorage, 把真相状态
     // (queue / currentIndex / mode) 作为 handler 的初始值传入。
