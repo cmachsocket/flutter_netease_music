@@ -241,8 +241,24 @@ class AudioPlayerService extends GetxController {
     // (后续如果想恢复 wasPlaying 状态, 改成持久化 + 读 bool 即可,
     //  本次先解决"点了没反应"这个最低优先级问题)
     if (initialIndex >= 0 && initialItems.isNotEmpty) {
-      await audioHandler.skipToQueueItem(initialIndex);
-      await audioHandler.pause();
+      // 启动恢复: 触发 _playAt → fetch URL → setUrl -----------------------
+      // 之前 handler 只接了 initialQueue/initialIndex, 从不调 _playAt,
+      // 所以 just_audio 从未 setUrl, 用户点播放时 _audio.play() 是 no-op (没 source)
+      // 这里 skipToQueueItem 走 handler override (行 274) → _playAt(index),
+      // 会 fetch URL + setUrl + 把 currentIndex 写进 MediaItem.extras。
+      // 紧跟一个 pause() 保持"已恢复但不自动出声", 等用户点播放才 resume。
+      //
+      // **不在这里 await**: fetchSongUrl 是同步 HTTP 请求 (走 music.163.com),
+      // 在 Android 上 median 100-500ms, 移动网络/Wi-Fi 不稳时可能 1-3s,
+      // 且 Get.putAsync 会 await builder() 整链, 这一 await 会阻塞 runApp(),
+      // 用户看到闪屏一直卡住 (但 audio 已在播: media_kit 后端在 background
+      // isolate 上跑 setUrl, 跟主 isolate 等待是独立的)。
+      // 改成 fire-and-forget: AudioService.init 已经返回, 音频层可用,
+      // 可以后台恢复,UI 立刻渲染,不阻塞冷启动。
+      // ignore: discarded_futures
+      audioHandler
+          .skipToQueueItem(initialIndex)
+          .then((_) => audioHandler.pause());
     }
 
     // ---- 持久化自动触发已就绪 ----
