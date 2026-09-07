@@ -1,4 +1,5 @@
 import 'package:meta/meta.dart';
+import 'package:flutter/material.dart';
 
 @sealed
 class DefaultValues {
@@ -9,4 +10,6 @@ class DefaultValues {
   static const double landscopeArtistGridChildAspectRatio = 0.78;
   static const double portraitArtistGridChildAspectRatio = 0.70;
   static const double squardRatio = 1.0;
+  // 唯一的硬编码size
+  static const EdgeInsets onlyZero = EdgeInsets.only(left: 0, right: 0);
 }

@@ -8,6 +8,7 @@ import '../sdk/AuthController.dart';
 import '../widgets/aspect_driven_grid.dart';
 import 'LibraryController.dart';
 import '../models/default.dart';
+import '../models/LibrarySummary.dart' show PlaylistSource;
 
 /// 我的 tab 内容
 ///
@@ -18,28 +19,34 @@ class LibraryPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<LibraryController>();
-    return Obx(() {
-      final tab = controller.tab.value;
-      return Column(
-        children: [
-          SegmentedButton<LibraryTab>(
-            segments: LibraryTab.values
-                .map(
-                  (t) => ButtonSegment(
-                    label: Text(t.label),
-                    icon: Icon(t.icon),
-                    value: t,
-                  ),
-                )
-                .toList(),
+    return Scaffold(
+      floatingActionButton: IconButton(
+        icon: const Icon(Icons.add),
+        onPressed: controller.addPlaylist,
+      ),
+      body: Obx(() {
+        final tab = controller.tab.value;
+        return Column(
+          children: [
+            SegmentedButton<LibraryTab>(
+              segments: LibraryTab.values
+                  .map(
+                    (t) => ButtonSegment(
+                      label: Text(t.label),
+                      icon: Icon(t.icon),
+                      value: t,
+                    ),
+                  )
+                  .toList(),
 
-            selected: {tab},
-            onSelectionChanged: (s) => controller.setTab(s.first),
-          ),
-          Expanded(child: _TabContent(tab: tab)),
-        ],
-      );
-    });
+              selected: {tab},
+              onSelectionChanged: (s) => controller.setTab(s.first),
+            ),
+            Expanded(child: _TabContent(tab: tab)),
+          ],
+        );
+      }),
+    );
   }
 }
 
@@ -116,16 +123,20 @@ class _PlaylistsView extends StatelessWidget {
             itemCount: c.playlists.length,
             itemBuilder: (context, index) {
               final p = c.playlists[index];
+              // 自建歌单不显示红心按钮 —— 没有"再收藏一次"的语义
+              // 只有 source == collected 的歌单才让 liked toggle 有意义
+              final showLike = p.source == PlaylistSource.collected;
               return SongListCard(
                 playlistId: p.id,
                 title: p.name,
                 subtitle: '${p.trackCount} 首',
                 imageUrl: p.picUrl,
-                // 自建歌单（subscribed == false）不显示红心按钮 —— 没有"再收藏一次"的语义
-                showLike: p.subscribed,
-                isLiked: p.subscribed ? () => c.isPlaylistLiked(p.id) : null,
+                showLike: showLike,
+                isLiked: showLike ? () => c.isPlaylistLiked(p.id) : null,
                 onToggleFavorite:
-                    p.subscribed ? () => c.togglePlaylistLike(p.id) : null,
+                    showLike ? () => c.togglePlaylistLike(p.id) : null,
+                // 透传给详情页:自建歌单显示 🗑 删除,收藏的显示 ❤️ 收藏
+                source: p.source,
               );
             },
           );

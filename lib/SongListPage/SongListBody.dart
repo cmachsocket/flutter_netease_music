@@ -18,6 +18,7 @@ class SongListBody extends StatelessWidget {
     this.isLiked,
     this.extraTrailing,
     this.selectedHighlight,
+    this.onLongPress,
   });
 
   final List<Song> songs;
@@ -27,6 +28,8 @@ class SongListBody extends StatelessWidget {
   final void Function(Song)? onPlay;
   // 为SongRowTile暴露的额外 trailing widget，同时会传递当前Song和index。
   final Widget Function(Song, int)? extraTrailing;
+  // 为SongRowTile暴露的额外 onLongPress 回调，同时会传递当前Song和index。
+  final void Function(Song, int)? onLongPress;
   final int? selectedHighlight;
 
   /// 查询某首 song 是否被喜欢(由 controller 提供,内部读 Rx)
@@ -62,6 +65,9 @@ class SongListBody extends StatelessWidget {
           onPlay: () => onPlay?.call(song),
           extraTrailing: extraTrailing != null
               ? () => extraTrailing!(song, index)
+              : null,
+          onLongPress: onLongPress != null
+              ? () => onLongPress!(song, index)
               : null,
           isLiked: () => isLiked?.call(song) ?? false,
         );

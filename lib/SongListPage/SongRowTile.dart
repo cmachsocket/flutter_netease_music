@@ -4,6 +4,7 @@ import '../models/Song.dart';
 import '../widgets/linked_detail_text.dart';
 import '../widgets/song_cover.dart';
 import '../models/default.dart';
+import 'package:responsive_builder/responsive_builder.dart';
 
 /// 查询 song 是否被喜欢的回调（无参：调用方包好 song 后注入）
 typedef IsLikedGetter = bool Function();
@@ -22,12 +23,14 @@ class SongRowTile extends StatelessWidget {
     this.onPlay,
     this.isLiked,
     this.extraTrailing,
+    this.onLongPress,
   });
 
   final Song song;
   final VoidCallback? onToggleFavorite;
   final VoidCallback? onPlay;
   final bool selected;
+  final void Function()? onLongPress;
 
   //额外的 trailing widget, 比如专辑列表页的 "更多" 按钮
   final Widget Function()? extraTrailing;
@@ -48,16 +51,21 @@ class SongRowTile extends StatelessWidget {
       title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: LinkedDetailText(song: song),
       onTap: onPlay,
+      onLongPress: onLongPress,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(song.durationLabel),
+          OrientationLayoutBuilder(
+            portrait: (context) => const SizedBox.shrink(),
+            landscape: (context) => Text(song.durationLabel),
+          ),
           // Obx 只包 fav button：likedIds 变化时只重建这个 IconButton，
           // 其他部分（leading/title/subtitle/下面的 play button）不受影响。
           // isLiked 为 null 时 Obx 闭包里不触达 Rx → 零监听零重建开销。
           Obx(() {
             final liked = isLiked?.call() ?? false;
             return IconButton(
+              padding: DefaultValues.onlyZero,
               icon: Icon(
                 liked ? Icons.favorite : Icons.favorite_border,
                 color: liked ? scheme.primary : null,
@@ -67,6 +75,7 @@ class SongRowTile extends StatelessWidget {
             );
           }),
           IconButton(
+            padding: DefaultValues.onlyZero,
             icon: const Icon(Icons.play_arrow),
             onPressed: onPlay,
             tooltip: '播放',

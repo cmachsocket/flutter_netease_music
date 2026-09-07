@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart' show IconData, Icons;
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../models/LibrarySummary.dart';
 import '../services/LikedController.dart';
 import '../services/repositories/LibraryRepository.dart';
+import '../services/repositories/PlaylistRepository.dart';
 import '../sdk/AuthController.dart';
 
 enum LibraryTab {
@@ -38,8 +39,20 @@ class LibraryController extends GetxController {
   Worker? _loginWorker;
 
   final LibraryRepository _repo = Get.find<LibraryRepository>();
+  final PlaylistRepository _playlistRepo = Get.find<PlaylistRepository>();
   final LikedController _likedService = Get.find<LikedController>();
   final AuthController _auth = Get.find<AuthController>();
+
+  // 创建歌单 UI 状态
+  //
+  // - isCreating: dialog 显示中(防止用户重复点 FAB 触发多个 dialog)
+  // - createError: 上一次创建失败的提示(reload 后清空)
+  //
+  // 真正的"返回新歌单 id"在 addPlaylist() 内是局部 Future<String?> 不暴露,
+  // 调用方只需要 reload playlists 列表(响应: _playlistRepo.createPlaylist
+  // 成功后 SDK 已经写盘,LibraryRepository 重新拉会带上新歌单)。
+  final RxBool isCreating = false.obs;
+  final RxnString createError = RxnString();
 
   // tab 1: 歌单
   final RxBool playlistsLoading = false.obs;
@@ -170,6 +183,89 @@ class LibraryController extends GetxController {
   void onClose() {
     _loginWorker?.dispose();
     super.onClose();
+  }
+
+  /// 创建新歌单 —— 由 LibraryPage FAB 触发
+  ///
+  /// 流程:
+  /// 1. 登录态自检(未登录直接 toast 退出,不弹 dialog 免得用户输入完才发现没用)
+  /// 2. 弹 AlertDialog 输入名字(空 / 取消 → 退出)
+  /// 3. 调 [_playlistRepo.createPlaylist]
+  /// 4. 成功 → 重新拉 playlists 列表(新歌单会出现在 Library tab)
+  /// 5. 失败 → 写 [createError] 让 dialog 显示错误文案
+  ///
+  /// TODO(addTracks):长按歌曲"加入歌单"对话框待实现;目前只暴露创建入口。
+  /// 后续可以扩展 `showAddToPlaylistSheet(context, List<String> songIds)` 方法
+  /// 走 [PlaylistRepository.addTracks],需要先拉当前用户的歌单列表(目前
+  /// `playlists` 已经是),从里面选目标。
+  ///
+  /// 返回 Future<void] 是为了让 `// ignore: discarded_futures` 仍然成立
+  /// (LibraryPage.dart:24 调用点 `onPressed: controller.addPlaylist`,
+  ///  void 改成 Future<void] 后 IconButton.onPressed 是 `VoidCallback?`,
+  /// 这里返回的是 Future, 但 onPressed 是同步 VoidCallback; Dart 会隐式
+  /// 把 `Future<void> Function()` 转成 `VoidCallback` 但 lint 会警告。
+  /// 当前调用点已写 `// ignore: discarded_futures` 兜底,所以保留 Future)。
+  void addPlaylist() async {
+    if (isCreating.value) return;
+    if (!_auth.loggedIn) {
+      Get.snackbar('提示', '请先登录');
+      return;
+    }
+    final name = await _promptPlaylistName();
+    if (name == null || name.isEmpty) return;
+
+    isCreating.value = true;
+    createError.value = null;
+    try {
+      final newId = await _playlistRepo.createPlaylist(name);
+      if (newId == null) {
+        createError.value = '创建失败,稍后重试';
+        return;
+      }
+      // 成功 → reload 当前 tab(playlist tab)列表
+      await loadPlaylists();
+    } finally {
+      isCreating.value = false;
+    }
+  }
+
+  /// 弹一个简单 AlertDialog 让用户输入歌单名字。
+  ///
+  /// 返回:
+  /// - 非空字符串(用户确认)
+  /// - `null`(用户取消)
+  Future<String?> _promptPlaylistName() async {
+    final controller = TextEditingController();
+    final result = await Get.dialog<String>(
+      AlertDialog(
+        title: const Text('新建歌单'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: '歌单名称'),
+          onSubmitted: (_) => Get.back<String>(result: controller.text.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back<String>(result: null),
+            child: const Text('取消'),
+          ),
+          Obx(() {
+            // dialog 上展示上一次的错误(createError)
+            final err = createError.value;
+            if (err == null) return const SizedBox.shrink();
+            return Text(err, style: const TextStyle(color: Colors.red));
+          }),
+          TextButton(
+            onPressed: () => Get.back<String>(result: controller.text.trim()),
+            child: const Text('创建'),
+          ),
+        ],
+      ),
+      barrierDismissible: true,
+    );
+    controller.dispose();
+    return result;
   }
 }
 

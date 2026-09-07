@@ -1,5 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../LibraryPage/LibraryController.dart';
 import '../models/Song.dart';
 import '../services/LikedController.dart';
 import '../services/AudioPlayerWrapper.dart';
@@ -137,6 +139,70 @@ class SongListController extends GetxController {
       // ignore: discarded_futures
       _likedService.toggle(playlistId, LikedType.playlist);
     }
+  }
+
+  /// 删除当前歌单(自建歌单)。
+  ///
+  /// 流程:
+  /// 1. 弹 AlertDialog 二次确认(避免误删)
+  /// 2. 用户取消 → 直接 return
+  /// 3. 调 [_playlistRepo.deletePlaylist]
+  /// 4. 成功 → 重新拉 Library 全局歌单列表(若已注册) + pop 回上一页
+  /// 5. 失败 → [Get.snackbar] 提示
+  ///
+  /// **为什么 widget 层不做这件事**:dialog 文案 / snackbar 反馈 / 列表 reload
+  /// 都是业务决策,放 controller 集中处理,widget 只触发 `onPressed`。
+  ///
+  /// 返回 `Future<void>` 让 widget 可 await:`onPressed: controller.deletePlaylist`
+  /// 是 `Future<void> Function()`,转 VoidCallback 由 lint 兜底。
+  Future<void> deletePlaylist() async {
+    if (playlistId.startsWith(_albumPrefix)) {
+      // 专辑不能删 —— 理论上 detail 页不会显示删除按钮,
+      // 但兜底:如果调用方传错也能防御
+      Get.snackbar('提示', '专辑不能删除');
+      return;
+    }
+    final confirmed = await _confirmDelete();
+    if (confirmed != true) return;
+
+    final ok = await _playlistRepo.deletePlaylist(playlistId);
+    if (!ok) {
+      Get.snackbar('删除失败', '稍后重试');
+      return;
+    }
+    // reload Library 列表(若已注册 —— Library tab 可能未访问过,LazyPut 还没创建)
+    if (Get.isRegistered<LibraryController>()) {
+      await Get.find<LibraryController>().loadPlaylists();
+    }
+    // pop 回上一页。Get.context 详情页打开时一定非 null,但兜底用 canPop
+    final ctx = Get.context;
+    if (ctx != null && Navigator.of(ctx).canPop()) {
+      Navigator.of(ctx).pop();
+    }
+  }
+
+  /// 二次确认 dialog。返回 true/false,null=用户取消(点 dialog 外 / 返回键)。
+  Future<bool?> _confirmDelete() {
+    return Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('删除歌单'),
+        content: Text(
+          '确定要删除歌单"${title.value ?? ''}"吗?此操作不可恢复。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back<bool>(result: false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Get.back<bool>(result: true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+      barrierDismissible: true,
+    );
   }
 
   /// 查询当前 playlistId 是否被收藏

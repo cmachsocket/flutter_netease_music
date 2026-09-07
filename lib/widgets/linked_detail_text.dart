@@ -4,6 +4,7 @@ import '../ArtistPage/ArtistDetail.dart';
 import '../SongListPage/SongListDetail.dart';
 import '../AppShell.dart';
 import '../models/Song.dart';
+import '../models/LibrarySummary.dart' show PlaylistSource;
 
 /// 歌曲列表里的"艺人 - 专辑"双链接文本
 ///
@@ -117,7 +118,11 @@ class _AlbumLink extends StatelessWidget {
         onPressed: () {
           if (backFirst) Get.back(id: AppShell.shellNavigatorId);
           Get.to(
-            () => SongListDetail(playlistId: 'album-$id'),
+            () => SongListDetail(
+              playlistId: 'album-$id',
+              // 专辑入口,详情页不读 playlistSource
+              playlistSource: PlaylistSource.collected,
+            ),
             id: AppShell.shellNavigatorId,
             binding: SongListDetailBinding(playlistId: 'album-$id'),
           );

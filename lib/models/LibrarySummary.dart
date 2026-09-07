@@ -4,6 +4,22 @@
 /// LibraryController(PlaylistSummary/AlbumSummary/ArtistSummary) 里，
 /// 抽到 models 方便 repository 与 controller 共享，避免反向 import controller。
 
+/// 歌单来源 —— 区分自建 vs 收藏(将来可能加 recommended / default 等类型)。
+///
+/// /user/playlist 接口用 `subscribed` bool 区分,但 bool 二态可读性差
+/// (调用点写 `if (p.subscribed)` 必须翻注释才知 true=收藏 / false=自建)。
+/// 改成 enum 后:
+///   - `p.source == PlaylistSource.created` 语义自解释
+///   - switch 时有 exhaustiveness 检查,加新 case 时编译器会强制提醒
+///   - 真值转换在 model.fromNeteaseJson 一处完成,调用方零负担
+enum PlaylistSource {
+  /// 我自己创建的(原 subscribed == false)
+  created,
+
+  /// 我收藏/订阅的(原 subscribed == true)
+  collected,
+}
+
 /// 首页推荐歌单卡片。
 class PlaylistCard {
   final String id;
@@ -30,26 +46,28 @@ class PlaylistCard {
 
 /// 我的歌单摘要（Library tab 1）。
 ///
-/// `subscribed` 区分自建 vs 收藏：
-/// - `true` = 用户订阅/收藏的歌单（红心显示且可切换）
-/// - `false` = 用户自己创建的歌单（红心按钮不渲染）
+/// `source` 区分自建 vs 收藏：
+/// - [PlaylistSource.created] = 用户自己创建的歌单(红心按钮不渲染 —— 没有"再收藏一次"的语义)
+/// - [PlaylistSource.collected] = 用户订阅/收藏的歌单(红心显示且可切换)
 ///
-/// 来源于 /user/playlist.playlist[] 元素的 `subscribed` 字段
-/// （注意：LibraryRepository.fetchPlaylists 之前丢失了这个字段，
-///  自建/收藏混在同一个 list 里渲染成一样的红心 —— 现在补回来）
+/// 来源于 /user/playlist.playlist[] 元素的 `subscribed` 字段：
+///   subscribed == true  → collected
+///   subscribed == false → created
+///
+/// 真值映射放在 [fromNeteaseJson],调用方只读 enum 不接触 bool。
 class PlaylistSummary {
   final String id;
   final String name;
   final String picUrl;
   final int trackCount;
-  final bool subscribed;
+  final PlaylistSource source;
 
   const PlaylistSummary({
     required this.id,
     required this.name,
     required this.picUrl,
     required this.trackCount,
-    required this.subscribed,
+    required this.source,
   });
 
   /// /user/playlist.playlist[] 元素：
@@ -60,7 +78,9 @@ class PlaylistSummary {
         name: (json['name'] ?? '').toString(),
         picUrl: (json['coverImgUrl'] ?? '').toString(),
         trackCount: (json['trackCount'] as int?) ?? 0,
-        subscribed: json['subscribed'] == true,
+        source: json['subscribed'] == true
+            ? PlaylistSource.collected
+            : PlaylistSource.created,
       );
 }
 

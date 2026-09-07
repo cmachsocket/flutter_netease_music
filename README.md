@@ -1,224 +1,134 @@
-分析完成。我已经看完了核心的 service/controller 代码，下面给出完整的架构诊断和重构建议。
+# flutter_netease_music
 
-## 一、当前架构的核心问题
+一个 Flutter 写的网易云音乐客户端,底层 API 来自
+[`NeteaseCloudMusic_PythonSDK`](https://github.com/2061360308/NeteaseCloudMusic_PythonSDK)
+([`MusicLibrary`](https://github.com/2061360308/MusicLibrary) 的 Dart 绑定)。
 
-### 1. 分层边界模糊：Controller 持有 UI 组件的 controller
+SDK 的架构是 **JavaScript → QuickJS (C) → Dart FFI** —— API 逻辑用
+JavaScript/Node.js 实现,打包后由内嵌的 QuickJS 引擎通过 C ABI 执行,
+再通过 `dart:ffi` 暴露给 Dart。预编译的原生库 (`libmusiclibrary.so` /
+`.dll` / `.dylib`) 随包发布,只有约 2 MB。
 
-**最典型的就是 `LyricsController`**：
+## 功能
 
-```dart
-class LyricsController extends GetxController {
-  final LyricController lyricController = LyricController(); // flutter_lyric 的 View 控制器
-  ...
-}
-```
+- 搜索 / 歌单 / 专辑 / 艺人 / 我的收藏
+- 后台播放 + 锁屏 / 通知栏控制(基于 `audio_service` + `just_audio`)
+- 同步歌词(基于 `flutter_lyric`)
+- 收藏的歌曲 / 专辑 / 艺人 / 歌单
+- 亮 / 暗主题
 
-`LyricController` 是 `flutter_lyric` 库的 View 层对象（一堆 `ValueNotifier`，给 `LyricView` widget 用的）。它本质是 **UI 状态**，却被塞进了一个 `permanent: true` 的全局 GetX controller 里。
-
-带来的问题：
-- `LyricsController` 同时是"取歌词的控制器"和"歌词 View 的状态持有者"
-- `onClose()` 里 `lyricController.dispose()` 永远不会执行（permanent 不销毁），资源管理形同虚设
-- UI 生命周期和业务生命周期被强行绑死
-
-### 2. `PlayerController` 是个"上帝控制器"
-
-看它的成员就能发现职责爆炸：
-
-```dart
-class PlayerController extends GetxController {
-  // 播放状态投影
-  final Rx<Duration> position = ...;
-  final Rx<Duration> duration = ...;
-  final Rx<Duration> buffered = ...;
-  final RxBool isPlaying = ...;
-  final Rxn<Song> currentSong = ...;
-  final RxBool isLoadingSong = ...;
-  final RxBool isLiked = ...;
-
-  // 队列同步
-  bool _queueSyncScheduled = false;
-  Worker? _queueIndexWorker;
-  Worker? _queuePlaylistWorker;
-
-  // 自动切歌
-  bool _autoNextFired = false;
-  bool _lastNearEnd = false;
-
-  // 直接依赖所有东西
-  final LikedSongsService _likedService = Get.find<LikedSongsService>();
-  final NeteaseApi api = Get.find<NeteaseApi>();
-  final PlayQueueService queue = Get.find<PlayQueueService>();
-  late final AudioPlayerService _audio;
-}
-```
-
-它同时承担了：
-- **页面 UI 状态**（播放页要展示什么）
-- **全局播放核心**（loadSong、next/prev、自动切歌）
-- **队列同步编排**（监听 queue 变化去同步音频）
-- **liked 状态联动**
-
-### 3. 隐式依赖链脆弱
-
-`main.dart` 里的注册顺序必须严格：
-
-```dart
-Get.put<LyricsService>(LyricsService(), permanent: true);      // 必须先
-Get.put<PlayerController>(PlayerController(), permanent: true); // 然后这个
-Get.put<LyricsController>(LyricsController(), permanent: true); // 最后这个
-```
-
-因为每个都通过 `Get.find<>()` 在字段初始化时直接拉取依赖。顺序错了直接运行时崩溃，没有任何编译期保护。
-
-### 4. Liked 系列四个 Service 重复
-
-`LikedSongsService`、`LikedAlbumsService`、`LikedArtistsService`、`LikedPlaylistsService` 结构几乎一样：
-- 一个 `RxSet<String> likedIds`
-- `fetch()` 从 API 拉数据
-- `toggle()` 调用 API
-- GetStorage 持久化
-
-只有 API 端点和实体类型不同。
-
-### 5. Service 直接依赖其他 Service
-
-```dart
-class LyricsService extends GetxService {
-  final NeteaseApi _api = Get.find<NeteaseApi>(); // 直接横跳
-}
-```
-
-Service 应该是**被动**的，依赖应该通过构造函数注入，而不是运行时全局查找。
-
----
-
-## 二、重构目标架构
-
-### 核心分层原则
+## 项目结构
 
 ```
-UI Widget
-   ↓
-Page Controller（页面级，短命，UI 状态）
-   ↓
-Core Controller（全局级，long-lived，播放核心业务）
-   ↓
-Service（纯被动，无 UI 状态，不监听 Rx，不依赖其他 service）
-   ↓
-SDK / Repo（NetEase API、存储）
+lib/
+  main.dart                       # 启动入口:GetStorage → API → repos → wrapper → controllers
+  AppShell.dart                   # 底部导航壳(发现 / 歌单 / 我的 / 设置)
+  HomePage/                       # 发现 tab
+  PlayListPage/                   # 歌单 tab
+  SongListPage/                   # 复用的歌曲列表 UI:SongListBody / SongRowTile
+  ArtistPage/                     # 艺人详情
+  LibraryPage/                    # 我的
+  SettingsPage/                   # 设置 + 登录
+  PlayPage/                       # 全屏播放页(封面 + 歌词)
+  searchPage/                     # 搜索
+  sdk/
+    NeteaseApi.dart               # 包 FFI SDK + 持久化 cookie
+    AuthController.dart           # 全局 AuthInfo 持有者
+    ApiCall.dart                  # 通用调用辅助
+  services/
+    AudioPlayerWrapper.dart       # AudioPlayerService —— 播放层唯一真相源
+    AudioPlayerHandler.dart       # just_audio + audio_service 桥
+    LikedController.dart          # 统一的收藏 controller(song / album / artist / playlist)
+    repositories/                 # SongRepository / LyricsRepository / SearchRepository /
+                                  # PlaylistRepository / AlbumRepository / ArtistRepository /
+                                  # LibraryRepository / LikedRepository
+  models/                         # Song / Album / Artist / Playlist / Snapshot / AuthInfo ...
+  widgets/                        # SongCover / NeteaseImage / LinkedDetailText ...
+  theme/                          # AppTheme + ThemeController
 ```
 
-### 具体分类
+## 架构
 
-| 层级 | 职责 | 生命周期 | 示例 |
-|------|------|---------|------|
-| **Service** | 纯被动：API 调用、缓存、持久化；**不订阅任何 Rx，不持有 UI 状态** | 全局 | `LyricsService`、`LikedSongsService` |
-| **Core Controller** | 全局业务核心：播放队列、播放状态、自动切歌 | 全局 permanent | 新的 `PlaybackController` |
-| **Page Controller** | 页面 UI 状态：当前 Tab、滚动位置、表单状态 | 页面级 | `PlayPageController`、`SearchController` |
-| **Widget** | 纯渲染，通过 `Get.find` 或构造注入拿 Page Controller | 页面级 | `Lyrics`、`PlayerPage` |
+### 分层
 
-### 重构后的骨架
-
-```dart
-// lib/core/playback/PlaybackController.dart  ← 新建
-class PlaybackController extends GetxController {
-  final AudioPlayerService _audio;      // 构造注入
-  final PlayQueueService _queue;        // 构造注入
-  final LikedSongsService _liked;       // 构造注入
-  final NeteaseApi _api;                // 构造注入
-
-  // 播放状态投影（UI 读这里）
-  final Rx<Duration> position = ...;
-  final Rx<Duration> duration = ...;
-  final RxBool isPlaying = ...;
-  final Rxn<Song> currentSong = ...;
-
-  // 播放核心方法
-  Future<void> loadSong(Song song);
-  Future<void> next();
-  Future<void> prev();
-  Future<void> togglePlay();
-  Future<void> seek(Duration p);
-
-  // 自动切歌逻辑封装在私有方法
-  void _onPlayerState(PlayerState state);
-  void _onPositionChange(Duration p);
-}
+```
+Widget
+  └─ Page Controller(Obx 驱动的薄 facade,只存 UI 状态)
+       └─ AudioPlayerService(wrapper —— 唯一真相源)
+            ├─ AudioPlayerHandler  (just_audio + audio_service)
+            └─ Repositories        (Song / Lyrics / Liked / ...)
+                 └─ NeteaseApi    (FFI SDK)
 ```
 
-```dart
-// lib/PlayPage/PlayPageController.dart  ← 页面级（新）
-class PlayPageController extends GetxController {
-  final center = CenterPage.cover.obs;   // 页面 UI 状态
-  // 从 PlaybackController 读播放状态，不在本地重复存一份
-}
+- **Repositories** —— 被动的 API 调用者,不持 Rx,无 GetX 生命周期。
+  通过构造函数注入 `NeteaseApi`。
+- **AudioPlayerService (wrapper)** —— 播放相关全部入口都集中在这里。
+  把状态聚合成 `Rx<PlaybackSnapshot>`,内部持有 `AudioPlayerHandler`。
+- **AudioPlayerHandler** —— 实现 `BaseAudioHandler`,在
+  `just_audio` ⇄ `audio_service` 之间架桥,主动把状态推推 wrapper。
+- **Page controllers**(`PlayerController`、`LyricsController` ...)——
+  薄 facade。用 `Obx` / `ever` 订阅 wrapper 的 snapshot,再把命令转发
+  回 wrapper。**不重复存状态**。
+- **LikedController** —— 一套 controller 管 4 种 类型(song / album /
+  artist / playlist),按 `LikedType` 分桶,调用 `LikedRepository`。
 
-// lib/PlayPage/LyricsWidget.dart 改名为 LyricsView
-// 通过 Get.find<LyricsPageController>() 拿 View 专用的 LyricController
-// LyricsPageController 是页面级，onClose 里正确 dispose
+### 启动顺序(`main.dart`)
+
+顺序靠**构造函数注入**保证 —— 写错是编译报错,不是运行时崩:
+
+1. `GetStorage.init()`
+2. `ThemeController`(同步)
+3. `initNeteaseApi()`—— 恢复持久化的 cookie
+4. Repositories(需要 `NeteaseApi`)
+5. `AuthController` —— `Get.putAsync` 让 `loadAuthInfo()` 在被使用前跑完
+6. `LikedRepository` + `LikedController`
+7. `AudioPlayerService` —— `Get.putAsync` + builder 内
+   `await wrapper.init()`。**不要**先 `Get.put` 再单独 `await init()`
+   (会留一个"已注册但还没初始化"的窗口);**不要**把异步逻辑放到
+   `onInit` 里(GetX 的 `_onStart` 是同步调用并丢弃 future)。
+8. `PlayerController`(`lazyPut`)和 `LyricsController`(`permanent` —
+   `flutter_lyric` 自带的 `LyricController` 持有高亮 / 滚动位置,
+   跨路由切换不重建才能保留这些状态)。
+
+## 音频 + 锁屏行为
+
+- `audio_service` 0.18.19 —— `QueueHandler.updateQueue` 在内部对缓存的
+  `nvalue` 列表做原地修改。**传给 `super.updateQueue` 的必须是可变
+  `List`**(比如 `_queue.toList()`),传 `List.unmodifiable()` 第二次
+  `setQueue` 会直接炸。
+- `preloadArtwork: false` —— 锁屏 / 通知封面按需下载。开 `true` 会让
+  `_loadAllArtwork` 在后台 isolate 上并发迭代队列,下一次 `updateQueue`
+  期间原地改 `nvalue` → `Concurrent modification during iteration`
+  unhandled 异常。
+- `AudioServiceConfig.androidCompactActionIndices` 在 Android 13+ 上
+  **失效**:platform interface 在 `SDK_INT >= 33` 时跳过
+  `setShowActionsInCompactView`,直接用 controls 列表前 3 个当 compact
+  槽位。需要出现在锁屏的自定义按钮(如 `SongRowTile` 风格的 like)必须
+  放在 controls 列表的前 3 位。
+
+## 跑起来
+
+```bash
+flutter pub get
+flutter run                  # 选个设备
+flutter analyze
 ```
 
-```dart
-// lib/services/LyricsService.dart 保持，但依赖改为构造注入
-class LyricsService extends GetxService {
-  final NeteaseApi _api;
-  LyricsService(this._api);  // 不再 Get.find
-}
-```
+Flutter SDK 约束:`^3.12.2`。`musiclibrary` 是本地 path 包
+(`NeteaseCloudMusic_PythonSDK/src/dart`),API 细节见 `MUSICLIBRARY.md`。
 
----
+## 已知坑
 
-## 三、分阶段实施计划
-
-### 阶段 1（低风险，现在就能做）
-
-**目标**：在不改变外部行为的前提下消除最明显的架构异味
-
-1. **Service 依赖改为构造注入**
-   - `LyricsService`、`LikedSongsService` 等不再 `Get.find`，改为构造函数接收
-   - `main.dart` 里 `Get.put<LyricsService>(LyricsService(api), permanent: true)`
-   - 好处：依赖显式化，注册顺序错误会编译失败而不是运行时崩溃
-
-2. **拆出 `PlaybackController`**
-   - 把 `PlayerController` 里所有播放核心逻辑（loadSong、next/prev、自动切歌、进度投影）移到 `lib/core/playback/PlaybackController.dart`
-   - `PlayerController` 只保留页面 UI 状态（center 切换），委托给 PlaybackController
-   - 好处：其他页面（搜索、歌单）不再依赖页面目录下的 controller
-
-3. **Liked 系列抽象基类**
-   - 建 `lib/services/liked_collection_service.dart`，四个 service 继承它，只提供 endpoint 和实体类型
-   - 好处：消除四份重复的 fetch/toggle/persist 代码
-
-### 阶段 2（中等改动）
-
-4. **`LyricsController` 拆分**
-   - `LyricsPageController`（页面级，持有 `LyricController`，正确 dispose）
-   - `LyricsService`（全局，纯取歌词，已有）
-   - 页面级 controller 通过 `Get.put` 在进入 PlayPage 时注册，离开时销毁
-
-5. **引入 Repository 层**（可选，如果 API 调用继续增多）
-   - `SongRepository`、`LyricsRepository`、`LikedSongsRepository`
-   - Service 不再直接调 `NeteaseApi`，而是通过 Repository
-   - 方便 mock 和测试
-
-### 阶段 3（完整重构，耗时较长）
-
-6. **统一依赖注入**
-   - 用 GetX 的 `Bindings` + `Get.put(..., permanent: true)` 显式注册所有 service 和 core controller
-   - 消除所有字段初始化时的隐式 `Get.find`
-
-7. **队列同步职责上移**
-   - 把 `PlayerController` 里的 `_scheduleQueueSync` 移到 `PlaybackController`，或拆成独立的 `QueueSyncService`
-
----
-
-## 四、我的建议
-
-**先做阶段 1 的三件事**，它们风险最低、收益最大：
-
-1. Service 构造注入（30 分钟）
-2. 拆 `PlaybackController`（1-2 小时）
-3. Liked 抽象基类（30 分钟）
-
-这三个做完，项目会明显清爽：依赖链显式、播放核心和其他页面解耦、liked 代码从 4 份变 1 份。
-
-要不要我现在开始动手？我建议从 **Liked 系列抽象基类** 开始，因为它最独立、最容易验证，然后再做 `PlaybackController` 拆分。你倾向哪个顺序？
+- `main()` 里第一件事就把 `HttpOverrides.global` 换成
+  `NeteaseHttpOverrides`。网易云 CDN 会拉黑 Dart 默认 UA,
+  `ImageNetwork` 的 `headers` 参数在 Android 不一定生效,直接
+  override HttpClient 最稳。
+- `audio_service` 需要 Android foreground-service 权限,以及
+  `android/app/src/main/res/drawable-*` 下齐全的通知图标
+  (`ic_favorite`、`ic_favorite_border`、`ic_play`、`ic_pause`、
+  `ic_skip_next`、`ic_skip_previous`)。**drawable 名字必须和
+  `AudioPlayerHandler._buildControls` 里 `androidIcon` 引用的对得上**,
+  不存在会抛 `IllegalArgumentException`,被 AudioService 内部
+  catch 后只 stacktrace,但 playerStateStream 每 200ms 都会触发一次
+  rebuild controls → 主 isolate 在 catch + logd 撞配额 →
+  打开 app 时 UI 冻屏(实际 audio 在播)。

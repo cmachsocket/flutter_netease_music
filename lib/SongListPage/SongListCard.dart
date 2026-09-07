@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 import '../AppShell.dart';
 import '../models/default.dart';
+import '../models/LibrarySummary.dart' show PlaylistSource;
 import 'SongListController.dart';
 import 'SongListDetail.dart';
 
@@ -32,12 +33,24 @@ class SongListCard extends StatelessWidget {
     this.isLiked,
     this.onToggleFavorite,
     this.showLike = true,
+    this.source,
   });
 
   final String playlistId;
   final String? title;
   final String? subtitle;
   final String? imageUrl;
+
+  /// 歌单来源(自建 / 收藏)。**透传给 [SongListDetail]** 决定详情页显示
+  /// 🗑 删除 还是 ❤️ 收藏按钮。
+  ///
+  /// - 传 null: 默认按"收藏的歌单"处理(显示 ❤️ 按钮,安全兜底)
+  /// - [PlaylistSource.created]: 详情页显示 🗑 删除
+  /// - [PlaylistSource.collected]: 详情页显示 ❤️ 收藏(取消订阅)
+  ///
+  /// 专辑入口(`album-X`)的卡片从 `linked_detail_text` 跳进去,不传这个字段;
+  /// `playlistId.startsWith('album-')` 在 detail 页内识别专辑。
+  final PlaylistSource? source;
 
   /// 覆盖默认导航。null = 默认跳 SongListDetail
   final VoidCallback? onTap;
@@ -125,7 +138,12 @@ class SongListCard extends StatelessWidget {
 
   void _defaultNavigate() {
     Get.to(
-      () => SongListDetail(playlistId: playlistId, displayTitle: title),
+      () => SongListDetail(
+        playlistId: playlistId,
+        displayTitle: title,
+        // null → detail 按 collected 处理(显示 ❤️ 收藏,安全兜底)
+        playlistSource: source ?? PlaylistSource.collected,
+      ),
       id: AppShell.shellNavigatorId,
       binding: SongListDetailBinding(playlistId: playlistId),
     );
@@ -140,12 +158,17 @@ class LineSongListCard extends StatelessWidget {
     this.subtitle,
     this.imageUrl,
     this.onPlay,
+    this.source,
   });
 
   final String playlistId;
   final String? title;
   final String? subtitle;
   final String? imageUrl;
+
+  /// 歌单来源 —— 透传给 [SongListDetail] 决定详情页按钮(同 [SongListCard.source])。
+  final PlaylistSource? source;
+
   static const bodyTextMaxLines = 1;
 
   /// 覆盖默认播放(整张歌单)。null = 默认调 SongListController.playPlaylistById
@@ -159,7 +182,11 @@ class LineSongListCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: ListTile(
         onTap: () => Get.to(
-          () => SongListDetail(playlistId: playlistId, displayTitle: title),
+          () => SongListDetail(
+            playlistId: playlistId,
+            displayTitle: title,
+            playlistSource: source ?? PlaylistSource.collected,
+          ),
           id: AppShell.shellNavigatorId,
           binding: SongListDetailBinding(playlistId: playlistId),
         ),

@@ -12,6 +12,7 @@ import '../models/Artist.dart';
 import '../widgets/aspect_driven_grid.dart';
 import '../services/repositories/SearchRepository.dart'
     show SearchType, SearchPlaylistSummary;
+import '../models/LibrarySummary.dart' show PlaylistSource;
 import 'SearchController.dart';
 
 /// 搜索页(主 tab 之一)
@@ -128,6 +129,8 @@ class _AlbumGridView extends StatelessWidget {
             () => SongListDetail(
               playlistId: 'album-${a.id}',
               displayTitle: a.name,
+              // 专辑入口,playlistId 以 album- 开头,详情页不读这个字段
+              playlistSource: PlaylistSource.collected,
             ),
             id: AppShell.shellNavigatorId,
             binding: SongListDetailBinding(playlistId: 'album-${a.id}'),
@@ -201,8 +204,14 @@ class _PlaylistGridView extends StatelessWidget {
           imageUrl: p.coverUrl,
           isLiked: () => c.isPlaylistLiked(p.id),
           onToggleFavorite: () => c.togglePlaylistLike(p.id),
+          // 自定义 onTap,不走 SongListCard._defaultNavigate,source 自行透传
+          source: PlaylistSource.collected,
           onTap: () => Get.to(
-            () => SongListDetail(playlistId: p.id, displayTitle: p.name),
+            () => SongListDetail(
+              playlistId: p.id,
+              displayTitle: p.name,
+              playlistSource: PlaylistSource.collected,
+            ),
             id: AppShell.shellNavigatorId,
             binding: SongListDetailBinding(playlistId: p.id),
           ),
