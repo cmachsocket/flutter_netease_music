@@ -49,6 +49,7 @@ dependencies:
   just_audio_media_kit:  # substitute version number
   media_kit_libs_linux:
   media_kit_libs_windows_audio:
+  media_kit_libs_android_audio:
   keyboard_insets:
   meta:
   cached_network_image: 
