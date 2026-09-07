@@ -592,6 +592,17 @@ class AudioPlayerHandler extends BaseAudioHandler
   ];
 
   /// 构造锁屏 controls。
+  ///
+  /// androidIcon 必须是 `@drawable/<name>` 或裸名字符串都能解析,
+  /// audio_service 用 `applicationContext.getPackageName()` +
+  /// `getResources().getIdentifier(name, "drawable", packageName)` 找。
+  /// 不存在的资源会让 `PlaybackStateCompat$CustomAction$Builder.<init>` 抛
+  /// IllegalArgumentException → AudioService.setState catch 后只打 stacktrace,
+  /// 但 handler 内部 `playerStateStream` 每 200ms 都触发一次 rebuild controls,
+  /// 主 isolate 进入 setState retry loop + logd 撞配额 → 打开 app 时 UI 冻屏
+  /// (实际 audio 在播但 UI thread 被 stacktrace printing 占满)。
+  /// 修复:对齐 res/drawable 实际文件名 (ic_favorite / ic_favorite_border,
+  /// 不是 raw_favorite_border)。
   List<MediaControl> _buildControls({required bool isCurrentSongLiked}) {
     final playing = playbackState.value.playing;
     return [
@@ -603,7 +614,7 @@ class AudioPlayerHandler extends BaseAudioHandler
         label: isCurrentSongLiked ? '取消喜欢' : '喜欢',
         androidIcon: isCurrentSongLiked
             ? 'drawable/ic_favorite'
-            : 'drawable/raw_favorite_border',
+            : 'drawable/ic_favorite_border',
         customAction: const CustomMediaAction(name: 'toggleLike'),
       ),
     ];
