@@ -28,7 +28,7 @@ class SongListDetail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final head = Get.find<SongListHeadController>(tag: controllerTag);
+    final head = Get.find<SongListHeadControllerBase>(tag: controllerTag);
 
     return Scaffold(
       appBar: AppBar(
@@ -41,9 +41,11 @@ class SongListDetail extends StatelessWidget {
           final remoteTitle = head.title.value?.trim() ?? '';
           final fallbackTitle = displayTitle?.trim() ?? '歌单';
           final title = remoteTitle.isNotEmpty ? remoteTitle : fallbackTitle;
-          final prefix = head.playlistSource.value == PlaylistSource.album
-              ? '专辑'
-              : '歌单';
+          final prefix = switch (head.playlistSource.value) {
+            PlaylistSource.album => '专辑',
+            PlaylistSource.artist => '艺人',
+            _ => '歌单',
+          };
           return Text('$prefix · $title');
         }),
       ),
@@ -88,6 +90,28 @@ class SongListDetailBinding extends Bindings {
   final String playlistId;
   final PlaylistSource source;
 
+  SongListHeadControllerBase _buildHead(SongListBodyController body) {
+    return switch (source) {
+      PlaylistSource.album => AlbumHeadController(
+        playlistId: playlistId,
+        source: source,
+        onPlayAll: body.playAll,
+      ),
+      PlaylistSource.artist => ArtistHeadController(
+        playlistId: playlistId,
+        source: source,
+        onPlayAll: body.playAll,
+      ),
+      PlaylistSource.created ||
+      PlaylistSource.collected ||
+      PlaylistSource.pure => SongListHeadController(
+        playlistId: playlistId,
+        source: source,
+        onPlayAll: body.playAll,
+      ),
+    };
+  }
+
   @override
   void dependencies() {
     final body = SongListBodyController(playlistId: playlistId, source: source);
@@ -95,12 +119,8 @@ class SongListDetailBinding extends Bindings {
       () => body,
       tag: playlistId.toString() + source.toString(),
     );
-    Get.lazyPut<SongListHeadController>(
-      () => SongListHeadController(
-        playlistId: playlistId,
-        source: source,
-        onPlayAll: body.playAll,
-      ),
+    Get.lazyPut<SongListHeadControllerBase>(
+      () => _buildHead(body),
       tag: playlistId.toString() + source.toString(),
     );
 

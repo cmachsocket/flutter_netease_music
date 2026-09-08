@@ -5,6 +5,7 @@ import '../services/LikedController.dart';
 import '../services/AudioPlayerWrapper.dart';
 import '../models/ApiException.dart';
 import '../services/repositories/AlbumRepository.dart';
+import '../services/repositories/ArtistRepository.dart';
 import '../services/repositories/PlaylistRepository.dart';
 import '../models/LibrarySummary.dart' show PlaylistSource;
 
@@ -31,6 +32,7 @@ class SongListBodyController extends GetxController {
   final LikedController _likedService = Get.find<LikedController>();
   final PlaylistRepository _playlistRepo = Get.find<PlaylistRepository>();
   final AlbumRepository _albumRepo = Get.find<AlbumRepository>();
+  final ArtistRepository _artistRepo = Get.find<ArtistRepository>();
 
   /// 歌曲列表(来自 /playlist/track/all 或 /album)
   final RxList<Song> songs = <Song>[].obs;
@@ -55,10 +57,15 @@ class SongListBodyController extends GetxController {
     isLoading.value = true;
     errorMessage.value = null;
     try {
-      if (source == PlaylistSource.album) {
-        await _loadAlbumSongs(playlistId);
-      } else {
-        await _loadPlaylistSongs(playlistId);
+      switch (source) {
+        case PlaylistSource.album:
+          await _loadAlbumSongs(playlistId);
+        case PlaylistSource.artist:
+          await _loadArtistSongs(playlistId);
+        case PlaylistSource.created:
+        case PlaylistSource.collected:
+        case PlaylistSource.pure:
+          await _loadPlaylistSongs(playlistId);
       }
     } on ApiException catch (e) {
       errorMessage.value = e.message;
@@ -80,6 +87,12 @@ class SongListBodyController extends GetxController {
       throw ApiException(0, '专辑内容拉取失败');
     }
     songs.assignAll(content.songs);
+  }
+
+  /// 艺人分支:`/artist/songs?id=X`(艺人所有歌曲)
+  Future<void> _loadArtistSongs(String id) async {
+    final fetched = await _artistRepo.fetchSongs(id);
+    songs.assignAll(fetched);
   }
 
   // ---- body 命令 ------------------------------------------------------------

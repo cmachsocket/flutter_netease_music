@@ -3,23 +3,27 @@ import 'package:get/get.dart';
 
 import '../models/default.dart';
 import '../models/LibrarySummary.dart' show PlaylistSource;
+import '../widgets/netease_image.dart';
 import 'SongListBodyController.dart';
 import 'SongListHeadController.dart';
 
-/// 歌单详情页 head 行 widget。
+/// 详情页 head 行 widget —— 通过 [controllerTag] 找到对应 [SongListHeadControllerBase]。
 ///
-/// **职责**:展示 [SongListHeadController] 持有的 head 数据 + 触发 head 命令。
+/// **真正的视觉由 controller 的具体类型决定**(在 binding 时选定):
+/// - `SongListHeadController` (歌单: created / collected / pure) → [SongListHead]
+/// - `AlbumHeadController`    (专辑)                              → [AlbumHead]
+/// - `ArtistHeadController`   (艺人)                              → [ArtistHead]
 ///
-/// **不展示**:歌曲列表 —— 那是 [SongListBody] 的事。
+/// **切换逻辑**:`SongListDetail` 用 `controllerTag = playlistId + source` 在 binding
+/// 时同时注册 head / body 两个 controller。`SongListDetail.build` 读
+/// `head.source` 决定显示哪个 head widget —— **这里不再根据 source 切换**,因为
+/// 这三个 head widget 各有自己视觉,选哪个在 detail page 那一层做完。
 ///
-/// head widget 在 build 时通过 `Get.find` 拿 body controller(只读 songs
-/// 是否为空用于 disable 播放按钮)。head 跟 body 是 sibling controller,
-/// head widget 是组合层 —— head controller 不知道 body 存在,但 widget
-/// 可以组合两个 controller 的视觉。
+/// 当前 [SongListDetail] 调用 `SongListHead(controllerTag: ...)` —— 即 head widget
+/// 自己从 controllerTag 读 source → 转 delegate 到对应视觉子类。
 class SongListHead extends StatelessWidget {
   const SongListHead({super.key, required this.controllerTag});
 
-  /// head controller 由 binding 注入,widget 只通过 controller 读 / 写状态。
   final String controllerTag;
 
   /// AppBar 上"返回"按钮的回退栈 id(沿用项目约定)
@@ -31,16 +35,38 @@ class SongListHead extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final head = Get.find<SongListHeadControllerBase>(tag: controllerTag);
+    final source = head.source;
+    // 按 source 委托给具体 head widget(三个子类视觉差异)
+    return switch (source) {
+      PlaylistSource.album => AlbumHead(controller: head, controllerTag: controllerTag),
+      PlaylistSource.artist => ArtistHead(controller: head, controllerTag: controllerTag),
+      _ => _PlaylistHead(controller: head, controllerTag: controllerTag),
+    };
+  }
+}
+
+/// 歌单形态 head —— 描述 + 按钮列(播放 / 收藏 / 删除)。
+///
+/// 按钮:
+///   - 播放:head.onPlayAll(由 binding 注入 body.playAll)
+///   - 收藏 / ❤️:head.toggleFavorite(LikedType.playlist)
+///   - 删除:仅 source == PlaylistSource.created 时显示 —— 收藏的/纯的不可删
+///
+/// loading / 出错时整行隐藏(head 显示空字符串也没有意义)
+class _PlaylistHead extends StatelessWidget {
+  const _PlaylistHead({required this.controller, required this.controllerTag});
+
+  final SongListHeadControllerBase controller;
+  final String controllerTag;
+
+  @override
+  Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    // head widget 知道 body 是 sibling,这里只读 songs 是否空 ——
-    // 用于 disable 播放按钮。空歌单不让播(head controller 不直接读 body)。
     final body = Get.isRegistered<SongListBodyController>(tag: controllerTag)
         ? Get.find<SongListBodyController>(tag: controllerTag)
         : null;
-    final controller = Get.find<SongListHeadController>(tag: controllerTag);
     return Obx(() {
-      // head 行整体隐藏条件:loading / 出错
-      // 空歌单也渲染(head 显示删除按钮必须可见)
       if (controller.isLoading.value || controller.errorMessage.value != null) {
         return const SizedBox.shrink();
       }
@@ -53,7 +79,7 @@ class SongListHead extends StatelessWidget {
               return Text(
                 description.isEmpty ? '暂无描述' : description,
                 style: textTheme.bodyMedium,
-                maxLines: rowMainTextMaxLines,
+                maxLines: SongListHead.rowMainTextMaxLines,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.left,
               );
@@ -64,56 +90,45 @@ class SongListHead extends StatelessWidget {
             children: [
               TextButton.icon(
                 icon: const Icon(Icons.play_arrow),
-                // 空歌单禁用播放。onPlayAll 由 binding 注入 body.playAll
-                // —— 没歌时 onPlayAll 还是会调,但 widget 这层 disable 拦截
                 onPressed: songsEmpty ? null : controller.onPlayAll,
                 label: Text(
                   '播放',
                   style: textTheme.bodyMedium,
-                  maxLines: rowSubTextMaxLines,
+                  maxLines: SongListHead.rowSubTextMaxLines,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              // 按钮:按 playlistSource Rx 切
-              //   album / collected → ❤️ 收藏
-              //   created           → 🗑 删除
-              //   null (loading)    → 不渲染
               Obx(() {
-                final source = controller.playlistSource.value;
-                if (source == null) {
+                // null (loading) → 不渲染
+                if (controller.playlistSource.value == null) {
                   return const SizedBox.shrink();
                 }
-                if (source == PlaylistSource.created) {
-                  return TextButton.icon(
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: controller.deletePlaylist,
-                    label: Text(
-                      '删除',
-                      style: textTheme.bodyMedium,
-                      maxLines: rowSubTextMaxLines,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                // 自建(created) → 删除 + 收藏两个按钮(纵向排列)
+                if (controller.playlistSource.value == PlaylistSource.created) {
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextButton.icon(
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: controller.deletePlaylist,
+                        label: Text(
+                          '删除',
+                          style: textTheme.bodyMedium,
+                          maxLines: SongListHead.rowSubTextMaxLines,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      _LikeButton(
+                        liked: controller.isPlaylistFavorite,
+                        onToggle: controller.toggleFavorite,
+                      ),
+                    ],
                   );
                 }
-                // album 或 collected
-                return TextButton.icon(
-                  icon: Obx(
-                    () => Icon(
-                      controller.isPlaylistFavorite()
-                          ? Icons.favorite
-                          : Icons.favorite_border,
-                      color: controller.isPlaylistFavorite()
-                          ? Theme.of(context).colorScheme.primary
-                          : null,
-                    ),
-                  ),
-                  onPressed: controller.toggleFavorite,
-                  label: Text(
-                    '收藏',
-                    style: textTheme.bodyMedium,
-                    maxLines: rowSubTextMaxLines,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                // 收藏的(collected)/ 搜索结果(pure) → 只收藏
+                return _LikeButton(
+                  liked: controller.isPlaylistFavorite,
+                  onToggle: controller.toggleFavorite,
                 );
               }),
             ],
@@ -124,26 +139,235 @@ class SongListHead extends StatelessWidget {
   }
 }
 
-/// AlbumHead 占位 —— 等专辑独立详情页出现时复用同款 head 骨架。
+/// 收藏 ❤️ 按钮 widget —— 自建歌单 / 专辑 / 艺人 head 都会用到。
 ///
-/// 暂时不实现,因为现在专辑走 `SongListDetail` 同款页面,`SongListHead`
-/// 已经处理 album- 前缀。等 `AlbumDetail` 真出现再补实现。
-class AlbumHead extends StatelessWidget {
-  const AlbumHead({super.key});
+/// - [liked] 内部读 Rx,包 Obx 自动响应收藏状态变化
+/// - [onToggle] 调对应 controller 的 toggleFavorite
+class _LikeButton extends StatelessWidget {
+  const _LikeButton({required this.liked, required this.onToggle});
+
+  final bool Function() liked;
+  final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox.shrink();
+    final textTheme = Theme.of(context).textTheme;
+    return TextButton.icon(
+      icon: Obx(
+        () => Icon(
+          liked() ? Icons.favorite : Icons.favorite_border,
+          color: liked()
+              ? Theme.of(context).colorScheme.primary
+              : null,
+        ),
+      ),
+      onPressed: onToggle,
+      label: Text(
+        '收藏',
+        style: textTheme.bodyMedium,
+        maxLines: SongListHead.rowSubTextMaxLines,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
   }
 }
 
-/// ArtistHead 占位 —— ArtistDetail 现在有自己 inline 的 `_ArtistHeader`,
-/// 未来可抽出来共享。
-class ArtistHead extends StatelessWidget {
-  const ArtistHead({super.key});
+/// 专辑形态 head —— 封面 + 标题 + 描述 + 按钮列(播放 / 收藏)。
+///
+/// 视觉:`Row` + 左侧封面(SongCover)+ 右侧标题/描述/按钮 Column。
+/// 跟歌单形态相比:
+///   - 加了封面图(专辑必须有封面,歌单常常没)
+///   - 标题在标题列上方(歌单 head 没有标题,只显示描述)
+///
+/// 按钮:**没有删除**(专辑不能删)
+class AlbumHead extends StatelessWidget {
+  const AlbumHead({
+    super.key,
+    required this.controller,
+    required this.controllerTag,
+  });
+
+  final SongListHeadControllerBase controller;
+  final String controllerTag;
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox.shrink();
+    final textTheme = Theme.of(context).textTheme;
+    final body = Get.isRegistered<SongListBodyController>(tag: controllerTag)
+        ? Get.find<SongListBodyController>(tag: controllerTag)
+        : null;
+    return Obx(() {
+      if (controller.isLoading.value || controller.errorMessage.value != null) {
+        return const SizedBox.shrink();
+      }
+      final songsEmpty = body?.songs.isEmpty ?? false;
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // 封面(64x64)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: SizedBox(
+              width: 64,
+              height: 64,
+              child: Obx(() {
+                final url = controller.coverUrl.value;
+                if (url == null || url.isEmpty) {
+                  return Container(
+                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                  );
+                }
+                return Image(
+                  image: neteaseNetworkImage(url),
+                  fit: BoxFit.cover,
+                );
+              }),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 标题(歌单形态没有这一行 —— 标题在 AppBar 里)
+                Text(
+                  controller.title.value ?? '',
+                  style: textTheme.titleMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  controller.description.value?.trim().isNotEmpty == true
+                      ? controller.description.value!.trim()
+                      : '暂无描述',
+                  style: textTheme.bodyMedium,
+                  maxLines: SongListHead.rowMainTextMaxLines,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextButton.icon(
+                icon: const Icon(Icons.play_arrow),
+                onPressed: songsEmpty ? null : controller.onPlayAll,
+                label: Text(
+                  '播放',
+                  style: textTheme.bodyMedium,
+                  maxLines: SongListHead.rowSubTextMaxLines,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              _LikeButton(
+                liked: controller.isPlaylistFavorite,
+                onToggle: controller.toggleFavorite,
+              ),
+            ],
+          ),
+        ],
+      );
+    });
+  }
+}
+
+/// 艺人形态 head —— 圆形头像 + 名字 + 简介 + 按钮列(播放全部 / 关注)。
+///
+/// 视觉:`Row` + 左侧 `CircleAvatar` + 右侧名字/简介/按钮 Column。
+///
+/// 按钮:
+///   - 播放全部:head.onPlayAll(由 binding 注入 body.playAll)
+///   - 关注:head.toggleFavorite(LikedType.artist)
+///   - **没有删除按钮**(艺人不能删)
+class ArtistHead extends StatelessWidget {
+  const ArtistHead({
+    super.key,
+    required this.controller,
+    required this.controllerTag,
+  });
+
+  final SongListHeadControllerBase controller;
+  final String controllerTag;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+    final body = Get.isRegistered<SongListBodyController>(tag: controllerTag)
+        ? Get.find<SongListBodyController>(tag: controllerTag)
+        : null;
+    return Obx(() {
+      if (controller.isLoading.value || controller.errorMessage.value != null) {
+        return const SizedBox.shrink();
+      }
+      final songsEmpty = body?.songs.isEmpty ?? false;
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // 圆形头像
+          CircleAvatar(
+            radius: 32,
+            backgroundColor: scheme.surfaceContainerHigh,
+            backgroundImage: controller.coverUrl.value == null ||
+                    controller.coverUrl.value!.isEmpty
+                ? null
+                : neteaseNetworkImage(controller.coverUrl.value!),
+            child: controller.coverUrl.value == null ||
+                    controller.coverUrl.value!.isEmpty
+                ? Icon(Icons.person, color: scheme.onSurfaceVariant)
+                : null,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 名字
+                Text(
+                  controller.title.value ?? '',
+                  style: textTheme.titleMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                // 简介 / bio
+                Text(
+                  controller.description.value?.trim().isNotEmpty == true
+                      ? controller.description.value!.trim()
+                      : '暂无简介',
+                  style: textTheme.bodyMedium,
+                  maxLines: SongListHead.rowMainTextMaxLines,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextButton.icon(
+                icon: const Icon(Icons.play_arrow),
+                onPressed: songsEmpty ? null : controller.onPlayAll,
+                label: Text(
+                  '播放全部',
+                  style: textTheme.bodyMedium,
+                  maxLines: SongListHead.rowSubTextMaxLines,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              // 关注(用 favorite icon 表示,语义统一)
+              _LikeButton(
+                liked: controller.isPlaylistFavorite,
+                onToggle: controller.toggleFavorite,
+              ),
+            ],
+          ),
+        ],
+      );
+    });
   }
 }
