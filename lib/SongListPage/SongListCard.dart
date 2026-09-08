@@ -132,12 +132,12 @@ class SongListCard extends StatelessWidget {
 
   void _defaultNavigate() {
     Get.to(
-      () => SongListDetail(displayTitle: title),
-      id: DefaultValues.shellNavigatorId,
-      binding: SongListDetailBinding(
-        playlistId: playlistId,
-        source: source,
+      () => SongListDetail(
+        displayTitle: title,
+        controllerTag: playlistId + source.toString(),
       ),
+      id: DefaultValues.shellNavigatorId,
+      binding: SongListDetailBinding(playlistId: playlistId, source: source),
     );
   }
 }
@@ -172,7 +172,10 @@ class LineSongListCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: ListTile(
         onTap: () => Get.to(
-          () => SongListDetail(displayTitle: title),
+          () => SongListDetail(
+            displayTitle: title,
+            controllerTag: playlistId + source.toString(),
+          ),
           id: DefaultValues.shellNavigatorId,
           binding: SongListDetailBinding(
             playlistId: playlistId,
@@ -196,7 +199,8 @@ class LineSongListCard extends StatelessWidget {
           icon: Icon(Icons.play_circle_fill_outlined),
           onPressed: () {
             final cb =
-                onPlay ?? () => SongListBodyController.playPlaylistById(playlistId);
+                onPlay ??
+                () => SongListBodyController.playPlaylistById(playlistId);
             cb(); // fire-and-forget
           },
         ),

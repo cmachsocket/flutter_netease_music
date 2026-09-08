@@ -16,14 +16,19 @@ import 'SongListHeadController.dart';
 /// - widget 层只组合 [SongListHead] + [SongListBody],不直接 Get.find controller。
 /// - 业务侧零硬编码 —— 列表渲染 / 单元格都走现成 widget。
 class SongListDetail extends StatelessWidget {
-  const SongListDetail({super.key, this.displayTitle});
+  const SongListDetail({
+    super.key,
+    this.displayTitle,
+    required this.controllerTag,
+  });
 
   /// 进入页面时 fallback 标题(head controller 拉完元信息后会覆盖)
   final String? displayTitle;
+  final String controllerTag;
 
   @override
   Widget build(BuildContext context) {
-    final head = Get.find<SongListHeadController>();
+    final head = Get.find<SongListHeadController>(tag: controllerTag);
 
     return Scaffold(
       appBar: AppBar(

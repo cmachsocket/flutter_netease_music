@@ -137,7 +137,10 @@ class _AlbumGridView extends StatelessWidget {
           isLiked: () => c.isAlbumLiked(a.id),
           onToggleFavorite: () => c.toggleAlbumLike(a.id),
           onTap: () => Get.to(
-            () => SongListDetail(displayTitle: a.name),
+            () => SongListDetail(
+              displayTitle: a.name,
+              controllerTag: a.id + PlaylistSource.album.toString(),
+            ),
             id: DefaultValues.shellNavigatorId,
             binding: SongListDetailBinding(
               playlistId: 'album-${a.id}',
@@ -216,7 +219,10 @@ class _PlaylistGridView extends StatelessWidget {
           isLiked: () => c.isPlaylistLiked(p.id),
           onToggleFavorite: () => c.togglePlaylistLike(p.id),
           onTap: () => Get.to(
-            () => SongListDetail(displayTitle: p.name),
+            () => SongListDetail(
+              displayTitle: p.name,
+              controllerTag: p.id + PlaylistSource.collected.toString(),
+            ),
             id: DefaultValues.shellNavigatorId,
             binding: SongListDetailBinding(
               playlistId: p.id,

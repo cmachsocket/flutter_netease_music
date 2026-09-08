@@ -125,10 +125,12 @@ class _AlbumLink extends StatelessWidget {
         onPressed: () {
           if (backFirst) Get.back(id: DefaultValues.shellNavigatorId);
           Get.to(
-            () => SongListDetail(),
+            () => SongListDetail(
+              controllerTag: id + PlaylistSource.album.toString(),
+            ),
             id: DefaultValues.shellNavigatorId,
             binding: SongListDetailBinding(
-              playlistId: 'album-$id',
+              playlistId: id,
               source: PlaylistSource.album,
             ),
           );
