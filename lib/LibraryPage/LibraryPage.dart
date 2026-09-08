@@ -133,8 +133,9 @@ class _PlaylistsView extends StatelessWidget {
                 imageUrl: p.picUrl,
                 showLike: showLike,
                 isLiked: showLike ? () => c.isPlaylistLiked(p.id) : null,
-                onToggleFavorite:
-                    showLike ? () => c.togglePlaylistLike(p.id) : null,
+                onToggleFavorite: showLike
+                    ? () => c.togglePlaylistLike(p.id)
+                    : null,
                 // 透传给详情页:自建歌单显示 🗑 删除,收藏的显示 ❤️ 收藏
                 source: p.source,
               );
@@ -233,7 +234,7 @@ class _ArtistsView extends StatelessWidget {
                 onToggleFavorite: () => c.toggleArtistLike(a.id),
                 onTap: () => Get.to(
                   () => ArtistDetail(artistId: a.id),
-                  id: AppShell.shellNavigatorId,
+                  id: DefaultValues.shellNavigatorId,
                   binding: ArtistDetailBinding(artistId: a.id),
                 ),
               );

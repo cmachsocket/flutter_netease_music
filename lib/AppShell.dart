@@ -3,7 +3,7 @@ import 'package:flutter_netease_music/PlayPage/BottomPlayer.dart';
 import 'package:get/get.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 import 'package:keyboard_insets/keyboard_insets.dart';
-
+import '../models/default.dart';
 import 'HomePage/HomePage.dart';
 import 'LibraryPage/LibraryController.dart';
 import 'LibraryPage/LibraryPage.dart';
@@ -22,7 +22,6 @@ class AppShell extends StatelessWidget {
   const AppShell({super.key});
 
   /// AppShell 这一层 Navigator 在 Get 中的 id,跟 Settings 的内嵌 id 区分
-  static const int shellNavigatorId = 0;
   static const int maxPageIndex = 4;
   static const int protraitFlex = 6;
   static const int landscapeFlex = 5;
@@ -61,7 +60,7 @@ class AppShell extends StatelessWidget {
   /// shell 这一层的 Navigator,内容跟着 tab index 走
   static Widget _navigator(PageIndex i) {
     return Navigator(
-      key: Get.nestedKey(shellNavigatorId),
+      key: Get.nestedKey(DefaultValues.shellNavigatorId),
       initialRoute: '/',
       onGenerateRoute: (settings) {
         if (settings.name == '/') {
@@ -122,7 +121,7 @@ class AppShell extends StatelessWidget {
               Get.to(
                 () => _content(toThePage),
                 binding: _bindingForTab(toThePage),
-                id: shellNavigatorId,
+                id: DefaultValues.shellNavigatorId,
               );
             },
             type: BottomNavigationBarType.fixed,

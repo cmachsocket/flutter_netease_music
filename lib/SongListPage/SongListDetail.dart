@@ -1,7 +1,6 @@
-/// TODO : 目前这里对于自建歌单还在显示 like/dislike, 但实际上应该是删除
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../models/default.dart';
 
 import 'SongListBody.dart';
 import 'SongListController.dart';
@@ -42,7 +41,7 @@ class SongListDetail extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => Get.back(id: DefaultValues.shellNavigatorId),
           icon: const Icon(Icons.arrow_back),
         ),
         title: Obx(() {

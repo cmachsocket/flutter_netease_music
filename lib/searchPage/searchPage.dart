@@ -132,7 +132,7 @@ class _AlbumGridView extends StatelessWidget {
               // 专辑入口,playlistId 以 album- 开头,详情页不读这个字段
               playlistSource: PlaylistSource.collected,
             ),
-            id: AppShell.shellNavigatorId,
+            id: DefaultValues.shellNavigatorId,
             binding: SongListDetailBinding(playlistId: 'album-${a.id}'),
           ),
         ),
@@ -169,7 +169,7 @@ class _ArtistGridView extends StatelessWidget {
           onToggleFavorite: () => c.toggleArtistLike(a.id),
           onTap: () => Get.to(
             () => ArtistDetail(artistId: a.id),
-            id: AppShell.shellNavigatorId,
+            id: DefaultValues.shellNavigatorId,
             binding: ArtistDetailBinding(artistId: a.id),
           ),
         ),
@@ -212,7 +212,7 @@ class _PlaylistGridView extends StatelessWidget {
               displayTitle: p.name,
               playlistSource: PlaylistSource.collected,
             ),
-            id: AppShell.shellNavigatorId,
+            id: DefaultValues.shellNavigatorId,
             binding: SongListDetailBinding(playlistId: p.id),
           ),
         ),

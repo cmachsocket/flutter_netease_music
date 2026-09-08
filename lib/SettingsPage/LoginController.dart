@@ -1,9 +1,8 @@
 import 'dart:async';
+import '../models/default.dart';
 
 import 'package:flutter/widgets.dart' show TextEditingController;
 import 'package:get/get.dart';
-
-import '../AppShell.dart';
 import '../sdk/AuthController.dart';
 
 /// 登录页 controller(手机 + 验证码)
@@ -143,7 +142,7 @@ class LoginController extends GetxController {
         countryCode: countryCode,
       );
       if (ok) {
-        Get.back(id: AppShell.shellNavigatorId);
+        Get.back(id: DefaultValues.shellNavigatorId);
         // snackbar 在 back 之后调, 挂在 Settings 的 overlay 上,
         // 不会被 back 的 route dispose 一起干掉
         Get.snackbar(

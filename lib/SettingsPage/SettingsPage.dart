@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_netease_music/sdk/AuthController.dart';
 import 'package:get/get.dart';
-import '../AppShell.dart';
 import 'LoginController.dart';
 import 'LoginPage.dart';
 import 'SettingsController.dart';
 import 'ThemeSwitcher.dart';
+import '../models/default.dart';
 
 /// 设置 tab 内容(放进 app_shell 的 IndexedStack)。
 /// 父级 IndexedStack 必须被 Expanded 包裹 —— 否则 Column 的主轴给的是
@@ -17,7 +17,7 @@ class Settings extends StatelessWidget {
   static void _openLogin() => Get.to(
     () => const LoginPage(),
     binding: LoginPageBinding(),
-    id: AppShell.shellNavigatorId,
+    id: DefaultValues.shellNavigatorId,
   );
 
   /// 退出登录入口(已登录态才显示):走 [AuthController.logout],

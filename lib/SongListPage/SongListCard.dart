@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../widgets/song_cover.dart';
 import 'package:get/get.dart';
 import 'package:responsive_builder/responsive_builder.dart';
-import '../AppShell.dart';
 import '../models/default.dart';
 import '../models/LibrarySummary.dart' show PlaylistSource;
 import 'SongListController.dart';
@@ -144,7 +143,7 @@ class SongListCard extends StatelessWidget {
         // null → detail 按 collected 处理(显示 ❤️ 收藏,安全兜底)
         playlistSource: source ?? PlaylistSource.collected,
       ),
-      id: AppShell.shellNavigatorId,
+      id: DefaultValues.shellNavigatorId,
       binding: SongListDetailBinding(playlistId: playlistId),
     );
   }
@@ -187,7 +186,7 @@ class LineSongListCard extends StatelessWidget {
             displayTitle: title,
             playlistSource: source ?? PlaylistSource.collected,
           ),
-          id: AppShell.shellNavigatorId,
+          id: DefaultValues.shellNavigatorId,
           binding: SongListDetailBinding(playlistId: playlistId),
         ),
         leading: SongCover(url: imageUrl ?? ''),

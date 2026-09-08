@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../ArtistPage/ArtistDetail.dart';
 import '../SongListPage/SongListDetail.dart';
-import '../AppShell.dart';
+import '../models/default.dart';
 import '../models/Song.dart';
 import '../models/LibrarySummary.dart' show PlaylistSource;
 
@@ -62,7 +62,9 @@ class _ArtistLink extends StatelessWidget {
     final id = song.artistId;
     final text = song.artist.isEmpty ? '未知艺人' : song.artist;
     if (id == null || id.isEmpty) {
-      return Flexible(child: _ReadOnlyText(text: text, style: style));
+      return Flexible(
+        child: _ReadOnlyText(text: text, style: style),
+      );
     }
     return Flexible(
       child: TextButton(
@@ -72,16 +74,21 @@ class _ArtistLink extends StatelessWidget {
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
         onPressed: () => _navigate(id),
-        child: Text(text, maxLines: 1, style: style, overflow: TextOverflow.ellipsis),
+        child: Text(
+          text,
+          maxLines: 1,
+          style: style,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
     );
   }
 
   void _navigate(String artistId) {
-    if (backFirst) Get.back(id: AppShell.shellNavigatorId);
+    if (backFirst) Get.back(id: DefaultValues.shellNavigatorId);
     Get.to(
       () => ArtistDetail(artistId: artistId),
-      id: AppShell.shellNavigatorId,
+      id: DefaultValues.shellNavigatorId,
       binding: ArtistDetailBinding(artistId: artistId),
     );
   }
@@ -116,18 +123,23 @@ class _AlbumLink extends StatelessWidget {
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
         onPressed: () {
-          if (backFirst) Get.back(id: AppShell.shellNavigatorId);
+          if (backFirst) Get.back(id: DefaultValues.shellNavigatorId);
           Get.to(
             () => SongListDetail(
               playlistId: 'album-$id',
               // 专辑入口,详情页不读 playlistSource
               playlistSource: PlaylistSource.collected,
             ),
-            id: AppShell.shellNavigatorId,
+            id: DefaultValues.shellNavigatorId,
             binding: SongListDetailBinding(playlistId: 'album-$id'),
           );
         },
-        child: Text(text, maxLines: 1, style: style, overflow: TextOverflow.ellipsis),
+        child: Text(
+          text,
+          maxLines: 1,
+          style: style,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
     );
   }
@@ -144,6 +156,11 @@ class _ReadOnlyText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(text, maxLines: 1, style: style, overflow: TextOverflow.ellipsis);
+    return Text(
+      text,
+      maxLines: 1,
+      style: style,
+      overflow: TextOverflow.ellipsis,
+    );
   }
 }

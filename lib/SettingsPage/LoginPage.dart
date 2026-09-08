@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-
+import '../models/default.dart';
 import 'LoginController.dart';
-import '../AppShell.dart';
 
 /// 登录页(手机 + 验证码)
 ///
@@ -22,7 +21,7 @@ class LoginPage extends StatelessWidget {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(id: AppShell.shellNavigatorId),
+          onPressed: () => Get.back(id: DefaultValues.shellNavigatorId),
         ),
         title: const Text('登录'),
       ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
+import '../models/default.dart';
 import '../LibraryPage/LibraryController.dart';
 import '../models/Song.dart';
 import '../services/LikedController.dart';
@@ -175,10 +175,7 @@ class SongListController extends GetxController {
       await Get.find<LibraryController>().loadPlaylists();
     }
     // pop 回上一页。Get.context 详情页打开时一定非 null,但兜底用 canPop
-    final ctx = Get.context;
-    if (ctx != null && Navigator.of(ctx).canPop()) {
-      Navigator.of(ctx).pop();
-    }
+    Get.back(id: DefaultValues.shellNavigatorId, closeOverlays: true);
   }
 
   /// 二次确认 dialog。返回 true/false,null=用户取消(点 dialog 外 / 返回键)。
@@ -186,9 +183,7 @@ class SongListController extends GetxController {
     return Get.dialog<bool>(
       AlertDialog(
         title: const Text('删除歌单'),
-        content: Text(
-          '确定要删除歌单"${title.value ?? ''}"吗?此操作不可恢复。',
-        ),
+        content: Text('确定要删除歌单"${title.value ?? ''}"吗?此操作不可恢复。'),
         actions: [
           TextButton(
             onPressed: () => Get.back<bool>(result: false),
