@@ -2,7 +2,6 @@ import 'package:flutter/material.dart' hide SearchController;
 import 'package:get/get.dart';
 
 import '../models/default.dart';
-import '../AppShell.dart';
 import '../ArtistPage/ArtistDetail.dart';
 import '../SongListPage/SongListBody.dart';
 import '../SongListPage/SongListCard.dart';
@@ -12,8 +11,8 @@ import '../models/Artist.dart';
 import '../widgets/aspect_driven_grid.dart';
 import '../services/repositories/SearchRepository.dart'
     show SearchType, SearchPlaylistSummary;
-import '../models/LibrarySummary.dart' show PlaylistSource;
 import 'SearchController.dart';
+import '../models/LibrarySummary.dart' show PlaylistSource;
 
 /// 搜索页(主 tab 之一)
 ///
@@ -86,14 +85,21 @@ class _SongView extends StatelessWidget {
       if (c.songResults.isEmpty) {
         return _HintView(text: '没有匹配 "${c.submittedKeyword.value}" 的单曲');
       }
-      return SongListBody(
-        songs: c.songResults.toList(),
-        isLoading: false,
-        // 单曲列表要可播放 + 可点赞;不传 onPlay/onToggleFavorite 时
-        // SongRowTile 的 IconButton.onPressed 是 null,点击不响应。
-        onPlay: c.playSong,
-        onToggleFavorite: (song) => c.toggleFavorite(song.id),
-        isLiked: (song) => c.isLiked(song.id),
+      return Navigator(
+        key: Get.nestedKey(DefaultValues.songListBodyNavigatorId),
+        initialRoute: '/songlistbody',
+        onGenerateRoute: (settings) {
+          if (settings.name == '/songlistbody') {
+            return GetPageRoute(
+              page: () => SongListBody(),
+              binding: SongListBodyBinding(
+                playlistId: DefaultValues.searchSongListId,
+                source: PlaylistSource.pure,
+              ),
+            );
+          }
+          return null;
+        },
       );
     });
   }
@@ -126,14 +132,12 @@ class _AlbumGridView extends StatelessWidget {
           isLiked: () => c.isAlbumLiked(a.id),
           onToggleFavorite: () => c.toggleAlbumLike(a.id),
           onTap: () => Get.to(
-            () => SongListDetail(
-              playlistId: 'album-${a.id}',
-              displayTitle: a.name,
-              // 专辑入口,playlistId 以 album- 开头,详情页不读这个字段
-              playlistSource: PlaylistSource.collected,
-            ),
+            () => SongListDetail(displayTitle: a.name),
             id: DefaultValues.shellNavigatorId,
-            binding: SongListDetailBinding(playlistId: 'album-${a.id}'),
+            binding: SongListDetailBinding(
+              playlistId: 'album-${a.id}',
+              source: PlaylistSource.album,
+            ),
           ),
         ),
       );
@@ -204,16 +208,10 @@ class _PlaylistGridView extends StatelessWidget {
           imageUrl: p.coverUrl,
           isLiked: () => c.isPlaylistLiked(p.id),
           onToggleFavorite: () => c.togglePlaylistLike(p.id),
-          // 自定义 onTap,不走 SongListCard._defaultNavigate,source 自行透传
-          source: PlaylistSource.collected,
           onTap: () => Get.to(
-            () => SongListDetail(
-              playlistId: p.id,
-              displayTitle: p.name,
-              playlistSource: PlaylistSource.collected,
-            ),
+            () => SongListDetail(playlistId: p.id, displayTitle: p.name),
             id: DefaultValues.shellNavigatorId,
-            binding: SongListDetailBinding(playlistId: p.id),
+            binding: SongListDetailBinding(playlistId: p.id, source: p.source),
           ),
         ),
       );

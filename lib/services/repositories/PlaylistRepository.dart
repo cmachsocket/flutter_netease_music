@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:musiclibrary/music_library.dart';
 
+import '../../models/LibrarySummary.dart' show PlaylistSource;
 import '../../models/Song.dart';
 import '../../sdk/ApiCall.dart';
 import '../../models/ApiException.dart';
@@ -21,14 +22,18 @@ class PlaylistRepository extends GetxService {
 
   PlaylistRepository(this._api);
 
-  /// 拉歌单元信息(标题/封面/描述)。
+  /// 拉歌单元信息(标题/封面/描述 + source)。
   ///
   /// API: `/playlist/detail?id=X`, 响应:
   /// ```
-  /// { playlist: { id, name, coverImgUrl, description, ... } }
+  /// { playlist: { id, name, coverImgUrl, description, subscribed, ... } }
   /// ```
   ///
   /// 返回 null: API 失败。返回空数据: 成功但 playlist 字段缺失。
+  ///
+  /// **source 解析**:后端 `playlist.subscribed` bool —— 真值映射在
+  /// [fetchMeta] 内一次完成,调用方只读 enum。专辑(id 以 `album-`
+  /// 开头)不走这条路径,source 字段没有意义。
   Future<PlaylistMeta?> fetchMeta(String playlistId) async {
     try {
       final r = await apiCall(
@@ -42,6 +47,9 @@ class PlaylistRepository extends GetxService {
         name: (p['name'] ?? '').toString(),
         coverUrl: (p['coverImgUrl'] ?? '').toString(),
         description: (p['description'] ?? '').toString(),
+        source: p['subscribed'] == true
+            ? PlaylistSource.collected
+            : PlaylistSource.created,
       );
     } on ApiException {
       return null;

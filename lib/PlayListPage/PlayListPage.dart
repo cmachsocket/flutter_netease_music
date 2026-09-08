@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import '../SongListPage/SongListBody.dart';
 import 'PlayListController.dart';
 import '../models/Song.dart';
+import '../models/default.dart';
+import '../models/LibrarySummary.dart' show PlaylistSource;
 
 /// 播放列表页
 ///
@@ -40,21 +42,21 @@ class PlayListPage extends StatelessWidget {
             '[PlayListPage] Obx rebuild playlist.length=${controller.playlist.length}',
           );
         }
-        return SongListBody(
-          songs: controller.playlist.toList(),
-          isLoading: false,
-          // SongListBody.onPlay 收 Song；controller.selectIndex 收 int
-          onPlay: (song) {
-            final list = controller.playlist;
-            final i = list.indexWhere((s) => s.id == song.id);
-            if (i >= 0) controller.selectIndex(i);
+        return Navigator(
+          key: Get.nestedKey(DefaultValues.songListBodyNavigatorId),
+          initialRoute: '/songlistbody',
+          onGenerateRoute: (settings) {
+            if (settings.name == '/songlistbody') {
+              return GetPageRoute(
+                page: () => SongListBody(),
+                binding: SongListBodyBinding(
+                  playlistId: DefaultValues.searchSongListId,
+                  source: PlaylistSource.pure,
+                ),
+              );
+            }
+            return null;
           },
-          // 喜爱 / 不喜爱 (isLiked 内部读 likedIds.value → Obx 跟踪)
-          isLiked: (song) => controller.isLiked(song.id),
-          onToggleFavorite: (song) => controller.toggleFavorite(song.id),
-          extraTrailing: (song, index) =>
-              RemoveIconButton(song: song, index: index),
-          selectedHighlight: controller.currentIndex.value,
         );
       }),
       // ),

@@ -3,8 +3,7 @@ import '../widgets/song_cover.dart';
 import 'package:get/get.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 import '../models/default.dart';
-import '../models/LibrarySummary.dart' show PlaylistSource;
-import 'SongListController.dart';
+import 'SongListBodyController.dart';
 import 'SongListDetail.dart';
 
 /// 整张歌单播放回调(返回 Future 但卡片场景 fire-and-forget)
@@ -17,7 +16,8 @@ typedef IsLikedGetter = bool Function();
 ///
 /// - [playlistId] 由调用方注入(主页 HomePage 把每天推荐/私人FM/推荐歌单的 ID 传进来)
 /// - 默认点击走 [Get.to] 推到 `AppShell` 的嵌套 Navigator 上(保留底部 [BottomPlayer]);
-///   进入后自动按 ID 拉数据([SongListController] 由 binding 注入,路由 pop 时自动销毁)
+///   进入后自动按 ID 拉数据([SongListBodyController] / [SongListHeadController]
+///   由 binding 注入,路由 pop 时自动销毁)
 /// - [onTap] 传了就用自定义导航(艺人/专辑卡片可以借此推到自己的详情页);
 ///   传 null 就走默认 SongListDetail 导航
 class SongListCard extends StatelessWidget {
@@ -32,29 +32,17 @@ class SongListCard extends StatelessWidget {
     this.isLiked,
     this.onToggleFavorite,
     this.showLike = true,
-    this.source,
   });
 
-  final String playlistId;
+  final int playlistId;
   final String? title;
   final String? subtitle;
   final String? imageUrl;
 
-  /// 歌单来源(自建 / 收藏)。**透传给 [SongListDetail]** 决定详情页显示
-  /// 🗑 删除 还是 ❤️ 收藏按钮。
-  ///
-  /// - 传 null: 默认按"收藏的歌单"处理(显示 ❤️ 按钮,安全兜底)
-  /// - [PlaylistSource.created]: 详情页显示 🗑 删除
-  /// - [PlaylistSource.collected]: 详情页显示 ❤️ 收藏(取消订阅)
-  ///
-  /// 专辑入口(`album-X`)的卡片从 `linked_detail_text` 跳进去,不传这个字段;
-  /// `playlistId.startsWith('album-')` 在 detail 页内识别专辑。
-  final PlaylistSource? source;
-
   /// 覆盖默认导航。null = 默认跳 SongListDetail
   final VoidCallback? onTap;
 
-  /// 覆盖默认播放(整张歌单)。null = 默认调 SongListController.playPlaylistById
+  /// 覆盖默认播放(整张歌单)。null = 默认调 SongListBodyController.playPlaylistById
   final PlayPlaylistCallback? onPlay;
 
   /// 查询当前 [playlistId] 是否被喜欢/收藏/关注
@@ -119,8 +107,9 @@ class SongListCard extends StatelessWidget {
                       onPressed: () {
                         final cb =
                             onPlay ??
-                            () =>
-                                SongListController.playPlaylistById(playlistId);
+                            () => SongListBodyController.playPlaylistById(
+                              playlistId,
+                            );
                         cb(); // fire-and-forget
                       },
                     ),
@@ -137,12 +126,7 @@ class SongListCard extends StatelessWidget {
 
   void _defaultNavigate() {
     Get.to(
-      () => SongListDetail(
-        playlistId: playlistId,
-        displayTitle: title,
-        // null → detail 按 collected 处理(显示 ❤️ 收藏,安全兜底)
-        playlistSource: source ?? PlaylistSource.collected,
-      ),
+      () => SongListDetail(playlistId: playlistId, displayTitle: title),
       id: DefaultValues.shellNavigatorId,
       binding: SongListDetailBinding(playlistId: playlistId),
     );
@@ -157,20 +141,16 @@ class LineSongListCard extends StatelessWidget {
     this.subtitle,
     this.imageUrl,
     this.onPlay,
-    this.source,
   });
 
-  final String playlistId;
+  final int playlistId;
   final String? title;
   final String? subtitle;
   final String? imageUrl;
 
-  /// 歌单来源 —— 透传给 [SongListDetail] 决定详情页按钮(同 [SongListCard.source])。
-  final PlaylistSource? source;
-
   static const bodyTextMaxLines = 1;
 
-  /// 覆盖默认播放(整张歌单)。null = 默认调 SongListController.playPlaylistById
+  /// 覆盖默认播放(整张歌单)。null = 默认调 SongListBodyController.playPlaylistById
   final PlayPlaylistCallback? onPlay;
 
   @override
@@ -181,11 +161,7 @@ class LineSongListCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: ListTile(
         onTap: () => Get.to(
-          () => SongListDetail(
-            playlistId: playlistId,
-            displayTitle: title,
-            playlistSource: source ?? PlaylistSource.collected,
-          ),
+          () => SongListDetail(playlistId: playlistId, displayTitle: title),
           id: DefaultValues.shellNavigatorId,
           binding: SongListDetailBinding(playlistId: playlistId),
         ),
@@ -206,7 +182,8 @@ class LineSongListCard extends StatelessWidget {
           icon: Icon(Icons.play_circle_fill_outlined),
           onPressed: () {
             final cb =
-                onPlay ?? () => SongListController.playPlaylistById(playlistId);
+                onPlay ??
+                () => SongListBodyController.playPlaylistById(playlistId);
             cb(); // fire-and-forget
           },
         ),
@@ -227,7 +204,7 @@ class _LikeButton extends StatelessWidget {
     required this.onToggleFavorite,
   });
 
-  final String playlistId;
+  final int playlistId;
   final IsLikedGetter? isLiked;
   final VoidCallback? onToggleFavorite;
 

@@ -466,7 +466,7 @@ class AudioPlayerService extends GetxController {
   /// 加载多首歌作为整个队列(UI 调, 比如歌单页"播放全部")
   ///
   /// 返回 [Future<void>] 让上层 controller 可以 await (e.g.
-  /// `SongListController.playPlaylistById` 等首屏数据 load 完再触发)。
+  /// `SongListBodyController.playPlaylistById` 等首屏数据 load 完再触发)。
   Future<void> playSongs(List<Song> songs, {Song? startSong}) async {
     if (songs.isEmpty) return;
     final uniqueSongs = <Song>[];

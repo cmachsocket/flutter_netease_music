@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
-import '../AppShell.dart';
 import '../ArtistPage/ArtistDetail.dart';
 import '../SongListPage/SongListCard.dart';
 import '../sdk/AuthController.dart';
@@ -136,8 +134,6 @@ class _PlaylistsView extends StatelessWidget {
                 onToggleFavorite: showLike
                     ? () => c.togglePlaylistLike(p.id)
                     : null,
-                // 透传给详情页:自建歌单显示 🗑 删除,收藏的显示 ❤️ 收藏
-                source: p.source,
               );
             },
           );

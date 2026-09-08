@@ -9,6 +9,8 @@ import '../widgets/netease_image.dart';
 import '../models/Artist.dart';
 import 'ArtistController.dart';
 import '../models/default.dart';
+import '../widgets/long_press_dialog.dart';
+import '../models/LibrarySummary.dart' show PlaylistSource;
 
 /// 艺人详情页
 ///
@@ -162,13 +164,19 @@ class _SectionContent extends StatelessWidget {
         case ArtistView.albums:
           return _AlbumsSection(albums: controller.albums.toList());
         case ArtistView.songs:
-          return SongListBody(
-            songs: controller.songs.toList(),
-            isLoading: false,
-            onToggleFavorite: (song) => controller.toggleFavorite(song.id),
-            onPlay: controller.playSong,
-            isLiked: (song) => controller.isLiked(song.id),
-          );
+          return Navigator(
+              key: Get.nestedKey(DefaultValues.songListBodyNavigatorId),
+              initialRoute: '/songlistbody',
+              onGenerateRoute: (settings) {
+                if (settings.name == '/songlistbody') {
+                  return GetPageRoute(
+                    page: () => SongListBody(),
+                    binding: SongListBodyBinding(playlistId: playlistId),
+                  );
+                }
+                return null;
+              },
+            ),
       }
     });
   }

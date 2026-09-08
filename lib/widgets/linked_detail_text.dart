@@ -125,13 +125,12 @@ class _AlbumLink extends StatelessWidget {
         onPressed: () {
           if (backFirst) Get.back(id: DefaultValues.shellNavigatorId);
           Get.to(
-            () => SongListDetail(
-              playlistId: 'album-$id',
-              // 专辑入口,详情页不读 playlistSource
-              playlistSource: PlaylistSource.collected,
-            ),
+            () => SongListDetail(),
             id: DefaultValues.shellNavigatorId,
-            binding: SongListDetailBinding(playlistId: 'album-$id'),
+            binding: SongListDetailBinding(
+              playlistId: 'album-$id',
+              source: PlaylistSource.album,
+            ),
           );
         },
         child: Text(

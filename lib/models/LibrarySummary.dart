@@ -18,6 +18,15 @@ enum PlaylistSource {
 
   /// 我收藏/订阅的(原 subscribed == true)
   collected,
+
+  /// 专辑:`/album?id=X` 走的是另一条接口,`playlistId` 以 `album-` 前缀区分
+  album,
+
+  /// 艺人
+  artist,
+
+  /// 纯粹的列表
+  pure,
 }
 
 /// 首页推荐歌单卡片。
