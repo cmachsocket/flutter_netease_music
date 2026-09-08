@@ -17,10 +17,10 @@ import 'SongListHeadController.dart';
 /// head widget 是组合层 —— head controller 不知道 body 存在,但 widget
 /// 可以组合两个 controller 的视觉。
 class SongListHead extends StatelessWidget {
-  const SongListHead({super.key, required this.controller});
+  const SongListHead({super.key, required this.controllerTag});
 
   /// head controller 由 binding 注入,widget 只通过 controller 读 / 写状态。
-  final SongListHeadController controller;
+  final String controllerTag;
 
   /// AppBar 上"返回"按钮的回退栈 id(沿用项目约定)
   static const int backNavigatorId = DefaultValues.shellNavigatorId;
@@ -34,9 +34,10 @@ class SongListHead extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     // head widget 知道 body 是 sibling,这里只读 songs 是否空 ——
     // 用于 disable 播放按钮。空歌单不让播(head controller 不直接读 body)。
-    final body = Get.isRegistered<SongListBodyController>()
-        ? Get.find<SongListBodyController>()
+    final body = Get.isRegistered<SongListBodyController>(tag: controllerTag)
+        ? Get.find<SongListBodyController>(tag: controllerTag)
         : null;
+    final controller = Get.find<SongListHeadController>(tag: controllerTag);
     return Obx(() {
       // head 行整体隐藏条件:loading / 出错
       // 空歌单也渲染(head 显示删除按钮必须可见)

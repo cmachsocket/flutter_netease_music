@@ -17,11 +17,15 @@ import '../models/LibrarySummary.dart' show PlaylistSource;
 /// body 跟 head 是 sibling controller,各存一份 `playlistId`,完全独立。
 /// binding 时同时注入两个,head 的 `onPlayAll` 钩子指向 body.playAll,
 /// 这样 head 是纯命令执行器,不需要知道 body 实现细节。
+///
+/// **id 形式**:`playlistId` 是 String(网易云 API 入参要求 String),
+/// 专辑 / 歌单的区分通过 [source] enum,**不再**用 `'album-'` 前缀字符串
+/// 判别。
 class SongListBodyController extends GetxController {
   SongListBodyController({required this.playlistId, required this.source});
 
   /// 路由传进来的歌单 ID —— body 跟 head 各存一份(独立,不互引)
-  final int playlistId;
+  final String playlistId;
   final PlaylistSource source;
   final AudioPlayerService _queue = Get.find<AudioPlayerService>();
   final LikedController _likedService = Get.find<LikedController>();
@@ -46,7 +50,7 @@ class SongListBodyController extends GetxController {
     ready = _loadSongs();
   }
 
-  /// 拉曲目:按 id 前缀分流(album / playlist)
+  /// 拉曲目:按 [source] enum 分流
   Future<void> _loadSongs() async {
     isLoading.value = true;
     errorMessage.value = null;
@@ -62,7 +66,6 @@ class SongListBodyController extends GetxController {
       isLoading.value = false;
     }
   }
-
 
   /// 歌单分支:`/playlist/track/all?id=X`
   Future<void> _loadPlaylistSongs(String id) async {
@@ -98,7 +101,8 @@ class SongListBodyController extends GetxController {
   }
 
   /// 查询某首歌是否被喜欢(调用方必须包 Obx 才能响应变化)
-  bool isLiked(String songId) => _likedService.isLiked(songId, LikedType.song);
+  bool isLiked(String songId) =>
+      _likedService.isLiked(songId, LikedType.song);
 
   /// 按 [playlistId] 拉歌 + 整张播放
   ///
@@ -106,12 +110,18 @@ class SongListBodyController extends GetxController {
   ///
   /// 临时 put 一个 [SongListBodyController] 实例,等首屏 load 完 →
   /// 调 [playAll] → 销毁。完成后这个临时 controller 跟详情页那个没关系。
-  static Future<void> playPlaylistById(int playlistId) async {
+  static Future<void> playPlaylistById(String playlistId) async {
     final tag = 'preview-$playlistId';
     if (Get.isRegistered<SongListBodyController>(tag: tag)) {
       Get.delete<SongListBodyController>(tag: tag);
     }
-    final c = Get.put(SongListBodyController(playlistId: playlistId, source: PlaylistSource.pure), tag: tag);
+    final c = Get.put(
+      SongListBodyController(
+        playlistId: playlistId,
+        source: PlaylistSource.pure,
+      ),
+      tag: tag,
+    );
     await c.ready;
     if (c.songs.isNotEmpty) await c.playAll();
     Get.delete<SongListBodyController>(tag: tag);

@@ -126,6 +126,7 @@ class _PlaylistsView extends StatelessWidget {
               final showLike = p.source == PlaylistSource.collected;
               return SongListCard(
                 playlistId: p.id,
+                source: p.source,
                 title: p.name,
                 subtitle: '${p.trackCount} 首',
                 imageUrl: p.picUrl,
@@ -175,7 +176,8 @@ class _AlbumsView extends StatelessWidget {
             itemBuilder: (context, index) {
               final a = c.albums[index];
               return SongListCard(
-                playlistId: 'album-${a.id}',
+                playlistId: a.id,
+                source: PlaylistSource.album,
                 title: a.name,
                 subtitle: a.artist,
                 imageUrl: a.picUrl,
@@ -223,6 +225,7 @@ class _ArtistsView extends StatelessWidget {
               final a = c.artists[index];
               return SongListCard(
                 playlistId: a.id,
+                source: PlaylistSource.artist,
                 title: a.name,
                 subtitle: '',
                 imageUrl: a.picUrl,

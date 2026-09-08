@@ -5,6 +5,7 @@ import '../SongListPage/SongListCard.dart';
 import '../widgets/aspect_driven_grid.dart';
 import 'HomeController.dart';
 import '../models/default.dart';
+import '../models/LibrarySummary.dart' show PlaylistSource;
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -71,6 +72,7 @@ class _RecommendedGrid extends StatelessWidget {
               final card = home.recommended[index];
               return SongListCard(
                 playlistId: card.id,
+                source: PlaylistSource.collected,
                 title: card.name,
                 subtitle: '',
                 imageUrl: card.picUrl,

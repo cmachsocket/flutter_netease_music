@@ -21,10 +21,11 @@ class SongListBody extends StatelessWidget {
     this.extraTrailing,
     this.selectedHighlight,
     this.onLongPress,
+    required this.controllerTag,
   });
 
   /// 歌曲列表 controller
-
+  final String controllerTag;
   // 仍然接参的:这些是 widget 层定制,不是 controller 数据
 
   /// 为 [SongRowTile] 暴露的额外 trailing widget,同时会传递当前 Song 和 index。
@@ -38,8 +39,9 @@ class SongListBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final SongListBodyController controller =
-        Get.find<SongListBodyController>();
+    final SongListBodyController controller = Get.find<SongListBodyController>(
+      tag: controllerTag,
+    );
     // Obx 包裹整个 build:controller 的 Rx 字段变化触发重建
     return Obx(() {
       final songs = controller.songs.toList(growable: false);
@@ -89,7 +91,7 @@ class SongListBody extends StatelessWidget {
 
 class SongListBodyBinding extends Bindings {
   SongListBodyBinding({required this.playlistId, required this.source});
-  final int playlistId;
+  final String playlistId;
   final PlaylistSource source;
 
   @override

@@ -27,7 +27,7 @@ class SongListHeadController extends GetxController {
   });
 
   /// 路由传进来的歌单 ID
-  final int playlistId;
+  final String playlistId;
 
   /// 歌单来源(专辑 / 自建 / 收藏等),替代旧的 'album-' 字符串前缀判断
   final PlaylistSource source;

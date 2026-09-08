@@ -59,7 +59,12 @@ class ArtistDetail extends StatelessWidget {
           children: [
             _ArtistHeader(artist: artist),
             _SectionSwitcher(controller: controller),
-            Expanded(child: _SectionContent(controller: controller)),
+            Expanded(
+              child: _SectionContent(
+                controller: controller,
+                artistId: artistId,
+              ),
+            ),
           ],
         );
       }),
@@ -154,8 +159,9 @@ class _SectionSwitcher extends StatelessWidget {
 }
 
 class _SectionContent extends StatelessWidget {
-  const _SectionContent({required this.controller});
+  const _SectionContent({required this.controller, required this.artistId});
   final ArtistController controller;
+  final String artistId;
 
   @override
   Widget build(BuildContext context) {
@@ -165,18 +171,23 @@ class _SectionContent extends StatelessWidget {
           return _AlbumsSection(albums: controller.albums.toList());
         case ArtistView.songs:
           return Navigator(
-              key: Get.nestedKey(DefaultValues.songListBodyNavigatorId),
-              initialRoute: '/songlistbody',
-              onGenerateRoute: (settings) {
-                if (settings.name == '/songlistbody') {
-                  return GetPageRoute(
-                    page: () => SongListBody(),
-                    binding: SongListBodyBinding(playlistId: playlistId),
-                  );
-                }
-                return null;
-              },
-            ),
+            key: Get.nestedKey(DefaultValues.songListBodyNavigatorId),
+            initialRoute: '/songlistbody',
+            onGenerateRoute: (settings) {
+              if (settings.name == '/songlistbody') {
+                return GetPageRoute(
+                  page: () => SongListBody(
+                    controllerTag: artistId + PlaylistSource.artist.toString(),
+                  ),
+                  binding: SongListBodyBinding(
+                    playlistId: artistId,
+                    source: PlaylistSource.artist,
+                  ),
+                );
+              }
+              return null;
+            },
+          );
       }
     });
   }
@@ -210,7 +221,8 @@ class _AlbumsSection extends StatelessWidget {
           itemBuilder: (context, index) {
             final album = albums[index];
             return SongListCard(
-              playlistId: 'album-${album.id}',
+              playlistId: album.id,
+              source: PlaylistSource.album,
               title: album.name,
               subtitle: '${album.type.label} · ${album.songCount}首',
               imageUrl: album.coverUrl,

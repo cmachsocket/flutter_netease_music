@@ -44,7 +44,7 @@ class SongListDetail extends StatelessWidget {
       ),
       body: Column(
         children: [
-          SongListHead(controller: head),
+          SongListHead(controllerTag: head.playlistId + head.source.toString()),
           Expanded(
             child: //嵌套导航
             Navigator(
@@ -53,7 +53,9 @@ class SongListDetail extends StatelessWidget {
               onGenerateRoute: (settings) {
                 if (settings.name == '/songlistbody') {
                   return GetPageRoute(
-                    page: () => SongListBody(),
+                    page: () => SongListBody(
+                      controllerTag: head.playlistId + head.source.toString(),
+                    ),
                     binding: SongListBodyBinding(
                       playlistId: head.playlistId,
                       source: head.source,
@@ -78,7 +80,7 @@ class SongListDetail extends StatelessWidget {
 class SongListDetailBinding extends Bindings {
   SongListDetailBinding({required this.playlistId, required this.source});
 
-  final int playlistId;
+  final String playlistId;
   final PlaylistSource source;
 
   @override

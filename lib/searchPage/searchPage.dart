@@ -91,7 +91,11 @@ class _SongView extends StatelessWidget {
         onGenerateRoute: (settings) {
           if (settings.name == '/songlistbody') {
             return GetPageRoute(
-              page: () => SongListBody(),
+              page: () => SongListBody(
+                controllerTag:
+                    DefaultValues.searchSongListId +
+                    PlaylistSource.pure.toString(),
+              ),
               binding: SongListBodyBinding(
                 playlistId: DefaultValues.searchSongListId,
                 source: PlaylistSource.pure,
@@ -125,7 +129,8 @@ class _AlbumGridView extends StatelessWidget {
       return _grid<Album>(
         items: c.albumResults.toList(),
         toCard: (a) => SongListCard(
-          playlistId: 'album-${a.id}',
+          playlistId: a.id,
+          source: PlaylistSource.album,
           title: a.name,
           subtitle: '${a.songCount}首',
           imageUrl: a.coverUrl,
@@ -166,6 +171,7 @@ class _ArtistGridView extends StatelessWidget {
         items: c.artistResults.toList(),
         toCard: (a) => SongListCard(
           playlistId: a.id,
+          source: PlaylistSource.artist,
           title: a.name,
           subtitle: '${a.albumCount}张专辑 · ${a.songCount}首歌',
           imageUrl: a.photoUrl,
@@ -203,15 +209,19 @@ class _PlaylistGridView extends StatelessWidget {
         items: c.playlistResults.toList(),
         toCard: (p) => SongListCard(
           playlistId: p.id,
+          source: PlaylistSource.collected,
           title: p.name,
           subtitle: '${p.trackCount}首',
           imageUrl: p.coverUrl,
           isLiked: () => c.isPlaylistLiked(p.id),
           onToggleFavorite: () => c.togglePlaylistLike(p.id),
           onTap: () => Get.to(
-            () => SongListDetail(playlistId: p.id, displayTitle: p.name),
+            () => SongListDetail(displayTitle: p.name),
             id: DefaultValues.shellNavigatorId,
-            binding: SongListDetailBinding(playlistId: p.id, source: p.source),
+            binding: SongListDetailBinding(
+              playlistId: p.id,
+              source: PlaylistSource.collected,
+            ),
           ),
         ),
       );

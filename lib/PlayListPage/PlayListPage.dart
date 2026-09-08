@@ -48,7 +48,11 @@ class PlayListPage extends StatelessWidget {
           onGenerateRoute: (settings) {
             if (settings.name == '/songlistbody') {
               return GetPageRoute(
-                page: () => SongListBody(),
+                page: () => SongListBody(
+                  controllerTag:
+                      DefaultValues.searchSongListId +
+                      PlaylistSource.pure.toString(),
+                ),
                 binding: SongListBodyBinding(
                   playlistId: DefaultValues.searchSongListId,
                   source: PlaylistSource.pure,

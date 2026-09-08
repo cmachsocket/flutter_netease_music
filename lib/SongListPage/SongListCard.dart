@@ -3,6 +3,7 @@ import '../widgets/song_cover.dart';
 import 'package:get/get.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 import '../models/default.dart';
+import '../models/LibrarySummary.dart' show PlaylistSource;
 import 'SongListBodyController.dart';
 import 'SongListDetail.dart';
 
@@ -24,6 +25,7 @@ class SongListCard extends StatelessWidget {
   const SongListCard({
     super.key,
     required this.playlistId,
+    required this.source,
     this.title,
     this.subtitle,
     this.imageUrl,
@@ -34,7 +36,11 @@ class SongListCard extends StatelessWidget {
     this.showLike = true,
   });
 
-  final int playlistId;
+  final String playlistId;
+
+  /// 歌单来源(自建 / 收藏 / 专辑 / 艺人 / 搜索结果 / 等等),
+  /// 传给 [SongListDetailBinding] 决定 body / head 的 fetch 路径。
+  final PlaylistSource source;
   final String? title;
   final String? subtitle;
   final String? imageUrl;
@@ -126,9 +132,12 @@ class SongListCard extends StatelessWidget {
 
   void _defaultNavigate() {
     Get.to(
-      () => SongListDetail(playlistId: playlistId, displayTitle: title),
+      () => SongListDetail(displayTitle: title),
       id: DefaultValues.shellNavigatorId,
-      binding: SongListDetailBinding(playlistId: playlistId),
+      binding: SongListDetailBinding(
+        playlistId: playlistId,
+        source: source,
+      ),
     );
   }
 }
@@ -137,13 +146,15 @@ class LineSongListCard extends StatelessWidget {
   const LineSongListCard({
     super.key,
     required this.playlistId,
+    required this.source,
     this.title,
     this.subtitle,
     this.imageUrl,
     this.onPlay,
   });
 
-  final int playlistId;
+  final String playlistId;
+  final PlaylistSource source;
   final String? title;
   final String? subtitle;
   final String? imageUrl;
@@ -161,9 +172,12 @@ class LineSongListCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: ListTile(
         onTap: () => Get.to(
-          () => SongListDetail(playlistId: playlistId, displayTitle: title),
+          () => SongListDetail(displayTitle: title),
           id: DefaultValues.shellNavigatorId,
-          binding: SongListDetailBinding(playlistId: playlistId),
+          binding: SongListDetailBinding(
+            playlistId: playlistId,
+            source: source,
+          ),
         ),
         leading: SongCover(url: imageUrl ?? ''),
         title: Text(
@@ -182,8 +196,7 @@ class LineSongListCard extends StatelessWidget {
           icon: Icon(Icons.play_circle_fill_outlined),
           onPressed: () {
             final cb =
-                onPlay ??
-                () => SongListBodyController.playPlaylistById(playlistId);
+                onPlay ?? () => SongListBodyController.playPlaylistById(playlistId);
             cb(); // fire-and-forget
           },
         ),
@@ -204,7 +217,7 @@ class _LikeButton extends StatelessWidget {
     required this.onToggleFavorite,
   });
 
-  final int playlistId;
+  final String playlistId;
   final IsLikedGetter? isLiked;
   final VoidCallback? onToggleFavorite;
 

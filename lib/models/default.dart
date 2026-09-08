@@ -12,7 +12,7 @@ class DefaultValues {
   static const double squardRatio = 1.0;
   static const int shellNavigatorId = 0;
   static const int songListBodyNavigatorId = 1;
-  static const int searchSongListId = -1;
+  static const String searchSongListId = '-1';
   // 唯一的硬编码size
   static const EdgeInsets onlyZero = EdgeInsets.only(left: 0, right: 0);
 }
