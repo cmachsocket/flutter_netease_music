@@ -39,8 +39,14 @@ class SongListHead extends StatelessWidget {
     final source = head.source;
     // 按 source 委托给具体 head widget(三个子类视觉差异)
     return switch (source) {
-      PlaylistSource.album => AlbumHead(controller: head, controllerTag: controllerTag),
-      PlaylistSource.artist => ArtistHead(controller: head, controllerTag: controllerTag),
+      PlaylistSource.album => AlbumHead(
+        controller: head,
+        controllerTag: controllerTag,
+      ),
+      PlaylistSource.artist => ArtistHead(
+        controller: head,
+        controllerTag: controllerTag,
+      ),
       _ => _PlaylistHead(controller: head, controllerTag: controllerTag),
     };
   }
@@ -156,9 +162,7 @@ class _LikeButton extends StatelessWidget {
       icon: Obx(
         () => Icon(
           liked() ? Icons.favorite : Icons.favorite_border,
-          color: liked()
-              ? Theme.of(context).colorScheme.primary
-              : null,
+          color: liked() ? Theme.of(context).colorScheme.primary : null,
         ),
       ),
       onPressed: onToggle,
@@ -206,25 +210,16 @@ class AlbumHead extends StatelessWidget {
         children: [
           // 封面(64x64)
           ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: SizedBox(
-              width: 64,
-              height: 64,
-              child: Obx(() {
-                final url = controller.coverUrl.value;
-                if (url == null || url.isEmpty) {
-                  return Container(
-                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                  );
-                }
-                return Image(
-                  image: neteaseNetworkImage(url),
-                  fit: BoxFit.cover,
+            child: Obx(() {
+              final url = controller.coverUrl.value;
+              if (url == null || url.isEmpty) {
+                return Container(
+                  color: Theme.of(context).colorScheme.surfaceContainerHigh,
                 );
-              }),
-            ),
+              }
+              return Image(image: neteaseNetworkImage(url), fit: BoxFit.cover);
+            }),
           ),
-          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -237,7 +232,6 @@ class AlbumHead extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
                 Text(
                   controller.description.value?.trim().isNotEmpty == true
                       ? controller.description.value!.trim()
@@ -309,18 +303,18 @@ class ArtistHead extends StatelessWidget {
         children: [
           // 圆形头像
           CircleAvatar(
-            radius: 32,
             backgroundColor: scheme.surfaceContainerHigh,
-            backgroundImage: controller.coverUrl.value == null ||
+            backgroundImage:
+                controller.coverUrl.value == null ||
                     controller.coverUrl.value!.isEmpty
                 ? null
                 : neteaseNetworkImage(controller.coverUrl.value!),
-            child: controller.coverUrl.value == null ||
+            child:
+                controller.coverUrl.value == null ||
                     controller.coverUrl.value!.isEmpty
                 ? Icon(Icons.person, color: scheme.onSurfaceVariant)
                 : null,
           ),
-          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -333,7 +327,6 @@ class ArtistHead extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
                 // 简介 / bio
                 Text(
                   controller.description.value?.trim().isNotEmpty == true
