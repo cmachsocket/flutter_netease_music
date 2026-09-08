@@ -111,24 +111,15 @@ class _PlaylistHead extends StatelessWidget {
                 }
                 // 自建(created) → 删除 + 收藏两个按钮(纵向排列)
                 if (controller.playlistSource.value == PlaylistSource.created) {
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextButton.icon(
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: controller.deletePlaylist,
-                        label: Text(
-                          '删除',
-                          style: textTheme.bodyMedium,
-                          maxLines: SongListHead.rowSubTextMaxLines,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      _LikeButton(
-                        liked: controller.isPlaylistFavorite,
-                        onToggle: controller.toggleFavorite,
-                      ),
-                    ],
+                  return TextButton.icon(
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: controller.deletePlaylist,
+                    label: Text(
+                      '删除',
+                      style: textTheme.bodyMedium,
+                      maxLines: SongListHead.rowSubTextMaxLines,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   );
                 }
                 // 收藏的(collected)/ 搜索结果(pure) → 只收藏

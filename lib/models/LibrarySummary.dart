@@ -25,7 +25,10 @@ enum PlaylistSource {
   /// 艺人
   artist,
 
-  /// 纯粹的列表
+  /// 搜索结果
+  search,
+
+  //纯粹的列表
   pure,
 }
 

@@ -49,6 +49,9 @@ class PlayListPage extends StatelessWidget {
             if (settings.name == '/songlistbody') {
               return GetPageRoute(
                 page: () => SongListBody(
+                  extraTrailing: (song, index) {
+                    return RemoveIconButton(song: song, index: index);
+                  },
                   controllerTag:
                       DefaultValues.searchSongListId +
                       PlaylistSource.pure.toString(),

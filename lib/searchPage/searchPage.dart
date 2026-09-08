@@ -85,6 +85,7 @@ class _SongView extends StatelessWidget {
       if (c.songResults.isEmpty) {
         return _HintView(text: '没有匹配 "${c.submittedKeyword.value}" 的单曲');
       }
+      //应该在顶级搜素后触发重建，这里实现不对
       return Navigator(
         key: Get.nestedKey(DefaultValues.songListBodyNavigatorId),
         initialRoute: '/songlistbody',

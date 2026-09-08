@@ -157,7 +157,9 @@ class SongListHeadController extends SongListHeadControllerBase {
       title.value = meta.name;
       coverUrl.value = meta.coverUrl;
       description.value = meta.description;
-      playlistSource.value = meta.source;
+      // 不覆盖 playlistSource：source 由 binding 传入并决定详情页按钮语义
+      // （created → 删除，collected/pure → 收藏）。后端 subscribed 只用于
+      // PlaylistMeta 内部描述，不再反向覆盖这里的 source。
     }
     // meta 失败 → playlistSource 保持 source,widget 按原 source 渲染按钮
   }

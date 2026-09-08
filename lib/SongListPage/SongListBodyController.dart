@@ -23,11 +23,16 @@ import '../models/LibrarySummary.dart' show PlaylistSource;
 /// 专辑 / 歌单的区分通过 [source] enum,**不再**用 `'album-'` 前缀字符串
 /// 判别。
 class SongListBodyController extends GetxController {
-  SongListBodyController({required this.playlistId, required this.source});
+  SongListBodyController({
+    required this.playlistId,
+    required this.source,
+    this.initialSongs,
+  });
 
   /// 路由传进来的歌单 ID —— body 跟 head 各存一份(独立,不互引)
   final String playlistId;
   final PlaylistSource source;
+  final List<Song>? initialSongs;
   final AudioPlayerService _queue = Get.find<AudioPlayerService>();
   final LikedController _likedService = Get.find<LikedController>();
   final PlaylistRepository _playlistRepo = Get.find<PlaylistRepository>();
@@ -58,14 +63,19 @@ class SongListBodyController extends GetxController {
     errorMessage.value = null;
     try {
       switch (source) {
+        case PlaylistSource.pure:
+          if (initialSongs != null) {
+            songs.assignAll(initialSongs!);
+          }
+          break;
         case PlaylistSource.album:
           await _loadAlbumSongs(playlistId);
         case PlaylistSource.artist:
           await _loadArtistSongs(playlistId);
         case PlaylistSource.created:
         case PlaylistSource.collected:
-        case PlaylistSource.pure:
-          await _loadPlaylistSongs(playlistId);
+        case PlaylistSource.search:
+          await _loadSearchSongs(playlistId);
       }
     } on ApiException catch (e) {
       errorMessage.value = e.message;
@@ -95,6 +105,9 @@ class SongListBodyController extends GetxController {
     songs.assignAll(fetched);
   }
 
+  Future<void> _loadSearchSongs(String keyword) async {
+    return _queue.playSongs(songs.toList());
+  }
   // ---- body 命令 ------------------------------------------------------------
 
   /// 播放整张歌单:head 的 onPlayAll 钩子指向这里。
@@ -114,8 +127,7 @@ class SongListBodyController extends GetxController {
   }
 
   /// 查询某首歌是否被喜欢(调用方必须包 Obx 才能响应变化)
-  bool isLiked(String songId) =>
-      _likedService.isLiked(songId, LikedType.song);
+  bool isLiked(String songId) => _likedService.isLiked(songId, LikedType.song);
 
   /// 按 [playlistId] 拉歌 + 整张播放
   ///
