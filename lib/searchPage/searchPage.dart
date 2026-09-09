@@ -281,6 +281,7 @@ Widget _grid<T>({
           ? DefaultValues.portraitGridChildAspectRatio
           : DefaultValues.landscopeGridChildAspectRatio;
       return AspectDrivenGrid(
+        minColumns: 2,
         childAspectRatio: aspectRatio,
         itemCount: items.length,
         itemBuilder: (context, index) => toCard(items[index]),
