@@ -94,8 +94,6 @@ jobs:
             --debug \
             --target-platform=android-arm64 \
             --split-per-abi \
-            --build-name=1.0.0 \
-            --build-number=1 \
             --no-tree-shake-icons
 
       # 路径说明: AGP splits-per-abi + debug buildType 产出
