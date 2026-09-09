@@ -385,6 +385,24 @@ class AudioPlayerService extends GetxController {
     await setQueue([song], startIndex: 0);
   }
 
+  /// 把歌曲 append 到当前播放队列末尾(不打断当前播放)。
+  ///
+  /// **跟 `playSong` 区分**:`playSong` 是**替换**整队列并跳到指定歌,
+  /// `addToQueue` 是**追加**到末尾,当前正在播放的歌不动。
+  ///
+  /// **数据通路**:Song → MediaItem → handler.addQueueItem。
+  /// handler override 后会维护 `_queue` + shuffle 索引 + emit queue stream,
+  /// wrapper 这边的 `playlist` RxList 自动同步。
+  ///
+  /// **用例**:LongPressDialog "添加到播放列表"。
+  Future<void> addToQueue(Song song) async {
+    final item = song.toMediaItem(
+      artHeaders: NeteaseImageHeaders.neteaseImageHeaders,
+      duration: song.duration,
+    );
+    await audioHandler.addQueueItem(item);
+  }
+
   Future<void> setPlayOrder(PlayOrder order) {
     // 纯 forward: handler 改完 _playOrder 后 emit 到 _playOrderCtrl 流,
     // wrapper 那边订阅回调自动写 _modeRx (handler 是唯一真相源)。

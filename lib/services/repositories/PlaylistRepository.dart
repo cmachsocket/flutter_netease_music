@@ -149,6 +149,41 @@ class PlaylistRepository extends GetxService {
     return _extractAddResult(r);
   }
 
+  /// 从歌单删除歌曲。
+  ///
+  /// API: `/playlist/tracks?op=del&pid=X&tracks=id1,id2,...`
+  /// (op='del' 沿用 SDK `playlist_tracks` 接口,MUSICLIBRARY.md 文档)
+  ///
+  /// **返回 / 字段校准状态**:**未真机校准**。沿用 `addTracks` 的成功判定
+  /// 经验值 `body['code'] == 200`,真机跑出来 body 结构对不上时改
+  /// `_extractRemoveResult`。
+  ///
+  /// 返回:
+  /// - `true` 业务 code == 200
+  /// - `false` 业务 code != 200 / API 异常
+  ///
+  /// **日志**:`apiCall` 已经在内部打 `[ApiCall] 添加歌曲到歌单` 那种标记
+  /// (这里会打印 `删除歌曲`),调用方拿到 false 时再额外打一行 raw body
+  /// 方便贴回来校准。
+  Future<bool> removeTracks(String playlistId, List<String> songIds) async {
+    if (songIds.isEmpty) return false;
+    final tracks = songIds.join(',');
+    final MusicResponse r;
+    try {
+      r = await apiCall(
+        () => _api.raw.playlist_tracks('del', playlistId, tracks),
+        what: '从歌单删除歌曲',
+      );
+    } on ApiException {
+      return false;
+    }
+    return _extractRemoveResult(r);
+  }
+
+  bool _extractRemoveResult(MusicResponse r) {
+    return r.body['code'] == 200;
+  }
+
   // ---- 响应解析(已校准:网易云业务 code 在 body['code'])---------------------
 
   /// 网易云 `/playlist/create` 的真实响应字段路径:

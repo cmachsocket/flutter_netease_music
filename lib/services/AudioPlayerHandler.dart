@@ -362,6 +362,37 @@ class AudioPlayerHandler extends BaseAudioHandler
     await setQueue(queue, startIndex: _currentIndex.clamp(0, queue.length - 1));
   }
 
+  /// 单曲 append 到队列末尾(不打断当前播放)。
+  ///
+  /// **为什么 override `QueueHandler` 默认实现**:
+  /// 默认 `QueueHandler.addQueueItem` 只 emit `queue.add()`,**不**更新
+  /// handler 内部的 `_queue` 字段和 shuffle 索引 —— wrapper 那边 `playlist`
+  /// RxList 不会变(shuffle 模式下 next/prev 也会算错,因为 `_shuffleOrder`
+  /// 跟实际长度对不上)。
+  ///
+  /// **正确流程**:
+  ///   1. `_queue.add(item)` 维护内部队列
+  ///   2. `_rebuildShuffleMaps()` 重生成 shuffle 顺序 + 反向映射
+  ///   3. `super.updateQueue(_queue.toList())` 推给 audio_service + 触发
+  ///      wrapper 那边 `_onQueue` 同步 `playlist` RxList
+  ///
+  /// **不调 `_playAt`**:addQueueItem 的语义是"队列加一首",不是"跳到这首"
+  /// —— 跟 `skipToQueueItem` 区分清楚。
+  ///
+  /// **未真机校准**:shuffle 模式下 addQueueItem 后,_currentIndex 不动,
+  /// 后续 skipToNext 会按新 shuffle 顺序走;如果是 sequential 模式,完全
+  /// 不影响 _currentIndex。如果 UI 出 bug(比如队列列表没刷新,或 shuffle
+  /// 听歌顺序不对),贴 `addQueueItem` 触发后的日志给我看。
+  @override
+  Future<void> addQueueItem(MediaItem item) async {
+    _queue.add(item);
+    _rebuildShuffleMaps();
+    // 跟 setQueue 同样的原因:audio_service QueueHandler.updateQueue 内部
+    // 对 nvalue 做原地修改, 不能传 unmodifiable list (会抛 Cannot remove
+    // from an unmodifiable list 且 nvalue 缓存 unmodifiable 之后所有路径都炸)。
+    await super.updateQueue(_queue.toList());
+  }
+
   // ---- just_audio 桥接 ----------------------------------------------------------
 
   @override
