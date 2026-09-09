@@ -243,6 +243,15 @@ class LibraryController extends GetxController {
   /// - 非空字符串(用户确认)
   /// - `null`(用户取消)
   Future<String?> _promptPlaylistName() async {
+    // 注意：不要把 createError 用 Obx 放进这个 dialog。
+    //
+    // 这个 dialog 在用户点「创建/取消」后立即 pop，而 createError 只在
+    // pop 之后的 addPlaylist() 里才会被写。Android 上 Get.dialog 的
+    // Future 在 Navigator.pop 时就 complete（不等退场动画），此时 dialog
+    // 的 Obx 如果还依赖外部 Rx，退场动画期间外部写 Rx 会触发已经
+    // deactivating 的 InheritedElement rebuild，导致 framework 的
+    // `_dependents.isEmpty` assertion。新建歌单的输入框本身不需要在这里
+    // 显示错误——创建失败提示交给 SnackBar / 列表刷新处理。
     final controller = TextEditingController();
     final result = await Get.dialog<String>(
       AlertDialog(
@@ -258,12 +267,6 @@ class LibraryController extends GetxController {
             onPressed: () => Get.back<String>(result: null),
             child: const Text('取消'),
           ),
-          Obx(() {
-            // dialog 上展示上一次的错误(createError)
-            final err = createError.value;
-            if (err == null) return const SizedBox.shrink();
-            return Text(err, style: const TextStyle(color: Colors.red));
-          }),
           TextButton(
             onPressed: () => Get.back<String>(result: controller.text.trim()),
             child: const Text('创建'),
@@ -272,7 +275,15 @@ class LibraryController extends GetxController {
       ),
       barrierDismissible: true,
     );
-    controller.dispose();
+
+    // Android 上 Get.dialog 的 future 在 pop 时就 complete，但退场动画
+    // 可能还在跑，TextField 仍持有这个 controller。直接 dispose 会在动画
+    // 结束前释放 TextEditingController，触发 use-after-dispose。
+    // 下一帧再释放，确保 dialog 完全退出。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.dispose();
+    });
+
     return result;
   }
 }

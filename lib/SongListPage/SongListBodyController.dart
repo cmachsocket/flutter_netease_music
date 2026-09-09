@@ -206,6 +206,7 @@ class SongListBodyController extends GetxController {
   void onSongLongPress(Song song, int index) {
     Get.dialog(
       GetBuilder<LongPressDialogController>(
+        tag: 'longPressDialog',
         init: LongPressDialogController(
           song: song,
           index: index,
