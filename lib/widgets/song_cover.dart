@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../models/Headers.dart';
 
@@ -19,12 +19,7 @@ class SongCover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final placeholder = Container(
-      color: scheme.surfaceContainerHigh,
-      alignment: Alignment.center,
-      child: Icon(Icons.music_note, color: scheme.onSurfaceVariant),
-    );
+    final placeholder = CircularProgressIndicator();
 
     // 空 URL 守卫:不调 CachedNetworkImage,直接占位
     // (避免 URL null / "" 时 Image.network 抛解析异常)
@@ -34,7 +29,8 @@ class SongCover extends StatelessWidget {
       imageUrl: url,
       fit: BoxFit.cover,
       httpHeaders: NeteaseImageHeaders.neteaseImageHeaders,
-      errorWidget: (_, _, _) => placeholder,
+      placeholder: (context, url) => placeholder,
+      errorBuilder: (_, _, _) => placeholder,
     );
   }
 }

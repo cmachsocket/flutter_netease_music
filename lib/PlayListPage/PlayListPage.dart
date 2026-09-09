@@ -1,31 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../SongListPage/SongListBody.dart';
-import 'PlayListController.dart';
-import '../models/Song.dart';
-import '../models/Default.dart';
-import '../models/LibrarySummary.dart' show PlaylistSource;
 
-/// 播放列表页
+import '../models/Song.dart';
+import '../SongListPage/SongRowTile.dart';
+import 'PlayListController.dart';
+
+/// 播放列表页 —— 显示当前 AudioPlayerService.playlist(已加载的播放队列)。
 ///
-/// - 数据来自 [PlayListController.playlist] (RxList,外面套 Obx 才会响应)
-/// - 复用 [SongListBody] 默认 [SongRowTile] (fav + play 双按钮)
-/// - 喜爱 / 不喜爱走 [PlayListController.isLiked] / [PlayListController.toggleFavorite]
-///   (委托到全局 [LikedController], LikedType.song)
+/// **数据源**:`PlayListController.playlist` getter 转发到 `AudioPlayerService.playlist`
+/// (RxList&lt;Song&gt;)。wrapper 是真相源,handler 的 `_onQueue` 流回推时 UI 自动 rebuild。
+///
+/// **不调后端**:跟 [SongListBody] 走的"binding + 后端拉歌"路径完全不同
+/// —— 这里是已经存在的 wrapper.playlist,直接渲染即可。
+///
+/// **为什么不用 [SongListBody]**:
+/// `SongListBody` 设计为绑定 [SongListBodyController] + 调后端(或自定义钩子),
+/// 而播放队列数据已经在 `AudioPlayerService.playlist`,硬塞进 SongListBody
+/// 会让 controller 失去"唯一真相源"的清晰边界 —— 谁负责维护 songs?
+/// `AudioPlayerService` 还是 `SongListBodyController`?答案是前者。
+///
+/// **架构边界**:
+/// - AudioPlayerService.playlist: 当前播放队列(handler 维护)
+/// - PlayListController: facade,转 commands 给 wrapper
+/// - PlayListPage: 渲染,读 playlist + 转发点击事件
 class PlayListPage extends StatelessWidget {
   const PlayListPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<PlayListController>();
-
-    // return PopScope(
-    //   canPop: false,
-    //   onPopInvokedWithResult: (didPop, result) {
-    //     Get.back();
-    //     return;
-    //   },
-    //   child: Scaffold(
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -35,45 +38,42 @@ class PlayListPage extends StatelessWidget {
         title: const Text('播放列表'),
       ),
       body: Obx(() {
-        // playlist / likedIds 变化都会触发整个列表重建
-        // SongRowTile 内部 Obx 进一步控制 fav button 精细重建
-        if (Get.isLogEnable) {
-          Get.log(
-            '[PlayListPage] Obx rebuild playlist.length=${controller.playlist.length}',
-          );
+        // 整个播放队列:每次 handler 的 _onQueue emit 都会触发 rebuild
+        final List<Song> playlist = controller.playlist.toList(growable: false);
+        final int currentIndex = controller.currentIndex.value;
+
+        if (playlist.isEmpty) {
+          return const Center(child: Text('暂无歌曲'));
         }
-        return Navigator(
-          initialRoute: '/songlistbody',
-          onGenerateRoute: (settings) {
-            if (settings.name == '/songlistbody') {
-              return GetPageRoute(
-                page: () => SongListBody(
-                  extraTrailing: (song, index) {
-                    return RemoveIconButton(song: song, index: index);
-                  },
-                  controllerTag:
-                      DefaultValues.searchSongListId +
-                      PlaylistSource.pure.toString(),
-                ),
-                binding: SongListBodyBinding(
-                  playlistId: DefaultValues.searchSongListId,
-                  source: PlaylistSource.pure,
-                ),
-              );
-            }
-            return null;
+        return ListView.builder(
+          itemCount: playlist.length,
+          itemBuilder: (context, index) {
+            final song = playlist[index];
+            return SongRowTile(
+              song: song,
+              selected: index == currentIndex,
+              onPlay: () => controller.selectIndex(index),
+              onToggleFavorite: () => controller.toggleFavorite(song.id),
+              isLiked: () => controller.isLiked(song.id),
+              extraTrailing: () => RemoveIconButton(
+                song: song,
+                index: index,
+              ),
+            );
           },
         );
       }),
-      // ),
     );
   }
 }
 
+/// 队列内"移除"按钮 —— 不在 SongRowTile 默认 trailing 里(那是 ❤️+▶),
+/// 这里队列内移除用单独的 ✕ 图标,语义跟详情页不一样。
 class RemoveIconButton extends StatelessWidget {
   const RemoveIconButton({super.key, required this.song, required this.index});
   final Song? song;
   final int index;
+
   @override
   Widget build(BuildContext context) {
     return IconButton(

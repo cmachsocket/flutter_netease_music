@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image_ce/cached_network_image.dart';
 import '../models/Headers.dart';
 
 /// NetEase 图片 CDN(`*.music.126.net`)专用请求头
