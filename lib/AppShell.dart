@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_netease_music/PlayPage/BottomPlayer.dart';
 import 'package:get/get.dart';
 import 'package:responsive_builder/responsive_builder.dart';
-import 'package:keyboard_insets/keyboard_insets.dart';
 import 'models/Default.dart';
 import 'HomePage/HomePage.dart';
 import 'LibraryPage/LibraryController.dart';
@@ -100,51 +99,54 @@ class AppShell extends StatelessWidget {
     // - SafeArea: Flutter UI 进一步避开状态栏/导航栏的高度, 避免画到系统栏下
     // top/bottom true (BottomNavigationBar 本身 Scaffold 避开 bottom, 这里
     // bottom=true 是冗余防御, 设了不出问题)。
-    return Obx(() {
-      final tailOfThePage = maxPageIndex - 1;
-      final i = tab.index.value.clamp(0, tailOfThePage);
-      return Scaffold(
-        resizeToAvoidBottomInset: false,
-        body: _responsiveBody(PageIndex.values[i]),
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(viewInsets: EdgeInsets.zero),
+      child: Obx(() {
+        final tailOfThePage = maxPageIndex - 1;
+        final i = tab.index.value.clamp(0, tailOfThePage);
+        return Scaffold(
+          resizeToAvoidBottomInset: false,
+          body: _responsiveBody(PageIndex.values[i]),
 
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: i,
-          onTap: (j) {
-            if (j == i) return;
-            tab.change(j);
-            // 用 GetX 的导航 API 推到 shell 自己的 navigator
-            final toThePage = PageIndex.values[j.clamp(0, tailOfThePage)];
-            Get.to(
-              () => _content(toThePage),
-              binding: _bindingForTab(toThePage),
-              id: DefaultValues.shellNavigatorId,
-            );
-          },
-          type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.explore_outlined),
-              activeIcon: Icon(Icons.explore),
-              label: '发现',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.search_outlined),
-              activeIcon: Icon(Icons.search),
-              label: '搜索',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.library_music_outlined),
-              activeIcon: Icon(Icons.library_music),
-              label: '我的',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings_outlined),
-              activeIcon: Icon(Icons.settings),
-              label: '设置',
-            ),
-          ],
-        ),
-      );
-    });
+          bottomNavigationBar: BottomNavigationBar(
+            currentIndex: i,
+            onTap: (j) {
+              if (j == i) return;
+              tab.change(j);
+              // 用 GetX 的导航 API 推到 shell 自己的 navigator
+              final toThePage = PageIndex.values[j.clamp(0, tailOfThePage)];
+              Get.to(
+                () => _content(toThePage),
+                binding: _bindingForTab(toThePage),
+                id: DefaultValues.shellNavigatorId,
+              );
+            },
+            type: BottomNavigationBarType.fixed,
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.explore_outlined),
+                activeIcon: Icon(Icons.explore),
+                label: '发现',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.search_outlined),
+                activeIcon: Icon(Icons.search),
+                label: '搜索',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.library_music_outlined),
+                activeIcon: Icon(Icons.library_music),
+                label: '我的',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.settings_outlined),
+                activeIcon: Icon(Icons.settings),
+                label: '设置',
+              ),
+            ],
+          ),
+        );
+      }),
+    );
   }
 }
