@@ -26,13 +26,32 @@ class SongListBodyController extends GetxController {
   SongListBodyController({
     required this.playlistId,
     required this.source,
-    this.initialSongs,
+    this.loadSongsCustom,
   });
 
   /// 路由传进来的歌单 ID —— body 跟 head 各存一份(独立,不互引)
   final String playlistId;
   final PlaylistSource source;
-  final List<Song>? initialSongs;
+
+  /// 自定义加载钩子。
+  ///
+  /// **重要**:`onInit` 同步链中调用 `loadSongsCustom`(**没有 await 的
+  /// async 函数**)会在 microtask 里触发 Obx rebuild,而 Obx rebuild 又会
+  /// 调用 widget tree 里的 `_SongView.build`,`_SongView.build` 又会调
+  /// `Get.put(SongListBodyController(...), tag: ...)` —— **同 tag 重复
+  /// put** 又触发 `onInit` —— 无限递归 stack overflow。
+  ///
+  /// **解决**:
+  /// 1. `onInit` 用 `Future.microtask(_loadSongs)` 推迟到下一个 microtask,
+  ///    让 `Get.put` 同步链完整结束。
+  /// 2. 钩子内对 `body.songs.assignAll` 也用 `Future.microtask` 包一层,
+  ///    防止在 `_loadSongs` 的 microtask 内再次触发 Rx 写 → Obx rebuild。
+  ///
+  /// **钩子责任**:写 `songs` 字段。钩子接收 [SongListBodyController] 实例引用,
+  /// **不要**自己 `Get.find(tag: ...)` —— 在 `onInit` 同步链中调用
+  /// `Get.find` 同 tag 会触发 GetX reentrant 状态错乱。
+  final Future<void> Function(SongListBodyController)? loadSongsCustom;
+
   final AudioPlayerService _queue = Get.find<AudioPlayerService>();
   final LikedController _likedService = Get.find<LikedController>();
   final PlaylistRepository _playlistRepo = Get.find<PlaylistRepository>();
@@ -49,33 +68,49 @@ class SongListBodyController extends GetxController {
   final RxnString errorMessage = RxnString();
 
   /// `ready` future:body 拉完首屏歌曲。外部可以 `await c.ready` 等首屏数据。
-  late final Future<void> ready;
+  ///
+  /// **不是 final**:`Obx` 在某些边缘场景下可能多次重建 `_SongView`,
+  /// GetX 内部可能再次触发 `onInit`(取决于 GetX 内部状态机)。
+  /// `late final` 第二次会抛 `LateInitializationError: Field already initialized`,
+  /// 改成 `late` 兼容这种场景 —— 每次 `onInit` 重启一个新的 load future,
+  /// widget 内部用 `controller.songs` 响应式读,语义不变。
+  late Future<void> ready;
 
   @override
   void onInit() {
     super.onInit();
-    ready = _loadSongs();
+    // **异步推迟到下一个 microtask**:避免在 `Get.put` 同步创建链中
+    // 触发的 `onInit` 里同步执行 async 代码 —— 那会 reentrant 调 `Get.find`
+    // 同 tag controller,GetX 内部状态错乱 → 无限递归 onInit → stack overflow。
+    ready = Future.microtask(_loadSongs);
   }
 
   /// 拉曲目:按 [source] enum 分流
+  ///
+  /// **关键**:`_loadSongs` 通过 `Future.microtask` 推迟到 onInit 同步链外执行。
+  /// 这样 `loadSongsCustom` 内的 Rx 写(assignAll)不会在 `Get.put` 同步创建链
+  /// 中触发 Obx rebuild → `_SongView.build` → `Get.put` 同 tag → 重复 onInit
+  /// → stack overflow。
   Future<void> _loadSongs() async {
     isLoading.value = true;
     errorMessage.value = null;
     try {
+      // 自定义钩子优先(用例:搜索结果直接用 SearchController.songResults)
+      if (loadSongsCustom != null) {
+        await loadSongsCustom!(this);
+        return;
+      }
       switch (source) {
         case PlaylistSource.pure:
-          if (initialSongs != null) {
-            songs.assignAll(initialSongs!);
-          }
-          break;
+          // pure 没自定义钩子 → 用 playlist 路径(实际场景不会走到)
+          await _loadPlaylistSongs(playlistId);
         case PlaylistSource.album:
           await _loadAlbumSongs(playlistId);
         case PlaylistSource.artist:
           await _loadArtistSongs(playlistId);
         case PlaylistSource.created:
         case PlaylistSource.collected:
-        case PlaylistSource.search:
-          await _loadSearchSongs(playlistId);
+          await _loadPlaylistSongs(playlistId);
       }
     } on ApiException catch (e) {
       errorMessage.value = e.message;
@@ -105,9 +140,6 @@ class SongListBodyController extends GetxController {
     songs.assignAll(fetched);
   }
 
-  Future<void> _loadSearchSongs(String keyword) async {
-    return _queue.playSongs(songs.toList());
-  }
   // ---- body 命令 ------------------------------------------------------------
 
   /// 播放整张歌单:head 的 onPlayAll 钩子指向这里。

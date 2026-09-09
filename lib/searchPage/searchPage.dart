@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../models/default.dart';
 import '../ArtistPage/ArtistDetail.dart';
 import '../SongListPage/SongListBody.dart';
+import '../SongListPage/SongListBodyController.dart';
 import '../SongListPage/SongListCard.dart';
 import '../SongListPage/SongListDetail.dart';
 import '../models/Album.dart';
@@ -65,47 +66,81 @@ class _SearchResults extends StatelessWidget {
 }
 
 /// 单曲列表:复用 SongListBody(已有 loading / empty / list 三态)
+///
+/// **数据源**:不再调后端(`/playlist/track/all?id=X`)。通过 [SongListBodyController]
+/// 的 `loadSongsCustom` 钩子,直接把 `SearchController.songResults` 喂给 body。
+///
+/// **响应式**:`Obx` 监听 `c.songResults` 变化时,手动 `body.songs.assignAll(...)`
+/// 同步 —— body 内部的 Obx 检测到 `songs` Rx 变化触发重建。
+///
+/// **生命周期**(纯 StatelessWidget,不用 StatefulWidget —— 这是项目硬要求):
+/// - Obx 多次 rebuild 时,`!isRegistered` 守卫保证同一个 tag 只 put 一次
+/// - 重复进 build 走 else 分支同步数据,不创建新 controller,不会触发 `onInit` 二次初始化
+/// - keyword 切换时,旧 tag 的 controller 在路由 pop(`permanent: false`)时被 GetX 自动清理
+/// - `[SongListBodyController.ready]` 用 `late`(不是 `late final`),即使 controller
+///   实例被复用过 onInit 二次跑也不会抛 `LateInitializationError`
 class _SongView extends StatelessWidget {
   const _SongView({required this.c});
 
   final SearchController c;
 
+  /// 每条搜索结果对应一个 body controller tag(用 keyword 区分,
+  /// 不同关键词产生不同 controller 实例 —— 防止切关键词时旧数据残留)。
+  String _tagFor(String keyword) =>
+      'search-$keyword-${PlaylistSource.pure}';
+
   @override
   Widget build(BuildContext context) {
     return Obx(() {
+      final keyword = c.submittedKeyword.value;
+      // loading + 错误 + 空 三态分流
       if (c.isLoading.value && c.songResults.isEmpty) {
         return const Center(child: CircularProgressIndicator());
       }
       if (c.errorMessage.value != null && c.songResults.isEmpty) {
         return _ErrorView(text: c.errorMessage.value!);
       }
-      if (c.songResults.isEmpty && c.submittedKeyword.value.isEmpty) {
+      if (c.songResults.isEmpty && keyword.isEmpty) {
         return const _HintView(text: '输入关键词开始搜索');
       }
       if (c.songResults.isEmpty) {
-        return _HintView(text: '没有匹配 "${c.submittedKeyword.value}" 的单曲');
+        return _HintView(text: '没有匹配 "$keyword" 的单曲');
       }
-      //应该在顶级搜素后触发重建，这里实现不对
-      return Navigator(
-        key: Get.nestedKey(DefaultValues.songListBodyNavigatorId),
-        initialRoute: '/songlistbody',
-        onGenerateRoute: (settings) {
-          if (settings.name == '/songlistbody') {
-            return GetPageRoute(
-              page: () => SongListBody(
-                controllerTag:
-                    DefaultValues.searchSongListId +
-                    PlaylistSource.pure.toString(),
-              ),
-              binding: SongListBodyBinding(
-                playlistId: DefaultValues.searchSongListId,
-                source: PlaylistSource.pure,
-              ),
-            );
-          }
-          return null;
-        },
-      );
+
+      final tag = _tagFor(keyword);
+
+      // 确保 body controller 已注册(用 lazyPut 首次 build 时创建,
+      // 后续 build 复用同一个实例 —— 避免重复初始化)。
+      if (!Get.isRegistered<SongListBodyController>(tag: tag)) {
+        Get.put(
+          SongListBodyController(
+            playlistId: keyword, // 用 keyword 当 playlistId(占位)
+            source: PlaylistSource.pure,
+            // **钩子只接收 controller 引用,绝不调 Get.find 同 tag**。
+            // 在 onInit 同步链中调 Get.find 同 tag 会触发 GetX 内部
+            // reentrant _initDependencies → 重复 onInit → stack overflow。
+            // body 参数是 SongListBodyController.this,直接用即可。
+            loadSongsCustom: (body) async {
+              // 先等下一个 microtask,让 onInit 同步链完整结束 —— 这是
+              // **真正的修复**:async 函数立即同步执行到第一个 await,
+              // 但 Future.microtask 之前没 await,所以 body 字段还没准备好?
+              // 这里直接读 songs(没赋值,因为 _loadSongs 推迟到 microtask)。
+              // **安全做法**:在异步链上做赋值。
+              Future.microtask(() {
+                body.songs.assignAll(c.songResults.toList(growable: false));
+              });
+            },
+          ),
+          tag: tag,
+          permanent: false,
+        );
+      } else {
+        // 已注册 → 直接同步一次最新数据(防止 Obx 没触发但数据变了)
+        Get.find<SongListBodyController>(tag: tag).songs
+            .assignAll(c.songResults.toList(growable: false));
+      }
+
+      return SongListBody(controllerTag: tag);
     });
   }
 }

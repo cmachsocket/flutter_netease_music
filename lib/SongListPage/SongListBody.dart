@@ -90,14 +90,26 @@ class SongListBody extends StatelessWidget {
 }
 
 class SongListBodyBinding extends Bindings {
-  SongListBodyBinding({required this.playlistId, required this.source});
+  SongListBodyBinding({
+    required this.playlistId,
+    required this.source,
+    this.loadSongsCustom,
+  });
   final String playlistId;
   final PlaylistSource source;
+
+  /// 可选:body controller 的自定义加载钩子。
+  /// 用例:搜索结果(数据在 SearchController.songResults,不再调后端)。
+  final Future<void> Function(SongListBodyController)? loadSongsCustom;
 
   @override
   void dependencies() {
     Get.lazyPut<SongListBodyController>(
-      () => SongListBodyController(playlistId: playlistId, source: source),
+      () => SongListBodyController(
+        playlistId: playlistId,
+        source: source,
+        loadSongsCustom: loadSongsCustom,
+      ),
       tag: playlistId.toString() + source.toString(),
     );
   }

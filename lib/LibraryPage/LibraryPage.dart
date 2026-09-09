@@ -18,9 +18,9 @@ class LibraryPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Get.find<LibraryController>();
     return Scaffold(
-      floatingActionButton: IconButton(
-        icon: const Icon(Icons.add),
+      floatingActionButton: FloatingActionButton(
         onPressed: controller.addPlaylist,
+        child: Icon(Icons.add),
       ),
       body: Obx(() {
         final tab = controller.tab.value;
