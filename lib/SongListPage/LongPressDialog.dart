@@ -147,21 +147,15 @@ class _PlaylistPicker extends StatelessWidget {
 
         // loading
         if (controller.pickerLoading.value)
-          const Padding(
-            padding: EdgeInsets.all(32),
-            child: Center(child: CircularProgressIndicator()),
-          )
+          const Center(child: CircularProgressIndicator())
         // 空 / 错误
         else if (controller.userPlaylists.isEmpty)
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(
-              controller.pickerError.value ?? '暂无歌单',
-              style: textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.outline,
-              ),
-              textAlign: TextAlign.center,
+          Text(
+            controller.pickerError.value ?? '暂无歌单',
+            style: textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.outline,
             ),
+            textAlign: TextAlign.center,
           )
         // 歌单列表
         else
