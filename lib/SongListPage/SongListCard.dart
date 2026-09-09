@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 import '../models/Default.dart';
 import '../models/LibrarySummary.dart' show PlaylistSource;
+import '../services/PlaylistEventsController.dart';
 import 'SongListBodyController.dart';
 import 'SongListDetail.dart';
 
@@ -28,6 +29,7 @@ class SongListCard extends StatelessWidget {
     required this.source,
     this.title,
     this.subtitle,
+    this.trackCount,
     this.imageUrl,
     this.onTap,
     this.onPlay,
@@ -42,7 +44,16 @@ class SongListCard extends StatelessWidget {
   /// 传给 [SongListDetailBinding] 决定 body / head 的 fetch 路径。
   final PlaylistSource source;
   final String? title;
+
+  /// 默认副标题字符串。如果 [trackCount] 也传了,优先用 trackCount + delta 显示
+  /// 实时数量(响应式)。否则 fallback 到这个静态字符串(专辑 / 艺人等
+  /// 没有 trackCount 概念的 card 用)。
   final String? subtitle;
+
+  /// 实时曲目数(从 LibraryController.playlists 拿到的 base 值)。
+  /// 传了之后,widget 会 Obx 监听 [PlaylistEventsController.deltaFor] 累加 delta,
+  /// 显示 `trackCount + delta`。专辑 / 艺人不传,只传 playlist 卡片。
+  final int? trackCount;
   final String? imageUrl;
 
   /// 覆盖默认导航。null = 默认跳 SongListDetail
@@ -92,12 +103,25 @@ class SongListCard extends StatelessWidget {
                 maxLines: cardTextMaxLines,
                 overflow: TextOverflow.ellipsis,
               ),
-              subtitle: Text(
-                subtitle ?? '',
-                style: textTheme.bodySmall,
-                maxLines: subTextMaxLines,
-                overflow: TextOverflow.ellipsis,
-              ),
+              subtitle: trackCount != null
+                  // 响应式:base count + delta(addTracks/removeTracks 累积)
+                  ? Obx(() {
+                      final delta = Get.find<PlaylistEventsController>()
+                          .deltaFor(playlistId);
+                      final total = trackCount! + delta;
+                      return Text(
+                        '$total 首',
+                        style: textTheme.bodySmall,
+                        maxLines: subTextMaxLines,
+                        overflow: TextOverflow.ellipsis,
+                      );
+                    })
+                  : Text(
+                      subtitle ?? '',
+                      style: textTheme.bodySmall,
+                      maxLines: subTextMaxLines,
+                      overflow: TextOverflow.ellipsis,
+                    ),
               trailing: OrientationLayoutBuilder(
                 landscape: (_) => Row(
                   mainAxisSize: MainAxisSize.min,

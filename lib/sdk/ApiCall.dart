@@ -33,13 +33,27 @@ Future<MusicResponse> apiCall(
 ///
 /// 不是所有响应都有 body.code(如部分 banner / settings),允许 body.code 缺失
 /// 此时只看 HTTP status。
+///
+/// **校准辅助**:业务 code != 200 抛异常时把 raw body 装进 [ApiException.rawBody],
+/// 让上层 repository 能 debugPrint 整段 body 校准成功判定。
+///
+/// **双层 body 兼容**:真机发现 `/playlist/tracks` 等端点的 code 不在
+/// 顶层 `r.body['code']`,而在嵌套 `r.body['body']['code']`。这里两层都查。
+/// (其它端点如 `/playlist/create` 的 code 在顶层,不影响。)
 void checkResponse(MusicResponse r, {String? hint}) {
   if (r.status != 200) {
     throw ApiException(r.status, '${hint ?? "请求"} 失败 (HTTP ${r.status})');
   }
-  final bodyCode = r.body['code'];
+  // 先查顶层,再查嵌套 body.body.code
+  final bodyCode = r.body['code'] ?? r.body['body']?['code'];
   if (bodyCode is int && bodyCode != 200) {
-    final msg = r.body['message'] ?? r.body['msg'] ?? '未知业务错误';
-    throw ApiException(bodyCode, '${hint ?? "请求"} 失败: $msg');
+    final msg = r.body['message'] ?? r.body['msg']
+        ?? r.body['body']?['message'] ?? r.body['body']?['msg']
+        ?? '未知业务错误';
+    throw ApiException(
+      bodyCode,
+      '${hint ?? "请求"} 失败: $msg',
+      rawBody: r.body, // ← 携带 raw body 给上层校准用
+    );
   }
 }

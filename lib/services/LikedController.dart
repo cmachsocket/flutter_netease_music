@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../sdk/AuthController.dart';
@@ -127,12 +128,21 @@ class LikedController extends GetxController {
     }
     try {
       await _toggleApi(id, next, type);
-    } on ApiException {
+    } on ApiException catch (e) {
       if (next) {
         bucket.remove(id);
       } else {
         bucket.add(id);
       }
+      // 提示用户失败原因(原版只静默回滚,UI 看不出来)。
+      // Get.snackbar 在 kDebugMode + release 都打,production 也提示更友好。
+      Get.snackbar(
+        next ? '收藏失败' : '取消收藏失败',
+        e.message,
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 3),
+        margin: const EdgeInsets.all(16),
+      );
     }
   }
 

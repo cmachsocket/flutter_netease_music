@@ -18,6 +18,7 @@ import 'services/repositories/SearchRepository.dart';
 import 'services/repositories/PlaylistRepository.dart';
 import 'services/repositories/AlbumRepository.dart';
 import 'services/repositories/ArtistRepository.dart';
+import 'services/PlaylistEventsController.dart';
 import 'services/repositories/LibraryRepository.dart';
 import 'sdk/AuthController.dart';
 import 'theme/AppTheme.dart';
@@ -46,6 +47,12 @@ Future<void> main() async {
   );
   Get.put<SearchRepository>(
     SearchRepository(Get.find<NeteaseApi>()),
+    permanent: true,
+  );
+  // PlaylistEventsController 必须在 PlaylistRepository 之前注册
+  // (PlaylistRepository 构造时 Get.find<PlaylistEventsController>() 拿事件中心)
+  Get.put<PlaylistEventsController>(
+    PlaylistEventsController(),
     permanent: true,
   );
   Get.put<PlaylistRepository>(

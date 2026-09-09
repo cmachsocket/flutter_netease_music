@@ -94,7 +94,7 @@ class SongListBodyBinding extends Bindings {
 
   /// 可选:body controller 的自定义加载钩子。
   /// 用例:搜索结果(数据在 SearchController.songResults,不再调后端)。
-  final Future<void> Function(SongListBodyController)? loadSongsCustom;
+  final void Function(SongListBodyController)? loadSongsCustom;
 
   @override
   void dependencies() {

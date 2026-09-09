@@ -36,22 +36,53 @@ class SongListBodyController extends GetxController {
 
   /// 自定义加载钩子。
   ///
-  /// **重要**:`onInit` 同步链中调用 `loadSongsCustom`(**没有 await 的
-  /// async 函数**)会在 microtask 里触发 Obx rebuild,而 Obx rebuild 又会
-  /// 调用 widget tree 里的 `_SongView.build`,`_SongView.build` 又会调
-  /// `Get.put(SongListBodyController(...), tag: ...)` —— **同 tag 重复
-  /// put** 又触发 `onInit` —— 无限递归 stack overflow。
+  /// **为什么是 sync `void Function(SongListBodyController)` 而不是 async**:
+  /// async 函数会在调用栈上同步跑到第一个 await,然后才返回 Future。
+  /// `Future.microtask(_loadSongs)` 把调用推迟到下一个 microtask,即使钩子是
+  /// async,在 microtask 里也能完整跑完不阻塞 build。但更稳的写法是 sync。
   ///
-  /// **解决**:
-  /// 1. `onInit` 用 `Future.microtask(_loadSongs)` 推迟到下一个 microtask,
-  ///    让 `Get.put` 同步链完整结束。
-  /// 2. 钩子内对 `body.songs.assignAll` 也用 `Future.microtask` 包一层,
-  ///    防止在 `_loadSongs` 的 microtask 内再次触发 Rx 写 → Obx rebuild。
+  /// **钩子责任**:
+  ///   1. 立即给 `body.songs` 赋值(初始数据)
+  ///   2. (可选)调 `body.watchExternal(RxList)` 监听外部 Rx 变化,
+  ///      自动同步到 `body.songs` —— 见 [watchExternal]
   ///
-  /// **钩子责任**:写 `songs` 字段。钩子接收 [SongListBodyController] 实例引用,
-  /// **不要**自己 `Get.find(tag: ...)` —— 在 `onInit` 同步链中调用
-  /// `Get.find` 同 tag 会触发 GetX reentrant 状态错乱。
-  final Future<void> Function(SongListBodyController)? loadSongsCustom;
+  /// **不要在钩子里**:
+  ///   - `Get.find(tag: ...)` 找本 controller —— 在 `onInit` 同步链中
+  ///     调 Get.find 同 tag 会触发 GetX reentrant 状态错乱
+  ///   - 同步阻塞操作(网络/HTTP)—— 这该走 `_loadSongs` 的默认分支
+  ///
+  /// **用例**(搜索结果):
+  /// ```dart
+  /// loadSongsCustom: (body) {
+  ///   body.songs.assignAll(searchController.songResults.toList());
+  ///   body.watchExternal(searchController.songResults, body.songs);
+  /// }
+  /// ```
+  final void Function(SongListBodyController)? loadSongsCustom;
+
+  /// 外部 Rx 监听列表(Worker 句柄)。
+  ///
+  /// **生命周期**:`onClose` 时全部 dispose,避免 controller 已销毁但 Worker
+  /// 仍触发回调 → "called on disposed controller" 错误。
+  final List<Worker> _workers = [];
+
+  /// 监听一个外部 `RxList<Song>`,它变化时自动 `assignAll` 到 `body.songs`。
+  ///
+  /// **跟 `loadSongsCustom` 配套使用**:
+  /// - 钩子里立即 assign 一次当前值
+  /// - 调 `watchExternal` 注册 ever worker 让后续变化自动同步
+  ///
+  /// **为什么不用 `body.songs.bindStream` / `body.songs.listen`**:
+  /// RxList 没有"主从"概念,只能手动 assignAll。
+  /// 用 `ever<T>(external, callback)` 是 GetX 的标准同步方式,生命周期跟着
+  /// controller 走(onClose 自动 dispose),不会泄漏。
+  void watchExternal(RxList<Song> external, RxList<Song> target) {
+    _workers.add(
+      ever<List<Song>>(external, (List<Song> updated) {
+        target.assignAll(updated);
+      }),
+    );
+  }
 
   final AudioPlayerService _queue = Get.find<AudioPlayerService>();
   final LikedController _likedService = Get.find<LikedController>();
@@ -81,24 +112,37 @@ class SongListBodyController extends GetxController {
   void onInit() {
     super.onInit();
     // **异步推迟到下一个 microtask**:避免在 `Get.put` 同步创建链中
-    // 触发的 `onInit` 里同步执行 async 代码 —— 那会 reentrant 调 `Get.find`
-    // 同 tag controller,GetX 内部状态错乱 → 无限递归 onInit → stack overflow。
+    // 触发的 `onInit` 里同步执行 Rx 写(loadSongsCustom 内 assignAll)——
+    // 那个 Rx 写会立即通知 SongListBody 内部 Obx rebuild,Obx rebuild 又
+    // 会调到 `_SongView.build`,`_SongView.build` 在 `isRegistered` 守卫下
+    // 不会再走 Get.put —— 但仍可能 reentrant 触发 widget tree 更新。
+    //
+    // 推迟到 microtask 后,所有同步链完整结束,build 完成才执行 loadSongsCustom。
     ready = Future.microtask(_loadSongs);
+  }
+
+  @override
+  void onClose() {
+    // 释放所有外部 Rx 监听 Worker,避免 controller 已销毁但 Worker 仍触发
+    // 回调 → "called on disposed controller" / 内存泄漏。
+    for (final w in _workers) {
+      w.dispose();
+    }
+    _workers.clear();
+    super.onClose();
   }
 
   /// 拉曲目:按 [source] enum 分流
   ///
-  /// **关键**:`_loadSongs` 通过 `Future.microtask` 推迟到 onInit 同步链外执行。
-  /// 这样 `loadSongsCustom` 内的 Rx 写(assignAll)不会在 `Get.put` 同步创建链
-  /// 中触发 Obx rebuild → `_SongView.build` → `Get.put` 同 tag → 重复 onInit
-  /// → stack overflow。
+  /// `loadSongsCustom` 是 sync 钩子(`Future.microtask` 内调用,已避开同步链);
+  /// 钩子内部直接写 `body.songs`,不需要 await。
   Future<void> _loadSongs() async {
     isLoading.value = true;
     errorMessage.value = null;
     try {
       // 自定义钩子优先(用例:搜索结果直接用 SearchController.songResults)
       if (loadSongsCustom != null) {
-        await loadSongsCustom!(this);
+        loadSongsCustom!(this);
         return;
       }
       switch (source) {

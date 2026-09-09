@@ -108,36 +108,35 @@ class _SongView extends StatelessWidget {
 
       final tag = _tagFor(keyword);
 
-      // 确保 body controller 已注册(用 lazyPut 首次 build 时创建,
-      // 后续 build 复用同一个实例 —— 避免重复初始化)。
+      // **架构决定**:build() 永远不修改 Rx。这里只"选 controller",
+      // 实际同步交给 [loadSongsCustom] + [SongListBodyController.watchExternal]
+      // (在 onInit 链外执行,不阻塞 widget build)。
+      //
+      // **生命周期**:
+      // - 第一次 build:`!isRegistered` → Get.put → 内部 onInit →
+      //   Future.microtask 调 _loadSongs → 调 loadSongsCustom →
+      //   body.songs 赋值 + watchExternal(c.songResults) 注册 ever worker
+      // - 第二次 build:同 tag 已注册 → 跳过 Get.put → 直接 return SongListBody
+      // - 外部 songResults 变化:ever worker 触发 → body.songs 自动同步
+      //   → SongListBody 内部 Obx rebuild → ListView 更新
+      // - 切 keyword:旧 tag 的 controller 在 GetX 自动回收(Get.put permanent: false)
+      //   → onClose 释放 ever worker,无内存泄漏
       if (!Get.isRegistered<SongListBodyController>(tag: tag)) {
         Get.put(
           SongListBodyController(
             playlistId: keyword, // 用 keyword 当 playlistId(占位)
             source: PlaylistSource.pure,
-            // **钩子只接收 controller 引用,绝不调 Get.find 同 tag**。
-            // 在 onInit 同步链中调 Get.find 同 tag 会触发 GetX 内部
-            // reentrant _initDependencies → 重复 onInit → stack overflow。
-            // body 参数是 SongListBodyController.this,直接用即可。
-            loadSongsCustom: (body) async {
-              // 先等下一个 microtask,让 onInit 同步链完整结束 —— 这是
-              // **真正的修复**:async 函数立即同步执行到第一个 await,
-              // 但 Future.microtask 之前没 await,所以 body 字段还没准备好?
-              // 这里直接读 songs(没赋值,因为 _loadSongs 推迟到 microtask)。
-              // **安全做法**:在异步链上做赋值。
-              Future.microtask(() {
-                body.songs.assignAll(c.songResults.toList(growable: false));
-              });
+            loadSongsCustom: (body) {
+              // sync 钩子,在 Future.microtask 内调用(已避开 build 同步链):
+              // 1. 立即给 body.songs 赋当前搜索结果
+              body.songs.assignAll(c.songResults.toList(growable: false));
+              // 2. 注册 ever worker,后续 c.songResults 变化自动同步到 body.songs
+              body.watchExternal(c.songResults, body.songs);
             },
           ),
           tag: tag,
           permanent: false,
         );
-      } else {
-        // 已注册 → 直接同步一次最新数据(防止 Obx 没触发但数据变了)
-        Get.find<SongListBodyController>(
-          tag: tag,
-        ).songs.assignAll(c.songResults.toList(growable: false));
       }
 
       return SongListBody(controllerTag: tag);

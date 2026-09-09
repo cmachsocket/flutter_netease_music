@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:musiclibrary/music_library.dart';
 
@@ -7,6 +8,7 @@ import '../../sdk/ApiCall.dart';
 import '../../models/ApiException.dart';
 import '../../sdk/NeteaseApi.dart';
 import '../../models/Playlist.dart';
+import '../PlaylistEventsController.dart';
 
 /// 歌单 repository —— 集中 `/playlist/detail` + `/playlist/track/all`
 /// 两个 API 调用
@@ -21,6 +23,11 @@ class PlaylistRepository extends GetxService {
   final NeteaseApi _api;
 
   PlaylistRepository(this._api);
+
+  /// 全局歌单事件中心(addTracks / removeTracks / deletePlaylist 成功后 emit)。
+  /// 注入而非全局 Get.find,便于测试时 mock。
+  final PlaylistEventsController _events =
+      Get.find<PlaylistEventsController>();
 
   /// 拉歌单元信息(标题/封面/描述 + source)。
   ///
@@ -134,6 +141,9 @@ class PlaylistRepository extends GetxService {
   ///
   /// songIds 会被 join(',') 一次性提交;网易云单次上限 ~1000,超出
   /// 应该由调用方在 controller 层分批 — repository 不做静默截断。
+  ///
+  /// **校准日志**:任何失败路径都 `debugPrint` raw body,方便贴回来校准
+  /// `body['code'] == 200` 是否是真正的成功判定。
   Future<bool> addTracks(String playlistId, List<String> songIds) async {
     if (songIds.isEmpty) return false;
     final tracks = songIds.join(',');
@@ -143,10 +153,34 @@ class PlaylistRepository extends GetxService {
         () => _api.raw.playlist_tracks('add', playlistId, tracks),
         what: '添加歌曲到歌单',
       );
-    } on ApiException {
+    } on ApiException catch (e) {
+      // 路径 1:apiCall 内部 checkResponse 已抛 ApiException(HTTP 非 200 /
+      // body.code 是 int 且 != 200)。raw body 在异常抛出时已装进 e.rawBody
+      // (see ApiCall.checkResponse),失败时打整段 body 方便校准。
+      if (kDebugMode) {
+        debugPrint(
+          '[PlaylistRepository.addTracks] FAILED ApiException code=${e.code} '
+          'message=${e.message}\n'
+          'raw body: ${e.rawBody}\n'
+          'params: playlistId=$playlistId tracks=$tracks',
+        );
+      }
       return false;
     }
-    return _extractAddResult(r);
+    // 路径 2:apiCall 成功 → _extractAddResult 判 body.code
+    // (这里 body.code 不是 200 但也不是 int,或者其它异常情况)
+    if (!_extractAddResult(r)) {
+      if (kDebugMode) {
+        debugPrint(
+          '[PlaylistRepository.addTracks] FAILED raw body: ${r.body}\n'
+          'params: playlistId=$playlistId tracks=$tracks',
+        );
+      }
+      return false;
+    }
+    // 成功:emit delta 事件,LibraryPage 等显示 trackCount 的地方实时更新
+    _events.applyDelta(playlistId, songIds.length);
+    return true;
   }
 
   /// 从歌单删除歌曲。
@@ -162,9 +196,7 @@ class PlaylistRepository extends GetxService {
   /// - `true` 业务 code == 200
   /// - `false` 业务 code != 200 / API 异常
   ///
-  /// **日志**:`apiCall` 已经在内部打 `[ApiCall] 添加歌曲到歌单` 那种标记
-  /// (这里会打印 `删除歌曲`),调用方拿到 false 时再额外打一行 raw body
-  /// 方便贴回来校准。
+  /// **日志**:失败路径 `debugPrint` raw body 方便贴回来校准。
   Future<bool> removeTracks(String playlistId, List<String> songIds) async {
     if (songIds.isEmpty) return false;
     final tracks = songIds.join(',');
@@ -174,14 +206,41 @@ class PlaylistRepository extends GetxService {
         () => _api.raw.playlist_tracks('del', playlistId, tracks),
         what: '从歌单删除歌曲',
       );
-    } on ApiException {
+    } on ApiException catch (e) {
+      if (kDebugMode) {
+        debugPrint(
+          '[PlaylistRepository.removeTracks] FAILED ApiException code=${e.code} '
+          'message=${e.message}\n'
+          'raw body: ${e.rawBody}\n'
+          'params: playlistId=$playlistId tracks=$tracks',
+        );
+      }
       return false;
     }
-    return _extractRemoveResult(r);
+    if (!_extractRemoveResult(r)) {
+      if (kDebugMode) {
+        debugPrint(
+          '[PlaylistRepository.removeTracks] FAILED raw body: ${r.body}\n'
+          'params: playlistId=$playlistId tracks=$tracks',
+        );
+      }
+      return false;
+    }
+    // 成功:emit delta 事件
+    _events.applyDelta(playlistId, -songIds.length);
+    return true;
   }
 
   bool _extractRemoveResult(MusicResponse r) {
-    return r.body['code'] == 200;
+    // 跟 addTracks 同款:body 结构双层兼容(真机校准:code 在 r.body['body']['code'])
+    final topLevel = r.body['code'];
+    if (topLevel is int && topLevel == 200) return true;
+    final nestedBody = r.body['body'];
+    if (nestedBody is Map) {
+      final innerCode = nestedBody['code'];
+      if (innerCode is int && innerCode == 200) return true;
+    }
+    return false;
   }
 
   // ---- 响应解析(已校准:网易云业务 code 在 body['code'])---------------------
@@ -204,10 +263,31 @@ class PlaylistRepository extends GetxService {
     return null;
   }
 
-  /// 网易云 `/playlist/tracks` 成功条件:body['code'] == 200。
-  /// 即使成功 HTTP status 也是 200,网易云业务 code 是单独字段。
+  /// 网易云 `/playlist/tracks` 成功条件:**双层 body 兼容**。
+  ///
+  /// 真机 raw 证据(2026-09-08 校准):
+  /// ```
+  /// r.body = {
+  ///   status: 200,
+  ///   body:   {trackIds: [3414798944], code: 200, count: 2, cloudCount: 0},
+  ///   cookie: [...]
+  /// }
+  /// ```
+  /// **`code` 在 `r.body['body']['code']` 而不是顶层**。可能是 SDK 端点
+  /// wrapper 解析差异(其它端点如 playlist_create 的 code 在顶层,
+  /// 这个端点在嵌套 body 里)。
+  ///
+  /// 兼容策略:**两层都查** —— 单层(顶层有 code 用顶层)+ 双层
+  /// (顶层没 code 找 body.body.code)。
   bool _extractAddResult(MusicResponse r) {
-    return r.body['code'] == 200;
+    final topLevel = r.body['code'];
+    if (topLevel is int && topLevel == 200) return true;
+    final nestedBody = r.body['body'];
+    if (nestedBody is Map) {
+      final innerCode = nestedBody['code'];
+      if (innerCode is int && innerCode == 200) return true;
+    }
+    return false;
   }
 
   /// 删除歌单(只能删自建的,收藏的只能取消订阅 —— 上层 toggleFavorite)。
@@ -235,7 +315,12 @@ class PlaylistRepository extends GetxService {
     } on ApiException {
       return false;
     }
-    return _extractDeleteResult(r);
+    final ok = _extractDeleteResult(r);
+    if (ok) {
+      // 成功:重置这个 playlistId 的 delta(歌单已不存在,本地不再需要 offset)
+      _events.resetDelta(playlistId);
+    }
+    return ok;
   }
 
   bool _extractDeleteResult(MusicResponse r) {

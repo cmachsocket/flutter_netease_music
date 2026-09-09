@@ -128,7 +128,10 @@ class _PlaylistsView extends StatelessWidget {
                 playlistId: p.id,
                 source: p.source,
                 title: p.name,
-                subtitle: '${p.trackCount} 首',
+                // 不再传 subtitle = '${p.trackCount} 首' ——
+                // 改成传 trackCount 让 SongListCard 自己 Obx 算 delta
+                // 响应 addTracks / removeTracks。
+                trackCount: p.trackCount,
                 imageUrl: p.picUrl,
                 showLike: showLike,
                 isLiked: showLike ? () => c.isPlaylistLiked(p.id) : null,

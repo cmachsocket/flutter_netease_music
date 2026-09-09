@@ -55,7 +55,6 @@ class SongListDetail extends StatelessWidget {
           Expanded(
             child: //嵌套导航
             Navigator(
-              key: Get.nestedKey(DefaultValues.songListBodyNavigatorId),
               initialRoute: '/songlistbody',
               onGenerateRoute: (settings) {
                 if (settings.name == '/songlistbody') {

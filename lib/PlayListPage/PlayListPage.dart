@@ -43,7 +43,6 @@ class PlayListPage extends StatelessWidget {
           );
         }
         return Navigator(
-          key: Get.nestedKey(DefaultValues.songListBodyNavigatorId),
           initialRoute: '/songlistbody',
           onGenerateRoute: (settings) {
             if (settings.name == '/songlistbody') {

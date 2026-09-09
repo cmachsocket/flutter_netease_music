@@ -47,15 +47,20 @@ class LongPressDialog extends StatelessWidget {
     final controller = Get.find<LongPressDialogController>(tag: _tag);
     return Dialog(
       child: Obx(() {
-        return AnimatedSwitcher(
-          duration: const Duration(milliseconds: 200),
-          child: controller.isChoosingPlaylist.value
-              ? _PlaylistPicker(
-                  key: const ValueKey('picker'),
-                  controller: controller,
-                )
-              : _MainMenu(key: const ValueKey('main'), controller: controller),
-        );
+        // **不用 AnimatedSwitcher**:AnimatedSwitcher 在 controller 触发
+        // 异步 re-build 时(尤其 `Get.dialog` + 二次 dialog 弹出)会触发
+        // `Duplicate GlobalKey` 错误(Flutter framework 把 ValueKey 当成
+        // reparenting signal),实际只是 widget 重建顺序问题。这里一/二级
+        // 切换没动画需求,直接 if/else 切换 widget tree。
+        return controller.isChoosingPlaylist.value
+            ? _PlaylistPicker(
+                key: const ValueKey('picker'),
+                controller: controller,
+              )
+            : _MainMenu(
+                key: const ValueKey('main'),
+                controller: controller,
+              );
       }),
     );
   }

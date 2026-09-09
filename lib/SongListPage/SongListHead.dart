@@ -167,11 +167,10 @@ class _LikeButton extends StatelessWidget {
   }
 }
 
-/// 专辑形态 head —— 封面 + 标题 + 描述 + 按钮列(播放 / 收藏)。
+/// 专辑形态 head —— 标题 + 描述 + 按钮列(播放 / 收藏)。
 ///
 /// 视觉:`Row` + 左侧封面(SongCover)+ 右侧标题/描述/按钮 Column。
 /// 跟歌单形态相比:
-///   - 加了封面图(专辑必须有封面,歌单常常没)
 ///   - 标题在标题列上方(歌单 head 没有标题,只显示描述)
 ///
 /// 按钮:**没有删除**(专辑不能删)
@@ -199,18 +198,6 @@ class AlbumHead extends StatelessWidget {
       return Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // 封面(64x64)
-          ClipRRect(
-            child: Obx(() {
-              final url = controller.coverUrl.value;
-              if (url == null || url.isEmpty) {
-                return Container(
-                  color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                );
-              }
-              return Image(image: neteaseNetworkImage(url), fit: BoxFit.cover);
-            }),
-          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../models/LibrarySummary.dart';
 import '../services/LikedController.dart';
+import '../services/PlaylistEventsController.dart';
 import '../services/repositories/LibraryRepository.dart';
 import '../services/repositories/PlaylistRepository.dart';
 import '../sdk/AuthController.dart';
@@ -113,6 +114,13 @@ class LibraryController extends GetxController {
     }
     final list = await _repo.fetchPlaylists(uid.toString());
     playlists.assignAll(list);
+    // **重置 delta**:全量 reload 后 playlist.trackCount 是后端真值,
+    // 本地累计的 delta 已包含在新值里 —— 不重置会重复叠加 + 显示错。
+    // 用 resetDelta 而不是 applyDelta(-X):不需要知道当前 delta 值。
+    final events = Get.find<PlaylistEventsController>();
+    for (final p in list) {
+      events.resetDelta(p.id);
+    }
     playlistsLoading.value = false;
   }
 
