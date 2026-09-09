@@ -141,7 +141,6 @@ class LikedController extends GetxController {
         e.message,
         snackPosition: SnackPosition.BOTTOM,
         duration: const Duration(seconds: 3),
-        margin: const EdgeInsets.all(16),
       );
     }
   }
