@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 
 import '../SongListPage/SongListDetail.dart';
 import '../SongListPage/SongListHeadController.dart';
-import '../models/default.dart';
+import '../models/Default.dart';
 import '../models/LibrarySummary.dart' show PlaylistSource;
 
 /// 艺人详情页 —— 复用 [SongListDetail] 路径。

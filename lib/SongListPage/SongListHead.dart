@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../models/default.dart';
+import '../models/Default.dart';
 import '../models/LibrarySummary.dart' show PlaylistSource;
 import '../widgets/netease_image.dart';
 import 'SongListBodyController.dart';

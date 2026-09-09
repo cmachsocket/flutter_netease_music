@@ -4,6 +4,7 @@ import '../models/Song.dart';
 import '../services/LikedController.dart';
 import '../services/AudioPlayerWrapper.dart';
 import '../models/ApiException.dart';
+import 'LongPressDialog.dart';
 import '../services/repositories/AlbumRepository.dart';
 import '../services/repositories/ArtistRepository.dart';
 import '../services/repositories/PlaylistRepository.dart';
@@ -156,6 +157,17 @@ class SongListBodyController extends GetxController {
   void toggleFavorite(String songId) {
     // ignore: discarded_futures
     _likedService.toggle(songId, LikedType.song);
+  }
+
+  void onSongLongPress(Song song, int index) {
+    Get.dialog(
+      LongPressDialog(
+        song: song,
+        index: index,
+        source: source,
+        playlistId: playlistId,
+      ),
+    );
   }
 
   /// 查询某首歌是否被喜欢(调用方必须包 Obx 才能响应变化)

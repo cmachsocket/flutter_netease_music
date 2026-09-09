@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart' hide SearchController;
 import 'package:get/get.dart';
 
-import '../models/default.dart';
+import '../models/Default.dart';
 import '../ArtistPage/ArtistDetail.dart';
 import '../SongListPage/SongListBody.dart';
 import '../SongListPage/SongListBodyController.dart';
@@ -86,8 +86,7 @@ class _SongView extends StatelessWidget {
 
   /// 每条搜索结果对应一个 body controller tag(用 keyword 区分,
   /// 不同关键词产生不同 controller 实例 —— 防止切关键词时旧数据残留)。
-  String _tagFor(String keyword) =>
-      'search-$keyword-${PlaylistSource.pure}';
+  String _tagFor(String keyword) => 'search-$keyword-${PlaylistSource.pure}';
 
   @override
   Widget build(BuildContext context) {
@@ -136,8 +135,9 @@ class _SongView extends StatelessWidget {
         );
       } else {
         // 已注册 → 直接同步一次最新数据(防止 Obx 没触发但数据变了)
-        Get.find<SongListBodyController>(tag: tag).songs
-            .assignAll(c.songResults.toList(growable: false));
+        Get.find<SongListBodyController>(
+          tag: tag,
+        ).songs.assignAll(c.songResults.toList(growable: false));
       }
 
       return SongListBody(controllerTag: tag);

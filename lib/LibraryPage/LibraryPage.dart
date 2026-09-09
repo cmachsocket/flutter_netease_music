@@ -5,7 +5,7 @@ import '../SongListPage/SongListCard.dart';
 import '../sdk/AuthController.dart';
 import '../widgets/aspect_driven_grid.dart';
 import 'LibraryController.dart';
-import '../models/default.dart';
+import '../models/Default.dart';
 import '../models/LibrarySummary.dart' show PlaylistSource;
 
 /// 我的 tab 内容

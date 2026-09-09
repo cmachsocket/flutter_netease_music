@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import '../SongListPage/SongListBody.dart';
 import 'PlayListController.dart';
 import '../models/Song.dart';
-import '../models/default.dart';
+import '../models/Default.dart';
 import '../models/LibrarySummary.dart' show PlaylistSource;
 
 /// 播放列表页

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../widgets/song_cover.dart';
 import 'package:get/get.dart';
 import 'package:responsive_builder/responsive_builder.dart';
-import '../models/default.dart';
+import '../models/Default.dart';
 import '../models/LibrarySummary.dart' show PlaylistSource;
 import 'SongListBodyController.dart';
 import 'SongListDetail.dart';

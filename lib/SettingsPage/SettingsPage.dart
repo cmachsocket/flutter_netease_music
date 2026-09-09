@@ -5,7 +5,7 @@ import 'LoginController.dart';
 import 'LoginPage.dart';
 import 'SettingsController.dart';
 import 'ThemeSwitcher.dart';
-import '../models/default.dart';
+import '../models/Default.dart';
 
 /// 设置 tab 内容(放进 app_shell 的 IndexedStack)。
 /// 父级 IndexedStack 必须被 Expanded 包裹 —— 否则 Column 的主轴给的是

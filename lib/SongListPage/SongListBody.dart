@@ -20,7 +20,6 @@ class SongListBody extends StatelessWidget {
     super.key,
     this.extraTrailing,
     this.selectedHighlight,
-    this.onLongPress,
     required this.controllerTag,
   });
 
@@ -30,9 +29,6 @@ class SongListBody extends StatelessWidget {
 
   /// 为 [SongRowTile] 暴露的额外 trailing widget,同时会传递当前 Song 和 index。
   final Widget Function(Song, int)? extraTrailing;
-
-  /// 为 [SongRowTile] 暴露的额外 onLongPress 回调,同时会传递当前 Song 和 index。
-  final void Function(Song, int)? onLongPress;
 
   /// 当前正在播放的歌曲在列表中的 index(用于高亮)
   final int? selectedHighlight;
@@ -77,9 +73,7 @@ class SongListBody extends StatelessWidget {
             extraTrailing: extraTrailing != null
                 ? () => extraTrailing!(song, index)
                 : null,
-            onLongPress: onLongPress != null
-                ? () => onLongPress!(song, index)
-                : null,
+            onLongPress: () => controller.onSongLongPress(song, index),
             // isLiked 内部读 likedIds(Obx),SongRowTile 内部已经包了 Obx
             isLiked: () => controller.isLiked(song.id),
           );

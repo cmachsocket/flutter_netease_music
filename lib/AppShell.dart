@@ -3,7 +3,7 @@ import 'package:flutter_netease_music/PlayPage/BottomPlayer.dart';
 import 'package:get/get.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 import 'package:keyboard_insets/keyboard_insets.dart';
-import '../models/default.dart';
+import 'models/Default.dart';
 import 'HomePage/HomePage.dart';
 import 'LibraryPage/LibraryController.dart';
 import 'LibraryPage/LibraryPage.dart';

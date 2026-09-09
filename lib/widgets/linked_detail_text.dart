@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../ArtistPage/ArtistDetail.dart';
 import '../SongListPage/SongListDetail.dart';
-import '../models/default.dart';
+import '../models/Default.dart';
 import '../models/Song.dart';
 import '../models/LibrarySummary.dart' show PlaylistSource;
 

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import '../models/default.dart';
+import '../models/Default.dart';
 import 'LoginController.dart';
 
 /// 登录页(手机 + 验证码)

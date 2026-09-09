@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import '../models/Song.dart';
 import '../widgets/linked_detail_text.dart';
 import '../widgets/song_cover.dart';
-import '../models/default.dart';
+import '../models/Default.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 
 /// 查询 song 是否被喜欢的回调（无参：调用方包好 song 后注入）

@@ -4,7 +4,7 @@ import 'package:get/get.dart';
 import '../SongListPage/SongListCard.dart';
 import '../widgets/aspect_driven_grid.dart';
 import 'HomeController.dart';
-import '../models/default.dart';
+import '../models/Default.dart';
 import '../models/LibrarySummary.dart' show PlaylistSource;
 
 class HomePage extends StatelessWidget {

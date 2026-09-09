@@ -7,7 +7,7 @@ import 'PlayerController.dart';
 import '../PlayListPage/PlayListPage.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
-import '../models/default.dart';
+import '../models/Default.dart';
 
 /// 底部 mini 播放器
 ///
