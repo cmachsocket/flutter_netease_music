@@ -205,11 +205,14 @@ class SongListBodyController extends GetxController {
 
   void onSongLongPress(Song song, int index) {
     Get.dialog(
-      LongPressDialog(
-        song: song,
-        index: index,
-        source: source,
-        playlistId: playlistId,
+      GetBuilder<LongPressDialogController>(
+        init: LongPressDialogController(
+          song: song,
+          index: index,
+          source: source,
+          playlistId: playlistId,
+        ),
+        builder: (_) => const LongPressDialog(),
       ),
     );
   }

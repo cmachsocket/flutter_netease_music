@@ -101,52 +101,54 @@ class AppShell extends StatelessWidget {
     // bottom=true 是冗余防御, 设了不出问题)。
     return MediaQuery(
       data: MediaQuery.of(context).copyWith(viewInsets: EdgeInsets.zero),
-      child: Obx(() {
-        final tailOfThePage = maxPageIndex - 1;
-        final i = tab.index.value.clamp(0, tailOfThePage);
-        return Scaffold(
-          resizeToAvoidBottomInset: false,
-          body: _responsiveBody(PageIndex.values[i]),
+      child: SafeArea(
+        child: Obx(() {
+          final tailOfThePage = maxPageIndex - 1;
+          final i = tab.index.value.clamp(0, tailOfThePage);
+          return Scaffold(
+            resizeToAvoidBottomInset: false,
+            body: _responsiveBody(PageIndex.values[i]),
 
-          bottomNavigationBar: BottomNavigationBar(
-            currentIndex: i,
-            onTap: (j) {
-              if (j == i) return;
-              tab.change(j);
-              // 用 GetX 的导航 API 推到 shell 自己的 navigator
-              final toThePage = PageIndex.values[j.clamp(0, tailOfThePage)];
-              Get.to(
-                () => _content(toThePage),
-                binding: _bindingForTab(toThePage),
-                id: DefaultValues.shellNavigatorId,
-              );
-            },
-            type: BottomNavigationBarType.fixed,
-            items: const [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.explore_outlined),
-                activeIcon: Icon(Icons.explore),
-                label: '发现',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.search_outlined),
-                activeIcon: Icon(Icons.search),
-                label: '搜索',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.library_music_outlined),
-                activeIcon: Icon(Icons.library_music),
-                label: '我的',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.settings_outlined),
-                activeIcon: Icon(Icons.settings),
-                label: '设置',
-              ),
-            ],
-          ),
-        );
-      }),
+            bottomNavigationBar: BottomNavigationBar(
+              currentIndex: i,
+              onTap: (j) {
+                if (j == i) return;
+                tab.change(j);
+                // 用 GetX 的导航 API 推到 shell 自己的 navigator
+                final toThePage = PageIndex.values[j.clamp(0, tailOfThePage)];
+                Get.to(
+                  () => _content(toThePage),
+                  binding: _bindingForTab(toThePage),
+                  id: DefaultValues.shellNavigatorId,
+                );
+              },
+              type: BottomNavigationBarType.fixed,
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.explore_outlined),
+                  activeIcon: Icon(Icons.explore),
+                  label: '发现',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.search_outlined),
+                  activeIcon: Icon(Icons.search),
+                  label: '搜索',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.library_music_outlined),
+                  activeIcon: Icon(Icons.library_music),
+                  label: '我的',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.settings_outlined),
+                  activeIcon: Icon(Icons.settings),
+                  label: '设置',
+                ),
+              ],
+            ),
+          );
+        }),
+      ),
     );
   }
 }

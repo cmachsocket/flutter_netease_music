@@ -11,56 +11,34 @@ import '../services/repositories/LibraryRepository.dart';
 import '../services/repositories/PlaylistRepository.dart';
 
 /// 长按 [SongRowTile] 弹出的菜单。
-/// **校准状态**:
-/// - `PlaylistRepository.removeTracks`:**未真机校准**,沿用 `addTracks` 经验值
-///   `body['code'] == 200`,失败时会额外 log raw body 方便贴回来校准
-/// - `AudioPlayerHandler.addQueueItem` override:**未真机校准**,trigger 后看
-///   queue 列表 UI 是否刷新 + shuffle 模式下 next/prev 顺序是否正确
+///
+/// 注意：
+/// - Controller 的生命周期由外部 Binding / 调用方负责。
+/// - 本 Widget 不再负责 Get.put / Get.delete。
+/// - Dialog 关闭前必须完成所有 Rx 状态更新，避免 Obx 在 Widget
+///   正在 deactivate 时再次触发 rebuild。
 class LongPressDialog extends StatelessWidget {
-  const LongPressDialog({
-    super.key,
-    required this.song,
-    required this.index,
-    required this.source,
-    required this.playlistId,
-  });
-  final Song song;
-  final int index;
-  final PlaylistSource source;
-  final String? playlistId;
+  const LongPressDialog({super.key});
 
   static const _tag = 'longPressDialog';
 
   @override
   Widget build(BuildContext context) {
-    if (!Get.isRegistered<LongPressDialogController>(tag: _tag)) {
-      Get.put(
-        LongPressDialogController(
-          song: song,
-          index: index,
-          source: source,
-          playlistId: playlistId,
-        ),
-        tag: _tag,
-      );
-    }
     final controller = Get.find<LongPressDialogController>(tag: _tag);
+
     return Dialog(
       child: Obx(() {
-        // **不用 AnimatedSwitcher**:AnimatedSwitcher 在 controller 触发
-        // 异步 re-build 时(尤其 `Get.dialog` + 二次 dialog 弹出)会触发
-        // `Duplicate GlobalKey` 错误(Flutter framework 把 ValueKey 当成
-        // reparenting signal),实际只是 widget 重建顺序问题。这里一/二级
-        // 切换没动画需求,直接 if/else 切换 widget tree。
+        // 不使用 AnimatedSwitcher。
+        //
+        // 这里没有动画需求，直接切换 widget tree。
+        // 同时避免 dialog + 异步 Obx rebuild 时产生额外的
+        // element reparent / GlobalKey 生命周期问题。
         return controller.isChoosingPlaylist.value
             ? _PlaylistPicker(
                 key: const ValueKey('picker'),
                 controller: controller,
               )
-            : _MainMenu(
-                key: const ValueKey('main'),
-                controller: controller,
-              );
+            : _MainMenu(key: const ValueKey('main'), controller: controller);
       }),
     );
   }
@@ -78,13 +56,12 @@ class _MainMenu extends StatelessWidget {
     final song = controller.song;
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 标题区:歌曲名 + 艺人 + 关闭按钮
-        // 用 ListTile.contentPadding(M3 默认)代替手写 EdgeInsets;
-        // 右侧 8 是为了让 trailing IconButton 跟边缘紧凑(M3 默认 16 会过宽)
+        // 标题区：歌曲名 + 艺人 + 关闭按钮
         ListTile(
           title: Text(
             song.title,
@@ -105,6 +82,7 @@ class _MainMenu extends StatelessWidget {
             onPressed: () => Get.back<void>(),
           ),
         ),
+
         const Divider(),
 
         // 添加到歌单
@@ -114,14 +92,14 @@ class _MainMenu extends StatelessWidget {
           onTap: controller.openPlaylistPicker,
         ),
 
-        // 添加到播放列表(末尾)
+        // 添加到播放列表
         ListTile(
           leading: const Icon(Icons.queue_music),
           title: const Text('添加到播放列表'),
           onTap: controller.addToQueue,
         ),
 
-        // 从歌单中删除:仅自建歌单内显示
+        // 从歌单中删除：仅自建歌单内显示
         if (controller.source == PlaylistSource.created &&
             controller.playlistId != null)
           ListTile(
@@ -140,7 +118,7 @@ class _MainMenu extends StatelessWidget {
   }
 }
 
-// ---- 二级:选歌单 -----------------------------------------------------------
+// ---- 二级：选歌单 -----------------------------------------------------------
 
 class _PlaylistPicker extends StatelessWidget {
   const _PlaylistPicker({super.key, required this.controller});
@@ -151,6 +129,7 @@ class _PlaylistPicker extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -163,21 +142,28 @@ class _PlaylistPicker extends StatelessWidget {
           ),
           title: Text('选择歌单', style: textTheme.titleMedium),
         ),
+
         const Divider(),
 
         // loading
         if (controller.pickerLoading.value)
-          // vertical: 32 是 loading 指示器的"呼吸感"留白,Material 标准
-          Center(child: CircularProgressIndicator())
-        // 空
+          const Padding(
+            padding: EdgeInsets.all(32),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        // 空 / 错误
         else if (controller.userPlaylists.isEmpty)
-          Text(
-            controller.pickerError.value ?? '暂无歌单',
-            style: textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.outline,
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              controller.pickerError.value ?? '暂无歌单',
+              style: textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+              textAlign: TextAlign.center,
             ),
           )
-        // 列表:物理 maxHeight 是为了避免 dialog 超过屏幕,不能从 theme 派生
+        // 歌单列表
         else
           ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 360),
@@ -186,6 +172,7 @@ class _PlaylistPicker extends StatelessWidget {
               itemCount: controller.userPlaylists.length,
               itemBuilder: (context, i) {
                 final p = controller.userPlaylists[i];
+
                 return ListTile(
                   leading: const Icon(Icons.playlist_play),
                   title: Text(
@@ -213,14 +200,29 @@ class _PlaylistPicker extends StatelessWidget {
 
 /// LongPressDialog 的 GetX controller。
 ///
-/// **生命周期**:widget build 时 `Get.put(..., tag: 'longPressDialog')`,
-/// dialog 关闭(`Get.back`)时 controller 仍存活直到下次 build 复用。
-/// 想彻底清:在 `Get.back` 前 `Get.delete<LongPressDialogController>(tag: _tag)`。
+/// 生命周期由外部 Binding / 调用方负责。
 ///
-/// **依赖**:
-/// - `PlaylistRepository` — 添加/删除歌单曲目
-/// - `LibraryRepository` + `AuthController` — 拉用户歌单列表(用于二级菜单)
-/// - `AudioPlayerService` — addToQueue(wrapper 新增 API)
+/// 特别注意：
+///
+/// 所有异步操作都遵循：
+///
+///   await
+///   ↓
+///   isBusy = false
+///   ↓
+///   Get.back()
+///
+/// 绝对不能：
+///
+///   Get.back()
+///   ↓
+///   finally
+///   ↓
+///   isBusy = false
+///
+/// 后一种顺序可能导致 Dialog 已经开始 deactivate 后，
+/// Obx 又因为 Rx 更新而尝试 rebuild，从而触发 Flutter framework
+/// 的 `_dependents.isEmpty` assertion。
 class LongPressDialogController extends GetxController {
   LongPressDialogController({
     required this.song,
@@ -234,140 +236,251 @@ class LongPressDialogController extends GetxController {
   final PlaylistSource source;
   final String? playlistId;
 
-  // ---- 依赖(注入而非全局查找,便于测试)-----------------------------------
+  // ---- 依赖 ----------------------------------------------------------------
 
   final PlaylistRepository _playlistRepo = Get.find<PlaylistRepository>();
+
   final LibraryRepository _libraryRepo = Get.find<LibraryRepository>();
+
   final AuthController _auth = Get.find<AuthController>();
+
   final AudioPlayerService _player = Get.find<AudioPlayerService>();
 
-  // ---- 状态 ---------------------------------------------------------------
+  // ---- 状态 ----------------------------------------------------------------
 
-  /// 是否在二级"选歌单"面板
+  /// 是否在二级「选歌单」面板。
   final RxBool isChoosingPlaylist = false.obs;
 
-  /// 二级面板:加载 / 错误 / 歌单列表
+  /// 二级面板：加载状态。
   final RxBool pickerLoading = false.obs;
+
+  /// 二级面板：错误信息。
   final RxnString pickerError = RxnString();
+
+  /// 用户歌单。
   final RxList<PlaylistSummary> userPlaylists = <PlaylistSummary>[].obs;
 
-  /// 通用:某次操作进行中(防止用户重复点击)
+  /// 通用操作锁，防止重复点击。
   final RxBool isBusy = false.obs;
 
-  // ---- 操作 ---------------------------------------------------------------
+  // ---- 操作 ----------------------------------------------------------------
 
-  /// 打开二级选歌单面板(首次触发拉取列表)
+  /// 打开二级选歌单面板。
+  ///
+  /// 第一次进入时加载用户歌单。
   Future<void> openPlaylistPicker() async {
+    if (isBusy.value) return;
+
     isChoosingPlaylist.value = true;
+
     if (userPlaylists.isEmpty) {
       await _loadUserPlaylists();
     }
   }
 
+  /// 返回一级菜单。
   void closePlaylistPicker() {
     isChoosingPlaylist.value = false;
   }
 
-  /// 用户选了某个歌单:加歌 + 反馈 + 关闭整个 dialog
+  /// 添加到指定歌单。
+  ///
+  /// 生命周期顺序非常重要：
+  ///
+  ///   await addTracks()
+  ///        ↓
+  ///   isBusy = false
+  ///        ↓
+  ///   Get.back()
+  ///
+  /// 不要把 isBusy=false 放进 Get.back() 后面的 finally。
   Future<void> addToPlaylist(String playlistId, String playlistName) async {
     if (isBusy.value) return;
+
     isBusy.value = true;
+
     try {
       final ok = await _playlistRepo.addTracks(playlistId, [song.id]);
+
+      // ------------------------------------------------------------
+      // 关键：
+      // Dialog 关闭之前先完成最后一次 Rx 更新。
+      // ------------------------------------------------------------
+      isBusy.value = false;
+
+      // Rx 已经稳定，不再触发 Dialog 内 Obx rebuild。
       Get.back<void>();
+
       if (ok) {
         _toast('已添加到 $playlistName');
       } else {
         _toast('添加失败');
+
         if (kDebugMode) {
           debugPrint(
-            '[LongPressDialog] addTracks failed: playlistId=$playlistId, songId=${song.id}',
+            '[LongPressDialog] addTracks failed: '
+            'playlistId=$playlistId, '
+            'songId=${song.id}',
           );
         }
       }
-    } finally {
+    } catch (e) {
+      // 异常情况下同样必须先恢复 Rx 状态，
+      // 然后再决定是否关闭 Dialog。
       isBusy.value = false;
+
+      if (kDebugMode) {
+        debugPrint('[LongPressDialog] addToPlaylist exception: $e');
+      }
+
+      _toast('添加失败: $e');
     }
   }
 
-  /// 从当前所在的自建歌单删除这首歌
+  /// 从当前所在的自建歌单删除这首歌。
   Future<void> removeFromPlaylist() async {
     final pid = playlistId;
+
     if (pid == null) return;
     if (isBusy.value) return;
+
     isBusy.value = true;
+
     try {
       final ok = await _playlistRepo.removeTracks(pid, [song.id]);
+
+      // ------------------------------------------------------------
+      // 关键：
+      // 必须在 Get.back() 之前恢复 isBusy。
+      // ------------------------------------------------------------
+      isBusy.value = false;
+
       Get.back<void>();
+
       if (ok) {
         _toast('已从歌单删除');
-        // 通知上层 controller 刷新 body 列表(删除的那一行没了)
-        // 这里不直接调 controller,LongPressDialog 不知道上层是哪个 ——
-        // 调用方应在 Get.back 后自行 reload。
+
+        // 通知上层 controller 刷新 body 列表。
+        //
+        // LongPressDialog 不直接持有上层 controller，
+        // 调用方在 Get.back 后自行 reload。
       } else {
         _toast('删除失败');
+
         if (kDebugMode) {
           debugPrint(
-            '[LongPressDialog] removeTracks failed: playlistId=$pid, songId=${song.id}',
+            '[LongPressDialog] removeTracks failed: '
+            'playlistId=$pid, '
+            'songId=${song.id}',
           );
         }
       }
-    } finally {
+    } catch (e) {
+      // 注意这里没有 finally。
+      //
+      // 因为如果 finally 放在 Get.back() 后面，
+      // 就可能重新出现：
+      //
+      // Get.back()
+      //   ↓
+      // Dialog deactivate
+      //   ↓
+      // finally -> isBusy=false
+      //   ↓
+      // Obx rebuild
+      //
+      // 从而触发 _dependents.isEmpty。
       isBusy.value = false;
+
+      if (kDebugMode) {
+        debugPrint('[LongPressDialog] removeFromPlaylist exception: $e');
+      }
+
+      _toast('删除失败: $e');
     }
   }
 
-  /// 追加到当前播放队列末尾
+  /// 追加到当前播放队列末尾。
   Future<void> addToQueue() async {
     if (isBusy.value) return;
+
     isBusy.value = true;
+
     try {
       await _player.addToQueue(song);
+
+      // ------------------------------------------------------------
+      // 关键：
+      // 先结束 busy，再关闭 Dialog。
+      // ------------------------------------------------------------
+      isBusy.value = false;
+
       Get.back<void>();
+
       _toast('已添加到播放列表');
     } catch (e) {
-      Get.back<void>();
-      _toast('添加失败: $e');
+      // 异常情况下同样先恢复 Rx。
+      isBusy.value = false;
+
       if (kDebugMode) {
         debugPrint('[LongPressDialog] addToQueue failed: $e');
       }
-    } finally {
-      isBusy.value = false;
+
+      Get.back<void>();
+
+      _toast('添加失败: $e');
     }
   }
 
-  // ---- 私有 ---------------------------------------------------------------
+  // ---- 私有 ----------------------------------------------------------------
 
+  /// 加载用户歌单。
   Future<void> _loadUserPlaylists() async {
     pickerLoading.value = true;
     pickerError.value = null;
+
     try {
       final uid = _auth.currentUid;
+
       if (uid == 0) {
         pickerError.value = '请先登录';
         userPlaylists.clear();
         return;
       }
+
       final list = await _libraryRepo.fetchPlaylists(uid.toString());
+
       userPlaylists.assignAll(list);
     } on ApiException catch (e) {
       pickerError.value = e.message;
       userPlaylists.clear();
+
+      if (kDebugMode) {
+        debugPrint(
+          '[LongPressDialog] fetchPlaylists ApiException: '
+          '$e',
+        );
+      }
     } catch (e) {
       pickerError.value = '加载歌单失败: $e';
       userPlaylists.clear();
+
+      if (kDebugMode) {
+        debugPrint('[LongPressDialog] fetchPlaylists exception: $e');
+      }
     } finally {
+      // 这里没有 Get.back()，所以 finally 是安全的。
       pickerLoading.value = false;
     }
   }
 
+  /// 显示操作结果。
   void _toast(String msg) {
     Get.snackbar(
       '',
       msg,
       snackPosition: SnackPosition.BOTTOM,
       duration: const Duration(seconds: 2),
-      // 不传 margin —— GetX 默认 margin 是 16,跟 ListTile.contentPadding 一致
     );
   }
 }
