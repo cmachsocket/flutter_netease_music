@@ -20,6 +20,15 @@ class Song {
     required this.coverUrl,
     required this.duration,
   });
+  const Song.empty()
+    : id = '',
+      title = '',
+      artist = '',
+      artistId = null,
+      album = '',
+      albumId = null,
+      coverUrl = '',
+      duration = Duration.zero;
 
   String get durationLabel {
     final m = duration.inMinutes;

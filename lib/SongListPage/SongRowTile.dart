@@ -59,21 +59,29 @@ class SongRowTile extends StatelessWidget {
             portrait: (context) => const SizedBox.shrink(),
             landscape: (context) => Text(song.durationLabel),
           ),
-          // Obx 只包 fav button：likedIds 变化时只重建这个 IconButton，
-          // 其他部分（leading/title/subtitle/下面的 play button）不受影响。
-          // isLiked 为 null 时 Obx 闭包里不触达 Rx → 零监听零重建开销。
-          Obx(() {
-            final liked = isLiked?.call() ?? false;
-            return IconButton(
+          // fav button 响应式：likedIds 变化时只重建 IconButton, 不是整行。
+          // isLiked == null 路径不能包 Obx (GetX 检测空订阅会抛 "improper use"),
+          // 直接用普通 IconButton;此路径本来就没 Rx 可订阅, 也不需要响应式。
+          if (isLiked == null)
+            IconButton(
               padding: DefaultValues.onlyZero,
-              icon: Icon(
-                liked ? Icons.favorite : Icons.favorite_border,
-                color: liked ? scheme.primary : null,
-              ),
-              onPressed: onToggleFavorite,
+              icon: const Icon(Icons.favorite_border),
+              onPressed: null, // 没回调就不响应
               tooltip: '喜爱',
-            );
-          }),
+            )
+          else
+            Obx(() {
+              final liked = isLiked!.call();
+              return IconButton(
+                padding: DefaultValues.onlyZero,
+                icon: Icon(
+                  liked ? Icons.favorite : Icons.favorite_border,
+                  color: liked ? scheme.primary : null,
+                ),
+                onPressed: onToggleFavorite,
+                tooltip: '喜爱',
+              );
+            }),
           IconButton(
             padding: DefaultValues.onlyZero,
             icon: const Icon(Icons.play_arrow),

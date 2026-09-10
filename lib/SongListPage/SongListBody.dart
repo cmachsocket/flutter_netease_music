@@ -40,8 +40,6 @@ class SongListBody extends StatelessWidget {
     );
     // Obx 包裹整个 build:controller 的 Rx 字段变化触发重建
     return Obx(() {
-      final songs = controller.songs.toList(growable: false);
-
       final isLoading = controller.isLoading.value;
       final errorMessage = controller.errorMessage.value;
       if (isLoading) {
@@ -56,13 +54,14 @@ class SongListBody extends StatelessWidget {
           ),
         );
       }
-      if (songs.isEmpty) {
+      if (controller.songs.isEmpty) {
         return const Center(child: Text('暂无歌曲'));
       }
       return ListView.builder(
-        itemCount: songs.length,
+        prototypeItem: const SongRowTile(song: Song.empty()),
+        itemCount: controller.songs.length,
         itemBuilder: (context, index) {
-          final song = songs[index];
+          final song = controller.songs[index];
           final selected =
               selectedHighlight != null && index == selectedHighlight;
           return SongRowTile(
