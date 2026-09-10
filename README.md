@@ -9,6 +9,14 @@ JavaScript/Node.js 实现,打包后由内嵌的 QuickJS 引擎通过 C ABI 执�
 再通过 `dart:ffi` 暴露给 Dart。预编译的原生库 (`libmusiclibrary.so` /
 `.dll` / `.dylib`) 随包发布,只有约 2 MB。
 
+## 特色
+
+Flutter 原生跨平台
+
+原生 UI , 性能优秀
+
+仅音乐功能，去除广告、社区、视频、直播等非音乐功能
+
 ## 功能
 
 - 搜索 / 歌单 / 专辑 / 艺人 / 我的收藏
@@ -16,6 +24,24 @@ JavaScript/Node.js 实现,打包后由内嵌的 QuickJS 引擎通过 C ABI 执�
 - 同步歌词(基于 `flutter_lyric`)
 - 收藏的歌曲 / 专辑 / 艺人 / 歌单
 - 亮 / 暗主题
+
+## 跑起来
+
+```bash
+flutter pub get
+flutter run                  # 选个设备
+flutter analyze
+```
+
+Flutter SDK 约束:`^3.12.2`。`musiclibrary` 是本地 path 包
+(`NeteaseCloudMusic_PythonSDK/src/dart`),API 细节见 `MUSICLIBRARY.md`。
+
+
+### TODO
+
+- 在linux上的状态栏歌词接口，应该与 YesPlayMusic / VutronMusic 在 KDE 的实现一致。
+- 在MusicLibrary底层库能够解析xeapi后，添加对音质的选择，支持高音质播放。
+- 提供音质选择功能后，会考虑提供下载功能。
 
 ## 项目结构
 
@@ -105,30 +131,3 @@ Widget
   `setShowActionsInCompactView`,直接用 controls 列表前 3 个当 compact
   槽位。需要出现在锁屏的自定义按钮(如 `SongRowTile` 风格的 like)必须
   放在 controls 列表的前 3 位。
-
-## 跑起来
-
-```bash
-flutter pub get
-flutter run                  # 选个设备
-flutter analyze
-```
-
-Flutter SDK 约束:`^3.12.2`。`musiclibrary` 是本地 path 包
-(`NeteaseCloudMusic_PythonSDK/src/dart`),API 细节见 `MUSICLIBRARY.md`。
-
-## 已知坑
-
-- `main()` 里第一件事就把 `HttpOverrides.global` 换成
-  `NeteaseHttpOverrides`。网易云 CDN 会拉黑 Dart 默认 UA,
-  `ImageNetwork` 的 `headers` 参数在 Android 不一定生效,直接
-  override HttpClient 最稳。
-- `audio_service` 需要 Android foreground-service 权限,以及
-  `android/app/src/main/res/drawable-*` 下齐全的通知图标
-  (`ic_favorite`、`ic_favorite_border`、`ic_play`、`ic_pause`、
-  `ic_skip_next`、`ic_skip_previous`)。**drawable 名字必须和
-  `AudioPlayerHandler._buildControls` 里 `androidIcon` 引用的对得上**,
-  不存在会抛 `IllegalArgumentException`,被 AudioService 内部
-  catch 后只 stacktrace,但 playerStateStream 每 200ms 都会触发一次
-  rebuild controls → 主 isolate 在 catch + logd 撞配额 →
-  打开 app 时 UI 冻屏(实际 audio 在播)。
