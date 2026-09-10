@@ -39,7 +39,10 @@ class LikedRepository extends GetxService {
       Get.log('[$_tag] fetchLikedAlbumIds() enter');
     }
     try {
-      final r = await apiCall(() => _api.raw.album_sublist(), what: '拉收藏专辑');
+      final r = await apiCall(
+        () => _api.callApi('album_sublist', const <Object?>[]),
+        what: '拉收藏专辑',
+      );
       if (Get.isLogEnable) {
         Get.log('[$_tag] fetchLikedAlbumIds body keys=${r.body.keys.toList()}');
       }
@@ -84,7 +87,10 @@ class LikedRepository extends GetxService {
     }
     try {
       await apiCall(
-        () => _api.raw.album_sub(albumId, next ? '1' : '0'),
+        () => _api.callApi(
+          'album_sub',
+          <Object?>[albumId, next ? '1' : '0'],
+        ),
         what: next ? '收藏专辑' : '取消收藏',
       );
       if (Get.isLogEnable) {
@@ -112,7 +118,10 @@ class LikedRepository extends GetxService {
       Get.log('[$_tag] fetchLikedPlaylistIds(uid=$uid) enter');
     }
     try {
-      final r = await apiCall(() => _api.raw.user_playlist(uid), what: '拉收藏歌单');
+      final r = await apiCall(
+        () => _api.callApi('user_playlist', <Object?>[uid]),
+        what: '拉收藏歌单',
+      );
       if (Get.isLogEnable) {
         Get.log('[$_tag] fetchLikedPlaylistIds body keys=${r.body.keys.toList()}');
       }
@@ -158,7 +167,10 @@ class LikedRepository extends GetxService {
     }
     try {
       await apiCall(
-        () => _api.raw.playlist_subscribe(next ? '1' : '2', playlistId),
+        () => _api.callApi(
+          'playlist_subscribe',
+          <Object?>[next ? '1' : '2', playlistId],
+        ),
         what: next ? '收藏歌单' : '取消收藏',
       );
       if (Get.isLogEnable) {
@@ -177,7 +189,10 @@ class LikedRepository extends GetxService {
       Get.log('[$_tag] fetchLikedSongIds(uid=$uid) enter');
     }
     try {
-      final r = await apiCall(() => _api.raw.likelist(uid), what: '拉喜欢列表');
+      final r = await apiCall(
+        () => _api.callApi('likelist', <Object?>[uid]),
+        what: '拉喜欢列表',
+      );
       if (Get.isLogEnable) {
         Get.log('[$_tag] fetchLikedSongIds body keys=${r.body.keys.toList()}');
       }
@@ -218,7 +233,7 @@ class LikedRepository extends GetxService {
     }
     try {
       await apiCall(
-        () => _api.raw.like(songId, like: next.toString()),
+        () => _api.callApi('like', <Object?>[songId, next.toString()]),
         what: next ? '喜欢歌曲' : '取消喜欢',
       );
       if (Get.isLogEnable) {
@@ -247,7 +262,10 @@ class LikedRepository extends GetxService {
       Get.log('[$_tag] fetchLikedArtistIds() enter');
     }
     try {
-      final r = await apiCall(() => _api.raw.artist_sublist(), what: '拉关注艺人');
+      final r = await apiCall(
+        () => _api.callApi('artist_sublist', const <Object?>[]),
+        what: '拉关注艺人',
+      );
       if (Get.isLogEnable) {
         Get.log('[$_tag] fetchLikedArtistIds body keys=${r.body.keys.toList()}');
       }
@@ -292,7 +310,10 @@ class LikedRepository extends GetxService {
     }
     try {
       await apiCall(
-        () => _api.raw.artist_sub(artistId, next ? '1' : '0'),
+        () => _api.callApi(
+          'artist_sub',
+          <Object?>[artistId, next ? '1' : '0'],
+        ),
         what: next ? '关注艺人' : '取消关注',
       );
       if (Get.isLogEnable) {
@@ -320,7 +341,7 @@ class LikedRepository extends GetxService {
     }
     try {
       final r = await apiCall(
-        () => _api.raw.artists(artistId),
+        () => _api.callApi('artists', <Object?>[artistId]),
         what: '同步艺人关注状态',
       );
       if (Get.isLogEnable) {

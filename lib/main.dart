@@ -9,6 +9,7 @@ import 'AppShellController.dart';
 import 'PlayPage/LyricsController.dart';
 import 'PlayPage/PlayerController.dart';
 import 'services/AudioPlayerWrapper.dart';
+import 'sdk/ApiClient.dart';
 import 'sdk/NeteaseApi.dart';
 import 'services/LikedController.dart';
 import 'services/repositories/LyricsRepository.dart';
@@ -32,8 +33,11 @@ Future<void> main() async {
   HttpOverrides.global = NeteaseHttpOverrides();
   await GetStorage.init();
   Get.put<ThemeController>(ThemeController(), permanent: true);
-  // 网易云 SDK:创建 NeteaseCloudMusicApi 实例 + 恢复持久化 cookie
-  // (必须在 GetStorage.init 之后)
+  // 网易云 SDK:启动 SDK worker isolate (创建 NeteaseCloudMusicApi 实例 +
+  // 恢复持久化 cookie 都在 worker 端跑,主 isolate 不再卡几百 ms)。
+  // 必须在 GetStorage.init 之后, 且在 initNeteaseApi 之前
+  // (initNeteaseApi 内部要发 RPC 调 applyAnonymousCookie)。
+  await ApiClient.instance.start();
   await initNeteaseApi();
   // Repositories 集中 API 调用 —— 必须在依赖它们的 service / controller 之前 put。
   // 构造注入 NeteaseApi, 注册顺序错误会编译期暴露 (README 阶段 1.1)。

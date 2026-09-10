@@ -67,7 +67,7 @@ class AuthController extends GetxController {
         countrycode: countryCode,
       );
       // 3. 灌 cookie + 持久化 GetStorage + 写 loggedInKey (applyLoginCookie 内)
-      final cookies = _auth.applyLoginCookie(r);
+      final cookies = await _auth.applyLoginCookie(r);
       if (cookies.isEmpty) {
         // 没拿到身份 cookie: 视为登录失败 (后端响应里没 Set-Cookie, 多半
         // 是云盾拦截 / 风控重定向, 业务 code 200 但 cookie 缺失)
@@ -92,29 +92,29 @@ class AuthController extends GetxController {
 
   /// 退出登录,清理凭证
   ///
-  bool logout() {
-    _auth.logout();
+  /// RPC 化后变 async:worker 端清 SDK cookie + GetStorage + loggedIn flag
+  Future<bool> logout() async {
+    await _auth.logout();
     authInfo.value = AuthInfo.empty();
     return true;
   }
 
   /// 加载当前登录态的 uid + cookie, 同步到 [authInfo] Rx
   ///
-  /// - 登录态来源: SDK 自己写的 `_loggedInKey` (applyLoginCookie → true,
-  ///   logout → false), 走 [NeteaseApi.isLoggedIn] 读, 单一真相源
-  /// - cookie 来源: SDK 持久化的 `_cookieStorageKey`, 走 [NeteaseApi.getSavedAuthCookie]
-  ///   (旧实现走 `getCookiesByCheckLogin` 调 `/login/status`, 那个接口不 Set-Cookie,
-  ///   永远空 Map, 导致 cookies 永远 isEmpty, 登录态判定走偏)
+  /// - 登录态来源: worker 持久化的 `_loggedInKey` (applyLoginCookie → true,
+  ///   logout → false), 走 [NeteaseApi.isLoggedIn] (RPC) 读, 单一真相源
+  /// - cookie 来源: worker 持久化的 `_cookieStorageKey`, 走
+  ///   [NeteaseApi.getSavedAuthCookie] (RPC)
   /// - uid 拿不到 (网络/格式问题) 不阻断登录 —— 只在 Library 那边拉不到数据
   ///
   /// 调用方:
   /// - [NeteaseApi.init] 启动时 (恢复已登录用户的 uid)
   /// - [login] 成功后补一次 (刚登录的 uid)
   Future<void> loadAuthInfo() async {
-    // 1. 是否登录: SDK 自己写的 flag, 不靠接口响应
-    final loggedIn = _auth.isLoggedIn();
-    // 2. cookie: 从 SDK GetStorage 读 (applyLoginCookie 写入的)
-    final cookies = _auth.getSavedAuthCookie();
+    // 1. 是否登录: RPC 读 worker 写的 flag, 不靠接口响应
+    final loggedIn = await _auth.isLoggedIn();
+    // 2. cookie: RPC 读 worker GetStorage 持久化的 (applyLoginCookie 写入的)
+    final cookies = await _auth.getSavedAuthCookie();
     // 3. uid: 拉 /user/account (可能因网络/格式返回 0)
     //    fetchCurrentUid 内部 try/catch 不抛, 失败返 0
     final uid = await _auth.fetchCurrentUid();

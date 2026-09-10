@@ -30,7 +30,7 @@ class SongRepository extends GetxService {
   Future<String?> fetchSongUrl(String songId, {String br = '128000'}) async {
     try {
       final r = await apiCall(
-        () => _api.raw.song_url(songId, br: br),
+        () => _api.callApi('song_url', <Object?>[songId, br]),
         what: '取播放 URL',
       );
       final data = r.body['data'];
@@ -61,7 +61,10 @@ class SongRepository extends GetxService {
     if (songIds.isEmpty) return {};
     try {
       final ids = songIds.join(',');
-      final r = await apiCall(() => _api.raw.song_detail(ids), what: '补单曲封面');
+      final r = await apiCall(
+        () => _api.callApi('song_detail', <Object?>[ids]),
+        what: '补单曲封面',
+      );
       final songs = r.body['songs'];
       if (songs is! List) return {};
       final byId = <String, String>{};

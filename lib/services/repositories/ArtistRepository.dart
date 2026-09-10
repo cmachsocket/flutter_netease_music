@@ -32,7 +32,10 @@ class ArtistRepository extends GetxService {
   /// 返回 null: API 失败 / artist 字段缺失。
   Future<ArtistInfo?> fetchArtist(String artistId) async {
     try {
-      final r = await apiCall(() => _api.raw.artists(artistId), what: '拉艺人信息');
+      final r = await apiCall(
+        () => _api.callApi('artists', <Object?>[artistId]),
+        what: '拉艺人信息',
+      );
       final raw = r.body['artist'];
       if (raw is! Map) return null;
       final m = Map<String, dynamic>.from(raw);
@@ -58,7 +61,7 @@ class ArtistRepository extends GetxService {
   Future<List<Album>> fetchAlbums(String artistId) async {
     try {
       final r = await apiCall(
-        () => _api.raw.artist_album(artistId),
+        () => _api.callApi('artist_album', <Object?>[artistId]),
         what: '拉艺人专辑',
       );
       final list = r.body['hotAlbums'] ?? r.body['albums'];
@@ -83,7 +86,7 @@ class ArtistRepository extends GetxService {
   Future<List<Song>> fetchSongs(String artistId, {int limit = 50}) async {
     try {
       final r = await apiCall(
-        () => _api.raw.artist_songs(artistId, limit: limit.toString()),
+        () => _api.callApi('artist_songs', <Object?>[artistId, limit.toString()]),
         what: '拉艺人歌曲',
       );
       final list = r.body['songs'];

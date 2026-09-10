@@ -60,10 +60,13 @@ class SearchRepository extends GetxService {
   }) async {
     try {
       final r = await apiCall(
-        () => _api.raw.search(
-          keywords,
-          type: type.typeId.toString(),
-          limit: limit.toString(),
+        () => _api.callApi(
+          'search',
+          <Object?>[
+            keywords,
+            type.typeId.toString(),
+            limit.toString(),
+          ],
         ),
         what: '搜索',
       );

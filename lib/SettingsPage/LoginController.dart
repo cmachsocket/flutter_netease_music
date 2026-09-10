@@ -166,7 +166,7 @@ class LoginController extends GetxController {
   ///
   /// SettingsPage 的 "已登录" 项点击退出时调这个。AuthController.logout
   /// 内部已清 SDK cookie + GetStorage + 持久化。
-  bool logout() => _auth.logout();
+  Future<bool> logout() => _auth.logout();
 }
 
 /// 后面要全部重构snackbar提示，移动到view层，controller只负责业务逻辑。

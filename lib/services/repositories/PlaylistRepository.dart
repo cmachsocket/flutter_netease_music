@@ -44,7 +44,7 @@ class PlaylistRepository extends GetxService {
   Future<PlaylistMeta?> fetchMeta(String playlistId) async {
     try {
       final r = await apiCall(
-        () => _api.raw.playlist_detail(playlistId),
+        () => _api.callApi('playlist_detail', <Object?>[playlistId]),
         what: '拉歌单详情',
       );
       final playlist = r.body['playlist'];
@@ -75,7 +75,7 @@ class PlaylistRepository extends GetxService {
   Future<List<Song>> fetchTracks(String playlistId) async {
     try {
       final r = await apiCall(
-        () => _api.raw.playlist_track_all(playlistId),
+        () => _api.callApi('playlist_track_all', <Object?>[playlistId]),
         what: '拉歌单曲目',
       );
       final songsList = r.body['songs'];
@@ -122,7 +122,7 @@ class PlaylistRepository extends GetxService {
     final MusicResponse r;
     try {
       r = await apiCall(
-        () => _api.raw.playlist_create(name),
+        () => _api.callApi('playlist_create', <Object?>[name]),
         what: '创建歌单',
       );
     } on ApiException {
@@ -150,7 +150,10 @@ class PlaylistRepository extends GetxService {
     final MusicResponse r;
     try {
       r = await apiCall(
-        () => _api.raw.playlist_tracks('add', playlistId, tracks),
+        () => _api.callApi(
+          'playlist_tracks',
+          <Object?>['add', playlistId, tracks],
+        ),
         what: '添加歌曲到歌单',
       );
     } on ApiException catch (e) {
@@ -203,7 +206,10 @@ class PlaylistRepository extends GetxService {
     final MusicResponse r;
     try {
       r = await apiCall(
-        () => _api.raw.playlist_tracks('del', playlistId, tracks),
+        () => _api.callApi(
+          'playlist_tracks',
+          <Object?>['del', playlistId, tracks],
+        ),
         what: '从歌单删除歌曲',
       );
     } on ApiException catch (e) {
@@ -309,7 +315,7 @@ class PlaylistRepository extends GetxService {
     final MusicResponse r;
     try {
       r = await apiCall(
-        () => _api.raw.playlist_delete(playlistId),
+        () => _api.callApi('playlist_delete', <Object?>[playlistId]),
         what: '删除歌单',
       );
     } on ApiException {

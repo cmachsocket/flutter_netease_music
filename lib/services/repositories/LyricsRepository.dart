@@ -27,7 +27,10 @@ class LyricsRepository extends GetxService {
   /// 优先 lrc (flutter_lyric 只支持标准 LRC), fallback yrc。
   Future<String?> _fetch(String songId) async {
     try {
-      final r = await apiCall(() => _api.raw.lyric_new(songId), what: '取歌词');
+      final r = await apiCall(
+        () => _api.callApi('lyric_new', <Object?>[songId]),
+        what: '取歌词',
+      );
       final lrc = (r.body['lrc']?['lyric'] as String?)?.toString() ?? '';
       if (lrc.trim().isNotEmpty) return lrc;
       final yrc = (r.body['yrc']?['lyric'] as String?)?.toString() ?? '';

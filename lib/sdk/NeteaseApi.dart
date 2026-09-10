@@ -1,31 +1,29 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart' show kDebugMode;
-import 'package:musiclibrary/music_library.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:musiclibrary/music_library.dart';
 
 import 'ApiCall.dart';
+import 'ApiClient.dart';
 
-/// 全局网易云 API 单例 + cookie 持久化
+/// 全局网易云 API facade — 仓库层 / UI 层的入口
 ///
-/// - **持有** [NeteaseCloudMusicApi] 实例(同一进程内,所有 controller 共享)
-/// - **持久化** cookie 到 GetStorage,启动时自动灌回 SDK
-/// - **暴露** [loggedIn] 给 UI 反映登录态
+/// **职责**(2026-09 改造):
+/// - 持有 [ApiClient] 单例引用,所有 SDK 操作经 RPC 发到 worker isolate
+/// - 持有 [loggedIn] 等 UI 关心的状态 Rx
+/// - 启动期负责拉匿名 cookie、灌回持久化 cookie(走 RPC)
 ///
-/// **生命周期**:在 [main] 里 await `NeteaseApi.init()` 启动初始化;
-/// 业务代码通过 `Get.find<NeteaseApi>()` 拿实例,或者直接 `NeteaseApi.instance`
-/// 静态访问。
+/// **不再持有 [NeteaseCloudMusicApi] 实例**:SDK + cookie state + GetStorage 全部
+/// 在 worker isolate 里(见 [ApiWorker])。这个类退化成纯 facade,主 isolate 只
+/// 关心 RPC 结果。
+///
+/// **生命周期**:在 [main] 里先 `await ApiClient.instance.start()` 拉起 worker,
+/// 再 `await initNeteaseApi()` 初始化 facade + 灌回 cookie。仓库层 / UI 层
+/// 拿 `Get.find<NeteaseApi>()` 调 SDK 方法。
 class NeteaseApi extends GetxService {
-  static const _cookieStorageKey = 'netease_cookie_v1';
   static const _loggedInKey = 'netease_logged_in_v1';
-  static const _anonCookieStorageKey = 'netease_anon_cookie_v1';
-  static const _uidStorageKey = 'netease_uid_v1';
 
-  /// 网易云 API 实例(同步阻塞 FFI)
-  final NeteaseCloudMusicApi raw = NeteaseCloudMusicApi(
-    libraryDir: _resolveLibraryDir(),
-  );
+  final ApiClient _client = ApiClient.instance;
 
   // region 登录流程 API
 
@@ -37,7 +35,10 @@ class NeteaseApi extends GetxService {
     required String phone,
     String ctcode = '86',
   }) async {
-    await apiCall(() => raw.captcha_sent(phone, ctcode: ctcode), what: '发送验证码');
+    await apiCall(
+      () => _client.callApi('captcha_sent', <Object?>[phone, ctcode]),
+      what: '发送验证码',
+    );
   }
 
   /// 登录 (走 captcha 验证码分支)。
@@ -52,19 +53,17 @@ class NeteaseApi extends GetxService {
     String countrycode = '86',
   }) async {
     return apiCall(
-      () => raw.login_cellphone(
-        phone,
-        captcha: captcha,
-        countrycode: countrycode,
-      ),
+      () => _client.callApi('login_cellphone', <Object?>[phone, captcha, countrycode]),
       what: '登录',
     );
   }
 
   // endregion
-  /// 启动初始化:从 GetStorage 读 cookie + 登录标记灌进 SDK
+
+  /// 启动初始化:SDK 实例已在 worker 里(worker 自己创建 + 灌回持久化 cookie),
+  /// 这里只负责触发"未登录且没匿名 cookie 时拉一次访客 cookie"。
   ///
-  /// 必须在 `GetStorage.init()` 之后调用
+  /// 必须在 `GetStorage.init()` 之后**且** [ApiClient.instance.start()] 之后调用。
   ///
   /// 2026-08-25: 未登录且本地也没保存访客 cookie 时,启动阶段主动拉一次
   /// `applyAnonymousCookie()` 拿 NMTID/NMSCVT 访客 session,避免后续 /captcha/sent
@@ -73,47 +72,25 @@ class NeteaseApi extends GetxService {
   Future<void> init() async {
     if (kDebugMode) {
       // ignore: avoid_print
-      print('[NeteaseApi] libraryDir = $_libraryDirForLog');
+      print('[NeteaseApi] init (worker-driven)');
     }
     final box = GetStorage();
     final loggedIn = box.read<bool>(_loggedInKey) ?? false;
-    // 优先级:auth cookie > anonymous cookie > 空
-    // auth(MUSIC_U 等)登录后才有,anonymous(NMTID/NMSCVT)是 register_anonimous
-    // 拿到的访客会话;两者一般不会同时存在(auth 走了会覆盖 anonymous)
-    final savedAuth = box.read<Map>(_cookieStorageKey);
-    final savedAnon = box.read<Map>(_anonCookieStorageKey);
-    final Map toApply = (savedAuth != null && savedAuth.isNotEmpty)
-        ? savedAuth
-        : (savedAnon != null && savedAnon.isNotEmpty ? savedAnon : const {});
-    if (toApply.isNotEmpty) {
-      final cookies = <String, String>{
-        for (final e in toApply.entries) e.key.toString(): e.value.toString(),
-      };
-      raw.set_cookie(cookies);
-    }
-    // 未登录 且 本地没缓存 anonymous cookie: 主动拉一次,
-    // 拿到 NMTID/NMSCVT 走后续风控路子 (applyAnonymousCookie 内部 try/catch,
-    // 拉失败也不阻断启动, 退到老路径最坏被云盾挡)。
+    final savedAnon = box.read<Map>('netease_anon_cookie_v1');
     if (!loggedIn && (savedAnon == null || savedAnon.isEmpty)) {
-      await applyAnonymousCookie();
+      await _client.applyAnonymousCookie();
     }
   }
 
-  /// 把登录响应里的 Set-Cookie 持久化 + 灌进 SDK
+  /// 把登录响应的 Set-Cookie 持久化 + 灌进 SDK
   ///
-  /// - 解析 `headers['Set-Cookie']` 字符串(多 cookie 用逗号分隔)
-  /// - 写到 GetStorage
-  /// - 调用 [raw.set_cookie] 让后续请求带身份
-  ///  - 返回空 Map: 没拿到任何 cookie,不写入 SDK / GetStorage
-  ///    (返回 `{}` 而不是 `const {}` —— 后者会被 dart 类型推断成 const empty
-  ///    Map, 虽然这里使用没问题, 但避免调用方误判 `== const {}`)
-  Map<String, String> applyLoginCookie(MusicResponse response) {
-    final cookies = parseCookieString(response.cookies);
-    if (cookies.isEmpty) return <String, String>{};
-    raw.set_cookie(cookies);
-    final box = GetStorage();
-    box.write(_cookieStorageKey, cookies);
-    box.write(_loggedInKey, true);
+  /// - 内部走 RPC:worker 端拿到响应后解析 cookie + `raw.set_cookie(...)` +
+  ///   持久化到 GetStorage
+  /// - 返回空 Map: 没拿到任何 cookie,不写入 SDK / GetStorage
+  ///   (返回 `{}` 而不是 `const {}` —— 后者会被 dart 类型推断成 const empty
+  ///   Map, 虽然这里使用没问题, 但避免调用方误判 `== const {}`)
+  Future<Map<String, String>> applyLoginCookie(MusicResponse response) async {
+    final cookies = await _client.applyLoginCookie(response);
     return cookies;
   }
 
@@ -124,7 +101,10 @@ class NeteaseApi extends GetxService {
   /// - 失败仅打日志,不抛 —— uid 拿不到只是 Library 页拿不到数据,登录态本身不受影响
   Future<int> fetchCurrentUid() async {
     try {
-      final r = await apiCall(() => raw.user_account(), what: '获取当前用户 uid');
+      final r = await apiCall(
+        () => _client.callApi('user_account', const <Object?>[]),
+        what: '获取当前用户 uid',
+      );
       // 返回结构兼容两种常见形式:
       // - {account: {id: xxx}, profile: {...}}    (新版)
       // - {data: {account: {...}, profile: {...}}} (旧版)
@@ -150,8 +130,7 @@ class NeteaseApi extends GetxService {
         return 0;
       }
       //请保证修改
-
-      GetStorage().write(_uidStorageKey, uid);
+      GetStorage().write('netease_uid_v1', uid);
       return uid;
     } catch (e) {
       if (kDebugMode) {
@@ -162,54 +141,28 @@ class NeteaseApi extends GetxService {
     }
   }
 
-  /// 获取当前登录状态
-  ///
-  /// SDK: `/login/status` —— 调用此接口, 可获取登录状态 (含 profile / account 等)
-  ///
-  /// 只返回响应 header 里的 Set-Cookie 解析后的 cookie map。
-  /// 调用方关心 cookie (e.g. 检查 cookie 是否过期 / 拼出身份 cookie)
-  /// 直接拿返回 Map 即可。
+  /// 获取当前登录状态(走 RPC 调 /login/status 拿 Set-Cookie header 解析后的 cookie map)
   ///
   /// 抛 [ApiException] (HTTP 200 但业务 code 错, 例如已退出 / cookie 过期)。
   Future<Map<String, String>> getCookiesByCheckLogin() async {
-    final r = await apiCall(() => raw.login_status(), what: '获取登录状态');
-    return parseCookieString(r.cookies);
+    final r = await apiCall(
+      () => _client.callApi('login_status', const <Object?>[]),
+      what: '获取登录状态',
+    );
+    return _parseCookieString(r.cookies);
   }
 
-  /// 对 `_loggedInKey = true/false`,必须update包裱！！！！
-  /// 退出登录:清掉 SDK cookie + 本地持久化
-  bool logout() {
-    raw.set_cookie(const {});
-    final box = GetStorage();
-    box.remove(_cookieStorageKey);
-    box.remove(_anonCookieStorageKey);
-    box.remove(_uidStorageKey);
-    box.write(_loggedInKey, false);
-    return true;
+  /// 退出登录:清 SDK cookie + 本地持久化(都走 RPC)
+  Future<void> logout() async {
+    await _client.logout();
   }
 
-  /// 当前是否已登录 (从 GetStorage `_loggedInKey` 读, 跟 SDK cookie 状态一致)
-  ///
-  /// - 之前 AuthController 想判断登录态走 [getCookiesByCheckLogin] (/login/status),
-  ///   但那个接口响应不 Set-Cookie, 永远返回空 Map, 拿不到登录态
-  /// - 这个 getter 直接读 SDK 自己写的 `_loggedInKey` flag (applyLoginCookie
-  ///   写 true, logout 写 false), 单一真相源, 不依赖接口响应
-  bool isLoggedIn() => GetStorage().read<bool>(_loggedInKey) ?? false;
+  /// 当前是否已登录(走 RPC 读 GetStorage flag)
+  Future<bool> isLoggedIn() async => _client.isLoggedIn();
 
-  /// 读 SDK 持久化的身份 cookie map (登录后才有内容)
-  ///
-  /// - applyLoginCookie 写到 `_cookieStorageKey` 的那份 (auth cookie, MUSIC_U 等)
-  /// - 跟匿名 cookie (`_anonCookieStorageKey`, NMTID/NMSCVT) 区分:
-  ///   调用方 (AuthController.loadAuthInfo) 只关心身份 cookie,匿名的不算登录
-  /// - 返回类型稳定为 Map<String, String>: GetStorage 读出来是 Map<dynamic, dynamic>,
-  ///   转一层 key/value.toString()
-  Map<String, String> getSavedAuthCookie() {
-    final raw = GetStorage().read<Map>(_cookieStorageKey);
-    if (raw == null || raw.isEmpty) return <String, String>{};
-    return {
-      for (final e in raw.entries) e.key.toString(): e.value.toString(),
-    };
-  }
+  /// 读 SDK 持久化的身份 cookie map(走 RPC)
+  Future<Map<String, String>> getSavedAuthCookie() async =>
+      _client.getSavedAuthCookie();
 
   /// 获取并应用**游客 cookie**(`/register/anonimous`)
   ///
@@ -218,88 +171,35 @@ class NeteaseApi extends GetxService {
   /// 先调一次 `register_anonimous` 拿到 NMTID / NMSCVT 等 session cookie 再
   /// 发登录请求,后端会把这次请求当成"已有会话的设备",避开云盾拦截。
   ///
-  /// - 写入 SDK 全局 cookie map(不影响现有 _cookieStorageKey 的 auth cookie)
-  /// - 持久化到 [GetStorage] 的 [\_anonCookieStorageKey] —— 启动时 [init] 会自动灌回
-  /// - 不更新 [loggedIn]:游客态不算"已登录"
+  /// 走 RPC:worker 内部 register_anonimous + set_cookie + GetStorage 持久化。
   ///
   /// **失败处理**:内部走 try/catch,失败仅打日志不抛 —— 登录流程即使这一步挂了
   /// 也会继续尝试 captcha(回到老路径,最坏情况跟之前一样被云盾挡)
   Future<void> applyAnonymousCookie() async {
-    try {
-      final r = await apiCall(() => raw.register_anonimous(), what: '游客登录');
-      // 两个位置可能携带 cookie:
-      // 1. Set-Cookie header(成功响应常见路径,parseCookieString 提取)
-      // 2. body.cookie JSON 数组(["NMTID=...","NMSCVT=..."],失败响应也常见)
-      final cookies = <String, String>{};
-      cookies.addAll(parseCookieString(r.cookies));
-      _mergeBodyCookies(r.body['cookie'], cookies);
-      // 2026-08-25: 加诊断日志。网易云返 200 但 body 里可能没有 cookie 字段,
-      // 静默 return 让上层以为成功了, 后续请求带不上 NMTID/NMSCVT 还是要被云盾返 502。
-      // 启动阶段 print, 用户下次跑能在 logcat 里看到。
-      if (cookies.isEmpty) {
-        if (kDebugMode) {
-          // ignore: avoid_print
-          print(
-            '[NeteaseApi] applyAnonymousCookie: register_anonimous 返 200 但没拿到 cookie '
-            '(body.keys=${r.body.keys.toList()}, status=${r.status})',
-          );
-        }
-        return;
-      }
-      raw.set_cookie(cookies);
-      final box = GetStorage();
-      box.write(_anonCookieStorageKey, cookies);
-      if (kDebugMode) {
-        // ignore: avoid_print
-        print(
-          '[NeteaseApi] applyAnonymousCookie OK: 拿到 ${cookies.keys.toList()}',
-        );
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        // ignore: avoid_print
-        print('[NeteaseApi] applyAnonymousCookie failed: $e');
-      }
-    }
+    await _client.applyAnonymousCookie();
   }
 
-  /// 解析 body.cookie JSON 数组 → 写入目标 cookie map
+  /// 调 SDK 方法(仓库层闭包内部用)
   ///
-  /// 数组元素形如 `"NMTID=00OW1vR7yv...; Max-Age=315360000; Expires=...; Path=/"`,
-  /// 只取 `;` 分割的第一段作为 `key=value`,后续 Path/Expires 等属性丢弃。
-  /// 已有 key 不覆盖(调用方传入的 cookies 优先,通常是 Set-Cookie 里更完整的版本)。
-  static void _mergeBodyCookies(dynamic raw, Map<String, String> target) {
-    if (raw is! List) return;
-    for (final c in raw) {
-      if (c is! String) continue;
-      final first = c.split(';').first.trim();
-      final eq = first.indexOf('=');
-      if (eq <= 0) continue;
-      final key = first.substring(0, eq).trim();
-      final value = first.substring(eq + 1).trim();
-      if (key.isEmpty) continue;
-      target.putIfAbsent(key, () => value);
-    }
-  }
+  /// `method` SDK 方法名 (e.g. 'playlist_detail'),`params` 参数列表 (positional)
+  Future<MusicResponse> callApi(String method, List<Object?> params) =>
+      _client.callApi(method, params);
 
-  /// 整个 app 退出时调用
+  /// 整个 app 退出时调用 — 关 worker
   @override
   void onClose() {
-    raw.dispose();
+    _client.close();
     super.onClose();
   }
 
   /// 解析 `Set-Cookie` 字符串为 key/value map
   ///
-  /// 输入可能是:
-  /// - `MUSIC_U=xxx; Path=/, __csrf=yyy; Path=/`(多个 cookie 用逗号分隔)
-  /// - 多个值用 `;` 分隔属性,`=` 分隔键值对
-  ///
-  /// 只取 `key=value` 形式,丢弃 `Path`、`HttpOnly`、`Expires` 等属性
-  static Map<String, String> parseCookieString(String s) {
+  /// (主 isolate 端版本,给 [getCookiesByCheckLogin] 用——登录状态接口的 Set-Cookie
+  /// 在 RPC 回主 isolate 后还需要这层解析才能 map 化。worker 端 [ApiWorker] 自己
+  /// 内部也有同名实现负责 applyLoginCookie 流程,这里纯函数可独立放主 isolate)
+  static Map<String, String> _parseCookieString(String s) {
     final result = <String, String>{};
     if (s.isEmpty) return result;
-    // 按逗号分多个 cookie(每个 cookie 自己内部用分号)
     for (final raw in s.split(',')) {
       final parts = raw.split(';');
       for (final p in parts) {
@@ -308,12 +208,9 @@ class NeteaseApi extends GetxService {
         if (eq <= 0) continue;
         var key = t.substring(0, eq).trim();
         final value = t.substring(eq + 1).trim();
-        // 清洗 key 首尾非法字符(如 cookie 串里莫名出现的 '[')。
         key = key.replaceAll(RegExp(r'^[^A-Za-z0-9_]+'), '');
         key = key.replaceAll(RegExp(r'[^A-Za-z0-9_]+$'), '');
-        // 跳过属性名(不含 = 或 key 看起来像属性)
         if (key.isEmpty) continue;
-        // 大写开头的属性名(Expires/Path/HttpOnly 等)跳过
         if (key[0].toUpperCase() != key[0]) continue;
         if (key.toLowerCase() == 'path' ||
             key.toLowerCase() == 'expires' ||
@@ -331,44 +228,14 @@ class NeteaseApi extends GetxService {
   }
 }
 
-/// 解析 native library 路径(传给 [NeteaseCloudMusicApi(libraryDir:)])
-///
-/// Linux 桌面下:
-/// - 可执行文件:`build/linux/x64/debug/bundle/flutter_netease_music`
-/// - .so 位置:同一 bundle 下的 `lib/` 子目录
-///   (由 `linux/CMakeLists.txt` 的 install step 复制,RPATH `"$ORIGIN/lib"` 自动找)
-///
-/// Windows / macOS 同理(`bundle/lib/`)。
-/// Android / iOS 不需要(走各自平台的 native 库加载机制)。
-String _resolveLibraryDir() {
-  if (Platform.isAndroid || Platform.isIOS) {
-    return ''; // SDK 走 jniLibs / Frameworks,不需要 libraryDir
-  }
-  // 桌面平台:从可执行文件位置推算 bundle/lib/
-  final exe = Platform.resolvedExecutable;
-  final exeDir = File(exe).parent.path;
-  return '$exeDir${Platform.pathSeparator}lib';
-}
-
-/// 给 [init] 用的 debug 日志:打印当前解析到的 libraryDir
-String get _libraryDirForLog => _resolveLibraryDir();
-
 /// 一次性 init 入口(给 main.dart 用)
+///
+/// **调用顺序**(main.dart):
+/// 1. `await GetStorage.init()`
+/// 2. `await ApiClient.instance.start()` — 拉起 worker,SDK 在 worker 内创建
+/// 3. `await initNeteaseApi()` — 创建 facade + 触发匿名 cookie 拉取
 Future<void> initNeteaseApi() async {
   if (Get.isRegistered<NeteaseApi>()) return;
   Get.put<NeteaseApi>(NeteaseApi(), permanent: true);
   await Get.find<NeteaseApi>().init();
-}
-
-/// 便利别名:让 controller 直接 `await api.something(...)` 也行
-extension NeteaseApiCall on NeteaseApi {
-  /// [apiCall] 的便利别名 —— NeteaseApi.raw 调用
-  ///
-  /// ```dart
-  /// final r = await api.call((a) => a.captcha_sent('138xxx'), what: '发送验证码');
-  /// ```
-  Future<MusicResponse> call(
-    MusicResponse Function(NeteaseCloudMusicApi api) fn, {
-    String? what,
-  }) => apiCall(() => fn(raw), what: what);
 }

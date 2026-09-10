@@ -24,7 +24,7 @@ class LibraryRepository extends GetxService {
   Future<List<PlaylistCard>> fetchPersonalized() async {
     try {
       final r = await apiCall(
-        () => _api.raw.personalized(limit: '30'),
+        () => _api.callApi('personalized', <Object?>['30']),
         what: '推荐歌单',
       );
       final list = r.body['result'];
@@ -50,7 +50,7 @@ class LibraryRepository extends GetxService {
   Future<List<PlaylistSummary>> fetchPlaylists(String uid) async {
     try {
       final r = await apiCall(
-        () => _api.raw.user_playlist(uid, limit: '50'),
+        () => _api.callApi('user_playlist', <Object?>[uid, '50']),
         what: '我的歌单',
       );
       final list = r.body['playlist'];
@@ -74,7 +74,7 @@ class LibraryRepository extends GetxService {
   Future<List<AlbumSummary>> fetchSubscribedAlbums(String uid) async {
     try {
       final r = await apiCall(
-        () => _api.raw.album_sublist(limit: '50'),
+        () => _api.callApi('album_sublist', <Object?>['50']),
         what: '我的订阅专辑',
       );
       final list = r.body['data'] is List
@@ -98,7 +98,7 @@ class LibraryRepository extends GetxService {
   Future<List<ArtistSummary>> fetchFollowedArtists(String uid) async {
     try {
       final r = await apiCall(
-        () => _api.raw.user_follow_mixed(size: '50', cursor: '0', scene: '1'),
+        () => _api.callApi('user_follow_mixed', <Object?>['50', '0', '1']),
         what: '我的关注艺人',
       );
       final data = r.body['data'];

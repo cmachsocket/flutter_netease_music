@@ -1,21 +1,24 @@
 import 'package:musiclibrary/music_library.dart';
+
 import '../models/ApiException.dart';
 
 /// 调用一次后端接口 + 业务检查
 ///
-/// - 包 try/catch,把 FFI/解析异常转成 [ApiException]
+/// - 包 try/catch,把 RPC / 解析 / 网络异常转成 [ApiException]
 /// - 包 [checkResponse],检查 HTTP status + 业务 code
 ///
-/// **阻塞说明**:SDK 是同步阻塞 FFI(JSContext 跑 JS),调用期间主 isolate
-/// 会卡住几百 ms。SDK 实例持有 native handle,不能跨 isolate 传递,所以暂时
-/// 不能用 compute() / Isolate.run —— 这是上游 SDK 设计限制,后续若性能不够
-/// 再考虑 per-call isolate + 临时 SDK 实例方案。
+/// **阻塞说明**:SDK 是同步阻塞 FFI(JSContext 跑 JS),已挪到 worker isolate
+/// 跑 ([ApiClient]),主 isolate 调此函数只 await RPC,不再卡。
+///
+/// **签名变化**(2026-09 改造):闭包从 `MusicResponse Function()` 改成
+/// `Future<MusicResponse> Function()`,因为 RPC 必然是 async。仓库层调用形态
+/// 不变,只是闭包内部从 `_api.raw.xxx(...)` 改成 `_api.callApi('xxx', [...])`。
 Future<MusicResponse> apiCall(
-  MusicResponse Function() fn, {
+  Future<MusicResponse> Function() fn, {
   String? what,
 }) async {
   try {
-    final r = fn();
+    final r = await fn();
     checkResponse(r, hint: what);
     return r;
   } on ApiException {
@@ -31,7 +34,7 @@ Future<MusicResponse> apiCall(
 
 /// 业务成功判定:HTTP 200 + body.code 200(网易云惯例)
 ///
-/// 不是所有响应都有 body.code(如部分 banner / settings),允许 body.code 缺失
+/// 不是所有返回都有 body.code(如部分 banner / settings),允许 body.code 缺失
 /// 此时只看 HTTP status。
 ///
 /// **校准辅助**:业务 code != 200 抛异常时把 raw body 装进 [ApiException.rawBody],

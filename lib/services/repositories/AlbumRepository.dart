@@ -30,7 +30,10 @@ class AlbumRepository extends GetxService {
   /// 返回 null: API 失败。返回空数据: 成功但 album 字段缺失。
   Future<AlbumContent?> fetch(String albumId) async {
     try {
-      final r = await apiCall(() => _api.raw.album(albumId), what: '拉专辑内容');
+      final r = await apiCall(
+        () => _api.callApi('album', <Object?>[albumId]),
+        what: '拉专辑内容',
+      );
       final albumMap = r.body['album'];
       if (albumMap is! Map) return null;
       final a = Map<String, dynamic>.from(albumMap);
