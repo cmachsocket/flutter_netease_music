@@ -244,6 +244,23 @@ class NeteaseApi extends GetxService {
   /// positional args to a query dict using [positionalToQuery].
   Future<MusicResponse> _callRaw(String method, List<Object?> params) async {
     final query = positionalToQuery(method, params);
+    // Attach the held identity cookie so upstream can recognise the caller.
+    //
+    // Upstream's util/option.js reads `query.cookie` (a JSON object or a
+    // `k=v; k=v` string) before falling back to NETEASE_COOKIE env. Without
+    // this injection every call hits NCM anonymously → user_account returns
+    // null, library fetches get 301, etc.
+    //
+    // Order: caller-provided `cookie` wins, then auth (login), then anon
+    // (visitor), then empty. Calling code that wants to suppress cookies
+    // can pass `cookie: ''`.
+    final hasCallerCookie = query.containsKey('cookie') && query['cookie'] != null;
+    if (!hasCallerCookie) {
+      final cookie = _authCookie.isNotEmpty
+          ? _authCookie
+          : _anonCookie;
+      query['cookie'] = cookie;
+    }
     final raw = await _ncm.call(method, query);
     return MusicResponse.fromNcm(raw);
   }
