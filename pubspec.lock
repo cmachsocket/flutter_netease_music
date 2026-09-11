@@ -272,6 +272,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "2.1.1"
+  glob:
+    dependency: transitive
+    description:
+      name: glob
+      sha256: "218aeb56050c714f62a3182775320dfa04602b55074873e24e31bbd39bda96fb"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "2.2.0"
   hive_ce:
     dependency: transitive
     description:
@@ -520,12 +528,20 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "1.19.0"
+  native_toolchain_c:
+    dependency: transitive
+    description:
+      name: native_toolchain_c
+      sha256: "9d233b6f2d9c52e1a2b5fbe70451d2c10ac674d3bb419d0ec8de14989d437c26"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "0.19.4"
   ncm_api_enhanced:
     dependency: "direct main"
     description:
       path: "."
       ref: HEAD
-      resolved-ref: d92fdccc18ec29efcf9c8a3a693dfebe14ab25e2
+      resolved-ref: "467942d0987673b81a5e886dab8ab58c3c4c1bd9"
       url: "https://github.com/cmachsocket/ncm_api_enhanced"
     source: git
     version: "0.1.0"
@@ -649,6 +665,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "6.5.2"
+  process:
+    dependency: transitive
+    description:
+      name: process
+      sha256: "4242ba3508d37e01808bdf71ad1d5bb93a8d671bf2e7450e6b1b353fb0808891"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "5.0.6"
   provider:
     dependency: transitive
     description:

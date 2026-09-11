@@ -17,11 +17,17 @@ jobs:
     timeout-minutes: 60
 
     steps:
+      # ------------------------------------------------------------
+      # Source
+      # ------------------------------------------------------------
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
+      # ------------------------------------------------------------
+      # Java / Android SDK
+      # ------------------------------------------------------------
       - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
@@ -33,40 +39,57 @@ jobs:
         with:
           cmdline-tools-version: '11076708'
 
+      # ------------------------------------------------------------
+      # Cache
+      # ------------------------------------------------------------
       - name: Cache Pub
         uses: actions/cache@v4
         with:
           path: ~/.pub-cache
-          key: pub-${{ hashFiles('**/pubspec.lock') }}
+          key: pub-ubuntu-flutter-3.47.0-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-ubuntu-flutter-3.47.0-
+            pub-
 
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
-          path: ~/.gradle/caches
-          key: gradle-${{ hashFiles('**/gradle-wrapper.properties') }}
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-ubuntu-${{ hashFiles('**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-ubuntu-
 
+      # ------------------------------------------------------------
+      # Flutter
+      # ------------------------------------------------------------
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           flutter-version: 3.47.0
+          cache: true
 
-      # 2026-08-25: 不再现场编译 MusicLibrary 原生库。
-      # Android plugin (NeteaseCloudMusic_PythonSDK/src/dart/android) 改为预编译嵌入:
-      # jniLibs/<abi>/{libncm_music_api,libkugou_music_api,libengine,libqjs,libcurl}.so
-      # 已 commit 进 plugin git (4 ABI × 5 个 = 20 个文件), AGP 默认 jniLibs 自动打包进 APK。
-      # 之前需要 webpack + pnpm install + 现场 NDK 编译那 4 个 step 已废弃。
-      # 也不再需要 bundle/c/*.c, 也不再需要 ./gradlew assembleDebug 现场编译。
+      - name: Flutter doctor
+        run: flutter doctor -v
 
+      # ------------------------------------------------------------
+      # Android Gradle wrapper
+      #
+      # This android/ directory belongs to the Flutter APP.
+      # It is unrelated to ncm_api_enhanced's old Android plugin
+      # directory.
+      # ------------------------------------------------------------
       - name: Ensure gradlew is executable
         run: |
-          # Wrapper files (gradlew, gradlew.bat, gradle-wrapper.jar) must be committed
-          # to the repo. If this step fails with "No such file", commit them.
-          # See: https://docs.gradle.org/current/userguide/gradle_wrapper.html
           if [ ! -f android/gradlew ]; then
-            echo "::error::android/gradlew missing — wrapper not committed. Run 'gradle wrapper' locally and commit android/gradlew{,bat} + android/gradle/wrapper/gradle-wrapper.jar."
+            echo "::error::android/gradlew missing."
+            echo "Commit android/gradlew, android/gradlew.bat and"
+            echo "android/gradle/wrapper/gradle-wrapper.jar to the app repository."
             exit 1
           fi
+
           chmod +x android/gradlew
 
       - name: Write local.properties
@@ -74,16 +97,42 @@ jobs:
           mkdir -p android
           echo "sdk.dir=$ANDROID_HOME" > android/local.properties
 
+      # ------------------------------------------------------------
+      # Dependencies
+      #
+      # Important:
+      # ncm_api_enhanced's hook/build.dart is NOT invoked manually.
+      # Flutter invokes the Native Assets build hook automatically
+      # during `flutter build apk`.
+      # ------------------------------------------------------------
       - name: Flutter pub get
         run: flutter pub get
 
+      # ------------------------------------------------------------
+      # Build
+      #
+      # Only arm64 is requested.
+      #
+      # ncm_api_enhanced/hook/build.dart:
+      #
+      #   buildCodeAssets
+      #        ↓
+      #   targetOS == Android
+      #        ↓
+      #   targetArchitecture == arm64
+      #        ↓
+      #   download nodejs-mobile v18.20.4
+      #        ↓
+      #   extract libnode.so
+      #        ↓
+      #   CBuilder -> libncm_node_bridge.so
+      #        ↓
+      #   register CodeAssets
+      #
+      # No old Android Plugin / Kotlin / JNI / CMake code from
+      # ncm_api_enhanced is involved here.
+      # ------------------------------------------------------------
       - name: Build release APK
-        # release build: 用 debug keystore 签名(android/app/build.gradle.kts
-        # 的 release.signingConfig = debug), 只出 arm64-v8a split APK。
-        #   - --target-platform=android-arm64 限制 Flutter Dart AOT engine
-        #     只编 arm64。
-        #   - --split-per-abi 让 AGP splits 拆出单 ABI APK。
-        working-directory: .
         run: |
           flutter build apk \
             --release \
@@ -91,30 +140,199 @@ jobs:
             --split-per-abi \
             --no-tree-shake-icons
 
-      # 路径说明: AGP splits-per-abi + release buildType 产出
-      #   <repo-root>/build/app/outputs/apk/release/app-arm64-v8a-release.apk
-      # (命名规则: <module>-<abi>-<buildType>.apk, 见 AGP docs configure-apk-splits)。
-      # android/build.gradle.kts 里 rootProject.layout.buildDirectory.dir("../../build")
-      # 把 build/ 移到仓库根。
-      - name: Verify native libs in APK
+      # ------------------------------------------------------------
+      # Verify APK
+      # ------------------------------------------------------------
+      - name: Verify APK exists
         run: |
           APK="build/app/outputs/apk/release/app-arm64-v8a-release.apk"
+
           if [ ! -f "$APK" ]; then
             echo "::error::APK not found at $APK"
+            echo "Expected:"
+            echo "  $APK"
+            echo
+            echo "Actual files:"
+            find build/app/outputs/apk/release \
+              -maxdepth 2 \
+              -type f \
+              -print 2>/dev/null || true
             exit 1
           fi
-          unzip -l "$APK" | grep -E "ncm_music_api|libcurl" \
-            || { echo "::error::native libs missing"; exit 1; }
-          echo "native libs OK"
 
+          echo "APK:"
+          ls -lh "$APK"
+
+      # ------------------------------------------------------------
+      # Verify Native Assets inside APK
+      #
+      # The new ncm_api_enhanced architecture requires:
+      #
+      #   lib/arm64-v8a/libncm_node_bridge.so
+      #   lib/arm64-v8a/libnode.so
+      # ------------------------------------------------------------
+      - name: Verify Node native libraries in APK
+        run: |
+          APK="build/app/outputs/apk/release/app-arm64-v8a-release.apk"
+
+          echo "=== Native libraries in APK ==="
+          unzip -l "$APK" | grep -E '\.so$' || true
+
+          echo
+          echo "=== Checking libncm_node_bridge.so ==="
+
+          unzip -l "$APK" \
+            | grep -q 'lib/arm64-v8a/libncm_node_bridge\.so' \
+            || {
+              echo "::error::libncm_node_bridge.so missing from APK"
+              exit 1
+            }
+
+          echo "libncm_node_bridge.so: OK"
+
+          echo
+          echo "=== Checking libnode.so ==="
+
+          unzip -l "$APK" \
+            | grep -q 'lib/arm64-v8a/libnode\.so' \
+            || {
+              echo "::error::libnode.so missing from APK"
+              exit 1
+            }
+
+          echo "libnode.so: OK"
+
+      # ------------------------------------------------------------
+      # Verify bridge -> libnode.so
+      #
+      # This verifies that CBuilder actually generated:
+      #
+      #   DT_NEEDED -> libnode.so
+      #
+      # Having both files in the APK is not sufficient.
+      # The bridge must actually be dynamically linked against Node.
+      # ------------------------------------------------------------
+      - name: Verify bridge DT_NEEDED
+        run: |
+          APK="build/app/outputs/apk/release/app-arm64-v8a-release.apk"
+
+          CHECK_DIR="$RUNNER_TEMP/ncm-native-check"
+          mkdir -p "$CHECK_DIR"
+
+          unzip -p "$APK" \
+            "lib/arm64-v8a/libncm_node_bridge.so" \
+            > "$CHECK_DIR/libncm_node_bridge.so"
+
+          echo "=== libncm_node_bridge.so dynamic dependencies ==="
+
+          readelf -d "$CHECK_DIR/libncm_node_bridge.so" \
+            | grep NEEDED || true
+
+          echo
+
+          if ! readelf -d "$CHECK_DIR/libncm_node_bridge.so" \
+              | grep -q '\[libnode\.so\]'; then
+            echo "::error::libncm_node_bridge.so does not declare DT_NEEDED for libnode.so"
+            echo
+            echo "Full dynamic section:"
+            readelf -d "$CHECK_DIR/libncm_node_bridge.so"
+            exit 1
+          fi
+
+          echo "Bridge -> libnode.so: OK"
+
+      # ------------------------------------------------------------
+      # Verify Node library architecture
+      #
+      # Prevent accidentally packaging a wrong ABI.
+      # ------------------------------------------------------------
+      - name: Verify Node library architecture
+        run: |
+          APK="build/app/outputs/apk/release/app-arm64-v8a-release.apk"
+
+          CHECK_DIR="$RUNNER_TEMP/ncm-native-check"
+          mkdir -p "$CHECK_DIR"
+
+          unzip -p "$APK" \
+            "lib/arm64-v8a/libnode.so" \
+            > "$CHECK_DIR/libnode.so"
+
+          unzip -p "$APK" \
+            "lib/arm64-v8a/libncm_node_bridge.so" \
+            > "$CHECK_DIR/libncm_node_bridge.so"
+
+          echo "=== libnode.so ==="
+          file "$CHECK_DIR/libnode.so"
+          readelf -h "$CHECK_DIR/libnode.so" | grep -E 'Class|Machine'
+
+          echo
+          echo "=== libncm_node_bridge.so ==="
+          file "$CHECK_DIR/libncm_node_bridge.so"
+          readelf -h "$CHECK_DIR/libncm_node_bridge.so" | grep -E 'Class|Machine'
+
+          echo
+
+          # ELF64 + AArch64
+          readelf -h "$CHECK_DIR/libnode.so" \
+            | grep -q 'Machine:.*AArch64' \
+            || {
+              echo "::error::libnode.so is not AArch64"
+              exit 1
+            }
+
+          readelf -h "$CHECK_DIR/libncm_node_bridge.so" \
+            | grep -q 'Machine:.*AArch64' \
+            || {
+              echo "::error::libncm_node_bridge.so is not AArch64"
+              exit 1
+            }
+
+          echo "Both native libraries are AArch64."
+
+      # ------------------------------------------------------------
+      # Optional but useful: inspect Node dependencies
+      # ------------------------------------------------------------
+      - name: Inspect libnode.so dependencies
+        run: |
+          APK="build/app/outputs/apk/release/app-arm64-v8a-release.apk"
+
+          CHECK_DIR="$RUNNER_TEMP/ncm-native-check"
+          mkdir -p "$CHECK_DIR"
+
+          unzip -p "$APK" \
+            "lib/arm64-v8a/libnode.so" \
+            > "$CHECK_DIR/libnode.so"
+
+          echo "=== libnode.so DT_NEEDED ==="
+          readelf -d "$CHECK_DIR/libnode.so" | grep NEEDED || true
+
+      # ------------------------------------------------------------
+      # Prepare release artifacts
+      # ------------------------------------------------------------
       - name: Prepare artifacts
         id: prep
         run: |
+          APK="build/app/outputs/apk/release/app-arm64-v8a-release.apk"
+
           mkdir -p release-artifacts
-          cp build/app/outputs/apk/release/app-arm64-v8a-release.apk release-artifacts/
+
+          cp "$APK" release-artifacts/
+
           cd release-artifacts
+
           sha256sum *.apk > SHA256SUMS
 
+          echo
+          echo "=== Release artifacts ==="
+          ls -lh
+
+          echo
+          echo "=== SHA256SUMS ==="
+          cat SHA256SUMS
+
+      # ------------------------------------------------------------
+      # GitHub Release
+      # ------------------------------------------------------------
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
@@ -126,6 +344,9 @@ jobs:
             release-artifacts/*.apk
             release-artifacts/SHA256SUMS
 
+      # ------------------------------------------------------------
+      # Manual workflow run
+      # ------------------------------------------------------------
       - name: Upload artifacts (manual run only)
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
