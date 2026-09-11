@@ -167,7 +167,7 @@ jobs:
             echo "  $APK"
             echo
             echo "Actual files:"
-            find build/app/outputs/apk/debbug \
+            find build/app/outputs/apk/debug \
               -maxdepth 2 \
               -type f \
               -print 2>/dev/null || true
@@ -187,7 +187,7 @@ jobs:
       # ------------------------------------------------------------
       - name: Verify Node native libraries in APK
         run: |
-          APK="build/app/outputs/apk/debbug/app-arm64-v8a-debbug.apk"
+          APK="build/app/outputs/apk/debug/app-arm64-v8a-debug.apk"
 
           echo "=== Native libraries in APK ==="
           unzip -l "$APK" | grep -E '\.so$' || true
@@ -228,7 +228,7 @@ jobs:
       # ------------------------------------------------------------
       - name: Verify bridge DT_NEEDED
         run: |
-          APK="build/app/outputs/apk/debbug/app-arm64-v8a-debbug.apk"
+          APK="build/app/outputs/apk/debug/app-arm64-v8a-debug.apk"
 
           CHECK_DIR="$RUNNER_TEMP/ncm-native-check"
           mkdir -p "$CHECK_DIR"
@@ -262,7 +262,7 @@ jobs:
       # ------------------------------------------------------------
       - name: Verify Node library architecture
         run: |
-          APK="build/app/outputs/apk/debbug/app-arm64-v8a-debbug.apk"
+          APK="build/app/outputs/apk/debug/app-arm64-v8a-debug.apk"
 
           CHECK_DIR="$RUNNER_TEMP/ncm-native-check"
           mkdir -p "$CHECK_DIR"
@@ -308,7 +308,7 @@ jobs:
       # ------------------------------------------------------------
       - name: Inspect libnode.so dependencies
         run: |
-          APK="build/app/outputs/apk/debbug/app-arm64-v8a-debbug.apk"
+          APK="build/app/outputs/apk/debug/app-arm64-v8a-debug.apk"
 
           CHECK_DIR="$RUNNER_TEMP/ncm-native-check"
           mkdir -p "$CHECK_DIR"
@@ -321,23 +321,23 @@ jobs:
           readelf -d "$CHECK_DIR/libnode.so" | grep NEEDED || true
 
       # ------------------------------------------------------------
-      # Prepare debbug artifacts
+      # Prepare debug artifacts
       # ------------------------------------------------------------
       - name: Prepare artifacts
         id: prep
         run: |
-          APK="build/app/outputs/apk/debbug/app-arm64-v8a-debbug.apk"
+          APK="build/app/outputs/apk/debug/app-arm64-v8a-debug.apk"
 
-          mkdir -p debbug-artifacts
+          mkdir -p debug-artifacts
 
-          cp "$APK" debbug-artifacts/
+          cp "$APK" debug-artifacts/
 
-          cd debbug-artifacts
+          cd debug-artifacts
 
           sha256sum *.apk > SHA256SUMS
 
           echo
-          echo "=== debbug artifacts ==="
+          echo "=== debug artifacts ==="
           ls -lh
 
           echo
@@ -355,8 +355,8 @@ jobs:
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
-            debbug-artifacts/*.apk
-            debbug-artifacts/SHA256SUMS
+            debug-artifacts/*.apk
+            debug-artifacts/SHA256SUMS
 
       # ------------------------------------------------------------
       # Manual workflow run
@@ -366,5 +366,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-build
-          path: debbug-artifacts/
+          path: debug-artifacts/
           retention-days: 7
