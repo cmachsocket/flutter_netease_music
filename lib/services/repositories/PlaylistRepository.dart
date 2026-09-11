@@ -1,12 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
-import 'package:musiclibrary/music_library.dart';
 
 import '../../models/LibrarySummary.dart' show PlaylistSource;
 import '../../models/Song.dart';
 import '../../sdk/ApiCall.dart';
 import '../../models/ApiException.dart';
 import '../../sdk/NeteaseApi.dart';
+import '../../sdk/music_response.dart';
 import '../../models/Playlist.dart';
 import '../PlaylistEventsController.dart';
 

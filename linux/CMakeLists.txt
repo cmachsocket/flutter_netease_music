@@ -106,18 +106,13 @@ foreach(bundled_library ${PLUGIN_BUNDLED_LIBRARIES})
     COMPONENT Runtime)
 endforeach(bundled_library)
 
-# === musiclibrary SDK native libs ===
-# NeteaseCloudMusicApi 依赖 libengine.so + libncm_music_api.so(MusicLibrary Release 预编译)
-# 源文件放在 linux/native_libraries/,install 时跟 plugin lib 一样装到 bundle/lib/
-# (RPATH "$ORIGIN/lib" 已经让可执行文件自动找这里)
-file(GLOB MUSICLIBRARY_NATIVE_LIBS
-  "${CMAKE_CURRENT_SOURCE_DIR}/native_libraries/*.so")
-foreach(native_lib ${MUSICLIBRARY_NATIVE_LIBS})
-  install(FILES "${native_lib}"
-    DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
-    COMPONENT Runtime)
-endforeach(native_lib)
-
+# === musiclibrary native libs ===
+# 预编译的 libengine.so + libncm_music_api.so 已经被 musiclibrary plugin
+# (NeteaseCloudMusic_PythonSDK/src/dart/linux/CMakeLists.txt) 通过
+# `musiclibrary_linux_bundled_libraries` + PARENT_SCOPE 暴露,自动加入
+# PLUGIN_BUNDLED_LIBRARIES 装到 ${INSTALL_BUNDLE_LIB_DIR}。不需要 app 仓库
+# 手动维护 native_libraries/。
+#
 # Copy the native assets provided by the build.dart from all packages.
 set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}native_assets/linux/")
 install(DIRECTORY "${NATIVE_ASSETS_DIR}"

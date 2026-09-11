@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -9,7 +11,7 @@ import 'AppShellController.dart';
 import 'PlayPage/LyricsController.dart';
 import 'PlayPage/PlayerController.dart';
 import 'services/AudioPlayerWrapper.dart';
-import 'sdk/ApiClient.dart';
+import 'services/LyricsServerService.dart';
 import 'sdk/NeteaseApi.dart';
 import 'services/LikedController.dart';
 import 'services/repositories/LyricsRepository.dart';
@@ -33,11 +35,8 @@ Future<void> main() async {
   HttpOverrides.global = NeteaseHttpOverrides();
   await GetStorage.init();
   Get.put<ThemeController>(ThemeController(), permanent: true);
-  // 网易云 SDK:启动 SDK worker isolate (创建 NeteaseCloudMusicApi 实例 +
-  // 恢复持久化 cookie 都在 worker 端跑,主 isolate 不再卡几百 ms)。
-  // 必须在 GetStorage.init 之后, 且在 initNeteaseApi 之前
-  // (initNeteaseApi 内部要发 RPC 调 applyAnonymousCookie)。
-  await ApiClient.instance.start();
+  // 网易云 SDK:启动 NcmApi (embedded node bridge) + 恢复持久化 cookie + 拉匿名 cookie。
+  // 必须在 GetStorage.init 之后(读 cookie / loggedIn flag)。
   await initNeteaseApi();
   // Repositories 集中 API 调用 —— 必须在依赖它们的 service / controller 之前 put。
   // 构造注入 NeteaseApi, 注册顺序错误会编译期暴露 (README 阶段 1.1)。
@@ -136,7 +135,30 @@ Future<void> main() async {
   // (Obx 读到 wrapper 实时状态), 跟 LyricsController 解耦。
   Get.put<LyricsController>(LyricsController(), permanent: true);
 
+  // 本地 HTTP 服务 (port 41830):给外部 lyric 客户端 (YesPlayMusic 桌面端)
+  // 暴露 /local-asset/player 端点。依赖 wrapper + LyricsRepository 都在上面
+  // put 好了,这里异步启动(server.bind 失败 catch,端口冲突不阻断 runApp)。
+  if (Platform.isLinux) {
+    unawaited(_startLyricsServerSafely());
+  }
+
   runApp(const FlutterNeteaseMusicApp());
+}
+
+Future<void> _startLyricsServerSafely() async {
+  try {
+    final server = Get.put<LyricsServerService>(
+      LyricsServerService(),
+      permanent: true,
+    );
+    await server.startServer();
+    // ignore: avoid_print
+    print('[main] LyricsServerService listening on :${server.port}');
+  } catch (e, st) {
+    // 端口冲突 / 权限不足 → log 但继续,UI 仍可用
+    // ignore: avoid_print
+    print('[main] LyricsServerService 启动失败 (端口可能占用): $e\n$st');
+  }
 }
 
 class FlutterNeteaseMusicApp extends StatelessWidget {

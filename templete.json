@@ -1,0 +1,181 @@
+{
+  "success": true,
+  "data": {
+    "progress": 24.265941,
+    "playing": true,
+    "volume": 1,
+    "currentTrack": {
+      "name": "ドーピングダンス (feat. 初音ミク)",
+      "mainTitle": "ドーピングダンス ",
+      "additionalTitle": "(feat. 初音ミク)",
+      "id": 1968735700,
+      "pst": 0,
+      "t": 0,
+      "ar": [
+        { "id": 52998511, "name": "STEAKA", "tns": [], "alias": [] },
+        { "id": 159692, "name": "初音ミク", "tns": [], "alias": [] }
+      ],
+      "alia": [],
+      "pop": 95,
+      "st": 0,
+      "rt": "",
+      "fee": 1,
+      "v": 42,
+      "crbt": null,
+      "cf": "",
+      "al": {
+        "id": 149007287,
+        "name": "ドーピングダンス",
+        "picUrl": "https://p4.music.126.net/8el3pMQGgh-_mn9xbHnnxQ==/109951167736371071.jpg",
+        "tns": [],
+        "pic_str": "109951167736371071",
+        "pic": 109951167736371070
+      },
+      "dt": 150927,
+      "h": {
+        "br": 320000,
+        "fid": 0,
+        "size": 6039554,
+        "vd": -109300,
+        "sr": 44100
+      },
+      "m": {
+        "br": 192000,
+        "fid": 0,
+        "size": 3623750,
+        "vd": -107354,
+        "sr": 44100
+      },
+      "l": {
+        "br": 128000,
+        "fid": 0,
+        "size": 2415848,
+        "vd": -107571,
+        "sr": 44100
+      },
+      "sq": {
+        "br": 1208711,
+        "fid": 0,
+        "size": 22803502,
+        "vd": -109386,
+        "sr": 44100
+      },
+      "hr": null,
+      "a": null,
+      "cd": "01",
+      "no": 1,
+      "rtUrl": null,
+      "ftype": 0,
+      "rtUrls": [],
+      "djId": 0,
+      "copyright": 1,
+      "s_id": 0,
+      "mark": 17180139520,
+      "originCoverType": 0,
+      "originSongSimpleData": null,
+      "tagPicList": null,
+      "resourceState": true,
+      "version": 8,
+      "songJumpInfo": null,
+      "entertainmentTags": null,
+      "awardTags": null,
+      "displayTags": null,
+      "artistClassics": false,
+      "markTags": [],
+      "songFeature": null,
+      "single": 0,
+      "noCopyrightRcmd": null,
+      "mv": 0,
+      "rtype": 0,
+      "rurl": null,
+      "mst": 9,
+      "cp": 743010,
+      "publishTime": 1660060800000,
+      "tns": ["亢奋剂舞"],
+      "privilege": {
+        "id": 1968735700,
+        "fee": 1,
+        "payed": 1,
+        "st": 0,
+        "pl": 999000,
+        "dl": 999000,
+        "sp": 7,
+        "cp": 1,
+        "subp": 1,
+        "cs": false,
+        "maxbr": 999000,
+        "fl": 0,
+        "toast": false,
+        "flag": 1540356,
+        "preSell": false,
+        "playMaxbr": 999000,
+        "downloadMaxbr": 999000,
+        "maxBrLevel": "jymaster",
+        "playMaxBrLevel": "jymaster",
+        "downloadMaxBrLevel": "jymaster",
+        "plLevel": "jyeffect",
+        "dlLevel": "jyeffect",
+        "flLevel": "none",
+        "rscl": null,
+        "freeTrialPrivilege": {
+          "resConsumable": false,
+          "userConsumable": false,
+          "listenType": null,
+          "cannotListenReason": null,
+          "playReason": null,
+          "freeLimitTagType": null
+        },
+        "rightSource": 0,
+        "chargeInfoList": [
+          {
+            "rate": 128000,
+            "chargeUrl": null,
+            "chargeMessage": null,
+            "chargeType": 1
+          },
+          {
+            "rate": 192000,
+            "chargeUrl": null,
+            "chargeMessage": null,
+            "chargeType": 1
+          },
+          {
+            "rate": 320000,
+            "chargeUrl": null,
+            "chargeMessage": null,
+            "chargeType": 1
+          },
+          {
+            "rate": 999000,
+            "chargeUrl": null,
+            "chargeMessage": null,
+            "chargeType": 1
+          }
+        ],
+        "code": 0,
+        "message": null,
+        "plLevels": null,
+        "dlLevels": null,
+        "ignoreCache": null,
+        "bd": null
+      },
+      "playable": true,
+      "reason": "",
+      "type": "online",
+      "matched": true,
+      "cache": false,
+      "source": "netease",
+      "url": "https://m801.music.126.net/20260910105413/14fae0906e1fc2dabf0599949c7572cd/jdymusic/obj/wo3DlMOGwrbDjj7DisKw/24694076606/b3e0/69c9/972c/bec314cdc27670fab36549eb005ebc83.flac?vuutv=Oj+qDwbnCakU9PQis1Amey9047avqCfZwHHhZBC/YiYIN6X5roRcqwuDBQprtkiBxen3Jc1t/GC8js6zdNfHwAajJRRGVpjBQkrBZ7aR2AY=",
+      "gain": -14.9386,
+      "peak": 1,
+      "br": 1208711
+    },
+    "isLiked": true,
+    "repeatMode": "off",
+    "lyric": {
+      "lrc": "[00:20.960]天才×天才が成せる変態的なテイザー銃\n[00:25.740]神経駆ける脳内あふれる等間隔な点が輪になる\n[00:40.710]論外だけに論点ズレてるお節介語録一辺倒\n[00:45.540]酸素不足な現代における炭酸入れたガソリン飲ませて\n[00:50.610]限界×限界壊れる\n[00:53.110]ゲッダンマジで言ってんの\n[00:55.580]警報響く脳内の音で気が狂いそうだな\n[01:00.740]あぁなんもかも幻想に溺れて不埒な夢の中\n[01:04.770]月が回って死ぬまで待って隅で疲れて笑ってる\n[01:08.790]あぁなんもかも幻覚に汚れて繰り返す真夜中\n[01:14.740]形も無くて触れられなくてどこにも終わりがないまま\n[01:30.240]典型的な定型に溺れて揺らめく夢の中\n[01:34.450]月が回って死ぬまで待って隅で疲れては泣いてる\n[01:40.000]前衛的な幻覚に汚れて振り返る真夜中\n[01:44.400]形も無くて触れられなくてどこにも答えがないまま\n[01:50.050]あぁなんもかも幻想に溺れて不埒な夢の中\n[01:54.280]月が回って死ぬまで待って隅で疲れて笑ってる\n[01:59.140]あぁなんもかも幻覚に汚れて繰り返す真夜中\n[02:04.090]全て背負って飲み干す喝采頭で鳴り止まないまま",
+      "tlyric": "[00:20.960]天才X天才便能构成变  态至极的泰瑟枪\n[00:25.740]穿越神经  溢出脑内  等间距的点围成了圈\n[00:40.710]只在论外论点偏离的  多管闲事语录一边倒\n[00:45.540]在缺氧的现代之中   就让我将这汽油作为汽水一饮而尽\n[00:50.610]极限X界限 破坏界限\n[00:53.110]平静得  真的在说\n[00:55.580]脑内响起的警报声  近乎令人抓狂\n[01:00.740]啊啊一切都生于幻想之洋存在于可笑的梦中\n[01:04.770]月升月落而我只是干等至死  在角落疲倦地狂笑着\n[01:08.790]啊啊一切都被沾污于幻觉存在于往复的深夜\n[01:14.740]看不见也摸不着  尽头依然无处可寻\n[01:30.240]沉溺于典型的规律  在这摇曳的梦中\n[01:34.450]月升月落而我只是干等至死  在角落疲倦得抽泣着\n[01:40.000]被沾污于前卫的幻觉  在过往的深夜中\n[01:44.400]看不见也摸不着  尽头依然无处可寻\n[01:50.050]啊啊一切都生于幻想之洋存在于可笑的梦中\n[01:54.280]月升月落而我只是干等至死  在角落疲倦地狂笑着\n[01:59.140]啊啊一切都被沾污于幻觉存在于往复的深夜\n[02:04.090]背负一切饮尽一切  喝彩  在脑内依然回响不止",
+      "romalrc": "[00:20.960]te n sa i × te n sa i ga na se ru he n ta i te ki na te i zaa ju u\n[00:25.740]shi n ke i ka ke ru no u na i a fu re ru na do ka n ka ku na te n ga wa ni na ru\n[00:40.710]ro n ga i da ke ni ro n te n zu re te ru o se kka i go ro ku i ppe n to u\n[00:45.540]sa n so fu so ku na ge n da i ni o ke ru ta n sa n'i re ta ga so ri n no ma se te\n[00:50.610]ge n ka i × ge n ka i ko wa re ru\n[00:53.110]ge dda n ma ji de i tte n no\n[00:55.580]ke i ho u hi bi ku no u na i no o to de ki ga ku ru i so u da na\n[01:00.740]a a na n mo ka mo ge n so u ni o bo re te fu ra chi na yu me no na ka\n[01:04.770]tsu ki ga ma wa tte shi nu ma de ma tte su mi de tsu ka re te wa ra tte ru\n[01:08.790]a a na n mo ka mo ge n ka ku ni yo go re te ku ri ka e su ma yo na ka\n[01:14.740]ka ta chi mo na ku te fu re ra re na ku te do ko ni mo o wa ri ga na i ma ma\n[01:30.240]te n ke i te ki na te i ke i ni o bo re te yu ra me ku yu me no na ka\n[01:34.450]tsu ki ga ma wa tte shi nu ma de ma tte su mi de tsu ka re te wa na i te ru\n[01:40.000]ze n'e i te ki na ge n ka ku ni yo go re te fu ri ka e ru ma yo na ka\n[01:44.400]ka ta chi mo na ku te fu re ra re na ku te do ko ni mo ko ta e ga na i ma ma\n[01:50.050]a a na n mo ka mo ge n so u ni o bo re te fu ra chi na yu me no na ka\n[01:54.280]tsu ki ga ma wa tte shi nu ma de ma tte su mi de tsu ka re te wa ra tte ru\n[01:59.140]a a na n mo ka mo ge n ka ku ni yo go re te ku ri ka e su ma yo na ka\n[02:04.090]su be te se o tte no mi ho su ka ssa i a ta ma de na ri ya ma na i ma ma"
+    }
+  }
+}

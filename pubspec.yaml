@@ -36,8 +36,11 @@ dependencies:
   cupertino_icons: ^1.0.8
   get: 
   get_storage: ^2.1.1
-  musiclibrary:
-    path: NeteaseCloudMusic_PythonSDK/src/dart
+  # Local ncm_api_enhanced package — replaces the previous musiclibrary /
+  # Python SDK with a nodejs-mobile embedded bridge (see
+  # /home/cmach_socket/projects/ncm_api_enhanced).
+  ncm_api_enhanced:
+    git: https://github.com/cmachsocket/ncm_api_enhanced
   flex_color_scheme:
   audio_video_progress_bar:
   responsive_builder:
