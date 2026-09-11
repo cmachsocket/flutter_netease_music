@@ -1,443 +1,383 @@
-import 'dart:io';
+import 'package:get/get.dart';
 
-import 'package:archive/archive.dart';
-import 'package:code_assets/code_assets.dart';
-import 'package:hooks/hooks.dart';
-import 'package:native_toolchain_c/native_toolchain_c.dart';
+import '../../sdk/ApiCall.dart';
+import '../../models/ApiException.dart';
+import '../../sdk/NeteaseApi.dart';
 
-const _nodeVersion = '18.20.4';
+/// "我收藏的专辑" repository —— 集中 album_sublist + album_sub 两个 API 调用
+///
+/// 把散落在 [LikedAlbumsService.loadFromServer] / [LikedAlbumsService.toggle]
+/// 里的 `apiCall(() => api.raw.album_sublist(...))` / `album_sub(...)` 集中到这里。
+///
+/// - **不做** likedAlbumIds RxSet + 持久化 + 登录态联动 + snackbar 错误提示 —— 这些
+///   是业务流程, 保留在 [LikedAlbumsService]。
+/// - **只做**: 调 API + 解析 ids 字段。
+///
+/// ## 调试日志
+/// 每个 fetch 方法都通过 `Get.log` 打印入参 / 响应关键字段 / 解析结果,
+/// 用于排查 "对 song 以外的 fetch 处理不正确" 的问题。
+/// 异常 / 字段缺失用 `[WARN]` 前缀。GetX 4.7.3 没有 logW,统一 `Get.log` + 前缀。
+/// 所有日志用 `Get.isLogEnable` 包住:release 自动关,debug 可手动设 true 全开。
+class LikedRepository extends GetxService {
+  final NeteaseApi _api;
 
-const _nodeAndroidReleaseUrl =
-    'https://github.com/nodejs-mobile/nodejs-mobile/releases/download/'
-    'v18.20.4/nodejs-mobile-v18.20.4-android.zip';
+  LikedRepository(this._api);
 
-const _bridgeAssetName = 'native/node_bridge.dart';
+  static const _tag = 'LikedRepo';
 
-Future<void> main(List<String> args) async {
-  await build(args, (input, output) async {
-    if (!input.config.buildCodeAssets) {
-      return;
+  /// 拉收藏的专辑 id 全量列表。
+  ///
+  /// API: `/album/sublist`, 响应:
+  /// ```
+  /// { data: [{ id, ... }, ...], hasMore: ... }
+  /// ```
+  /// (顶层 data, 跟 /artist/sublist 同结构;跟 /user/playlist 的 `playlist` 不同)
+  ///
+  /// 返回 null: API 失败。返回空 Set: 拉成功但无收藏 / data 字段缺失。
+  Future<Set<String>?> fetchLikedAlbumIds() async {
+    if (Get.isLogEnable) {
+      Get.log('[$_tag] fetchLikedAlbumIds() enter');
     }
-
-    final config = input.config.code;
-
-    if (config.targetOS != OS.android) {
-      return;
-    }
-
-    final architecture = config.targetArchitecture;
-    final abi = _androidAbi(architecture);
-
-    if (abi == null) {
-      throw UnsupportedError('Unsupported Android architecture: $architecture');
-    }
-
-    print(
-      'ncm_api_enhanced: building Node.js Mobile $_nodeVersion '
-      'for Android $abi',
-    );
-
-    // -----------------------------------------------------------------------
-    // Shared output directory.
-    // -----------------------------------------------------------------------
-
-    final sharedDir = Directory.fromUri(input.outputDirectoryShared);
-
-    await sharedDir.create(recursive: true);
-
-    // -----------------------------------------------------------------------
-    // Locate Dart SDK.
-    //
-    //   <dart-sdk>/bin/dart
-    //          ^
-    //          |
-    //   Platform.resolvedExecutable
-    //
-    // Therefore:
-    //
-    //   parent        -> <dart-sdk>/bin
-    //   parent.parent -> <dart-sdk>
-    //
-    // Dart API DL:
-    //
-    //   <dart-sdk>/include/dart_api_dl.h
-    //   <dart-sdk>/include/dart_api_dl.c
-    // -----------------------------------------------------------------------
-
-    final dartExecutable = File(Platform.resolvedExecutable);
-
-    final dartSdkDir = dartExecutable.parent.parent;
-
-    final dartIncludeDir = Directory('${dartSdkDir.path}/include');
-
-    final dartApiDlHeader = File('${dartIncludeDir.path}/dart_api_dl.h');
-
-    final dartApiDlSource = File('${dartIncludeDir.path}/dart_api_dl.c');
-
-    if (!await dartApiDlHeader.exists()) {
-      throw StateError(
-        'ncm_api_enhanced: dart_api_dl.h not found at '
-        '${dartApiDlHeader.path}',
-      );
-    }
-
-    if (!await dartApiDlSource.exists()) {
-      throw StateError(
-        'ncm_api_enhanced: dart_api_dl.c not found at '
-        '${dartApiDlSource.path}',
-      );
-    }
-
-    print(
-      'ncm_api_enhanced: Dart SDK: '
-      '${dartSdkDir.path}',
-    );
-
-    print(
-      'ncm_api_enhanced: Dart include: '
-      '${dartIncludeDir.path}',
-    );
-
-    print(
-      'ncm_api_enhanced: Dart API DL source: '
-      '${dartApiDlSource.path}',
-    );
-
-    output.dependencies.add(dartApiDlHeader.uri);
-
-    output.dependencies.add(dartApiDlSource.uri);
-
-    // -----------------------------------------------------------------------
-    // Prepare dart_api_dl.c for the C++ CBuilder.
-    //
-    // native_toolchain_c's CBuilder is configured as Language.cpp, and
-    // RunCBuilder passes:
-    //
-    //     -x c++
-    //
-    // for ALL source files.
-    //
-    // Therefore passing the original dart_api_dl.c directly causes the
-    // official C source to be compiled as C++, which fails on Dart 3.10's
-    // DartApiEntry_function conversion.
-    //
-    // We create a private build copy and make the one C -> C++ conversion
-    // required by clang.
-    // -----------------------------------------------------------------------
-
-    final dartApiDlCpp = File('${sharedDir.path}/dart_api_dl_compat.cpp');
-
-    await _prepareDartApiDlCpp(
-      source: dartApiDlSource,
-      destination: dartApiDlCpp,
-    );
-
-    output.dependencies.add(dartApiDlCpp.uri);
-
-    print(
-      'ncm_api_enhanced: prepared Dart API DL C++ source: '
-      '${dartApiDlCpp.path}',
-    );
-
-    // -----------------------------------------------------------------------
-    // Download + extract libnode.so.
-    // -----------------------------------------------------------------------
-
-    final nodeDir = Directory(
-      '${sharedDir.path}/nodejs-mobile-$_nodeVersion/$abi',
-    );
-
-    await nodeDir.create(recursive: true);
-
-    final nodeLibrary = File('${nodeDir.path}/libnode.so');
-
-    if (!await nodeLibrary.exists()) {
-      await _downloadNodeLibrary(
-        outputDirectory: sharedDir,
-        destination: nodeLibrary,
-        abi: abi,
-      );
-    }
-
-    if (!await nodeLibrary.exists()) {
-      throw StateError(
-        'ncm_api_enhanced: failed to obtain libnode.so for $abi',
-      );
-    }
-
-    print(
-      'ncm_api_enhanced: libnode.so: '
-      '${nodeLibrary.path}',
-    );
-
-    // -----------------------------------------------------------------------
-    // node_bridge.cpp
-    // -----------------------------------------------------------------------
-
-    final bridgeSource = File.fromUri(
-      input.packageRoot.resolve('native/android/node_bridge.cpp'),
-    );
-
-    if (!await bridgeSource.exists()) {
-      throw StateError(
-        'ncm_api_enhanced: missing '
-        'native/android/node_bridge.cpp',
-      );
-    }
-
-    // -----------------------------------------------------------------------
-    // CBuilder
-    //
-    // The resulting shared library contains:
-    //
-    //     node_bridge.cpp
-    //     dart_api_dl_compat.cpp
-    //
-    // and links:
-    //
-    //     libnode.so
-    //     liblog.so
-    //
-    // dart_api_dl_compat.cpp provides:
-    //
-    //     Dart_InitializeApiDL
-    //     Dart_PostCObject_DL
-    //     ...
-    //
-    // so libncm_node_bridge.so no longer leaves
-    // Dart_PostCObject_DL as an unresolved ELF symbol.
-    // -----------------------------------------------------------------------
-
-    final builder = CBuilder.library(
-      name: 'ncm_node_bridge',
-      assetName: _bridgeAssetName,
-
-      sources: <String>[bridgeSource.path, dartApiDlCpp.path],
-
-      // dart_api_dl.h lives here.
-      includes: <String>[dartIncludeDir.path],
-
-      libraries: <String>['node', 'log'],
-
-      libraryDirectories: <String>[nodeDir.path],
-
-      language: Language.cpp,
-
-      cppLinkStdLib: 'c++_shared',
-
-      linkModePreference: LinkModePreference.dynamic,
-
-      pic: true,
-
-      std: 'c++17',
-
-      optimizationLevel: OptimizationLevel.o3,
-    );
-
-    await builder.run(input: input, output: output);
-
-    // -----------------------------------------------------------------------
-    // Register libnode.so.
-    // -----------------------------------------------------------------------
-
-    output.assets.code.add(
-      CodeAsset(
-        package: input.packageName,
-        name: 'native/libnode.dart',
-        linkMode: DynamicLoadingBundled(),
-        file: nodeLibrary.uri,
-      ),
-    );
-
-    print('ncm_api_enhanced: registered libnode.so for $abi');
-  });
-}
-
-// ===========================================================================
-// Prepare Dart API DL C++ compatibility source
-// ===========================================================================
-
-Future<void> _prepareDartApiDlCpp({
-  required File source,
-  required File destination,
-}) async {
-  var content = await source.readAsString();
-
-  // Dart SDK's dart_api_dl.c contains a C-compatible conversion:
-  //
-  //     return entries->function;
-  //
-  // When the file is compiled as C++, the type is:
-  //
-  //     DartApiEntry_function == void*
-  //
-  // while entries->function is a function pointer.
-  //
-  // C accepts this conversion, but C++ does not.
-  //
-  // Explicitly cast it to the API's declared return type.
-  const original =
-      'if (strcmp(entries->name, name) == 0) return entries->function;';
-
-  const replacement =
-      'if (strcmp(entries->name, name) == 0) '
-      'return reinterpret_cast<DartApiEntry_function>('
-      'entries->function);';
-
-  if (!content.contains(original)) {
-    throw StateError(
-      'ncm_api_enhanced: unexpected dart_api_dl.c layout. '
-      'Could not find the expected DartApiEntry lookup expression.',
-    );
-  }
-
-  content = content.replaceFirst(original, replacement);
-
-  await destination.parent.create(recursive: true);
-
-  await destination.writeAsString(content, flush: true);
-}
-
-// ===========================================================================
-// Android ABI
-// ===========================================================================
-
-String? _androidAbi(Architecture architecture) {
-  switch (architecture) {
-    case Architecture.arm64:
-      return 'arm64-v8a';
-
-    case Architecture.arm:
-      return 'armeabi-v7a';
-
-    case Architecture.x64:
-      return 'x86_64';
-
-    default:
-      return null;
-  }
-}
-
-// ===========================================================================
-// Download + extract libnode.so
-// ===========================================================================
-
-Future<void> _downloadNodeLibrary({
-  required Directory outputDirectory,
-  required File destination,
-  required String abi,
-}) async {
-  final archiveDir = Directory(
-    '${outputDirectory.path}/nodejs-mobile-$_nodeVersion',
-  );
-
-  await archiveDir.create(recursive: true);
-
-  final zipFile = File(
-    '${archiveDir.path}/'
-    'nodejs-mobile-v$_nodeVersion-android.zip',
-  );
-
-  // -------------------------------------------------------------------------
-  // Download ZIP if necessary.
-  // -------------------------------------------------------------------------
-
-  if (!await zipFile.exists()) {
-    print(
-      'ncm_api_enhanced: downloading '
-      '$_nodeAndroidReleaseUrl',
-    );
-
-    await _downloadFile(Uri.parse(_nodeAndroidReleaseUrl), zipFile);
-  }
-
-  // -------------------------------------------------------------------------
-  // Read ZIP.
-  // -------------------------------------------------------------------------
-
-  print(
-    'ncm_api_enhanced: extracting '
-    '$abi/libnode.so',
-  );
-
-  final bytes = await zipFile.readAsBytes();
-
-  final archive = ZipDecoder().decodeBytes(bytes, verify: true);
-
-  final expectedPath = 'bin/$abi/libnode.so';
-
-  ArchiveFile? nodeFile;
-
-  for (final file in archive.files) {
-    final normalized = file.name.replaceAll('\\', '/');
-
-    if (normalized == expectedPath) {
-      nodeFile = file;
-      break;
-    }
-  }
-
-  if (nodeFile == null) {
-    throw StateError(
-      'ncm_api_enhanced: $expectedPath was not found in '
-      '$_nodeAndroidReleaseUrl',
-    );
-  }
-
-  final content = nodeFile.content;
-
-  await destination.parent.create(recursive: true);
-
-  await destination.writeAsBytes(content, flush: true);
-
-  print(
-    'ncm_api_enhanced: extracted '
-    '${destination.path}',
-  );
-}
-
-// ===========================================================================
-// HTTP download
-// ===========================================================================
-
-Future<void> _downloadFile(Uri url, File destination) async {
-  final temp = File('${destination.path}.download');
-
-  if (await temp.exists()) {
-    await temp.delete();
-  }
-
-  final client = HttpClient();
-
-  try {
-    client.userAgent =
-        'ncm_api_enhanced/$_nodeVersion '
-        '(Dart build hook)';
-
-    final request = await client.getUrl(url);
-
-    request.followRedirects = true;
-    request.maxRedirects = 8;
-
-    final response = await request.close();
-
-    if (response.statusCode != HttpStatus.ok) {
-      await response.drain();
-
-      throw HttpException('HTTP ${response.statusCode} while downloading $url');
-    }
-
-    final sink = temp.openWrite();
-
     try {
-      await response.pipe(sink);
-    } catch (_) {
-      await sink.close();
+      final r = await apiCall(
+        () => _api.callApi('album_sublist', const <Object?>[]),
+        what: '拉收藏专辑',
+      );
+      if (Get.isLogEnable) {
+        Get.log('[$_tag] fetchLikedAlbumIds body keys=${r.body.keys.toList()}');
+      }
+      final list = r.body['data'];
+      if (list is! List) {
+        if (Get.isLogEnable) {
+          Get.log(
+            '[$_tag] [WARN] fetchLikedAlbumIds: body["data"] missing or not List '
+            '(type=${list.runtimeType}); returning empty Set. '
+            'full body=${r.body}',
+          );
+        }
+        return <String>{};
+      }
+      final ids = list
+          .whereType<Map>()
+          .map((m) => m['id']?.toString() ?? '')
+          .where((s) => s.isNotEmpty)
+          .toSet();
+      if (Get.isLogEnable) {
+        Get.log(
+          '[$_tag] fetchLikedAlbumIds: parsed count=${ids.length} '
+          'sample=${ids.take(5).toList()}',
+        );
+      }
+      return ids;
+    } on ApiException catch (e) {
+      if (Get.isLogEnable) {
+        Get.log('[$_tag] [WARN] fetchLikedAlbumIds failed: $e');
+      }
+      return null;
+    }
+  }
+
+  /// 收藏 / 取消收藏一张专辑。
+  ///
+  /// API: `/album/sub?id=X&t=1|0`
+  /// 抛 [ApiException] (调用方决定是否 snackbar)。
+  Future<void> toggleAlbumSub(String albumId, bool next) async {
+    if (Get.isLogEnable) {
+      Get.log('[$_tag] toggleAlbumSub id=$albumId next=$next');
+    }
+    try {
+      await apiCall(
+        () => _api.callApi('album_sub', <Object?>[albumId, next ? '1' : '0']),
+        what: next ? '收藏专辑' : '取消收藏',
+      );
+      if (Get.isLogEnable) {
+        Get.log('[$_tag] toggleAlbumSub id=$albumId ok');
+      }
+    } on ApiException catch (e) {
+      if (Get.isLogEnable) {
+        Get.log('[$_tag] [WARN] toggleAlbumSub id=$albumId failed: $e');
+      }
       rethrow;
     }
+  }
 
-    await temp.rename(destination.path);
-  } finally {
-    client.close(force: true);
+  /// 拉收藏的歌单 id 全量列表。
+  ///
+  /// API: `/user/playlist?uid=X`, 响应:
+  /// ```
+  /// { playlist: [{ id, subscribed: bool, ... }, ...] }
+  /// ```
+  /// 只取 `subscribed == true` 的项 (用户自己创建的不算收藏)。
+  ///
+  /// 返回 null: API 失败。返回空 Set: 拉成功但无收藏 / playlist 字段缺失。
+  Future<Set<String>?> fetchLikedPlaylistIds(String uid) async {
+    if (Get.isLogEnable) {
+      Get.log('[$_tag] fetchLikedPlaylistIds(uid=$uid) enter');
+    }
+    try {
+      final r = await apiCall(
+        () => _api.callApi('user_playlist', <Object?>[uid]),
+        what: '拉收藏歌单',
+      );
+      if (Get.isLogEnable) {
+        Get.log(
+          '[$_tag] fetchLikedPlaylistIds body keys=${r.body.keys.toList()}',
+        );
+      }
+      final list = r.body['playlist'];
+      if (list is! List) {
+        if (Get.isLogEnable) {
+          Get.log(
+            '[$_tag] [WARN] fetchLikedPlaylistIds: body["playlist"] missing or not List '
+            '(type=${list.runtimeType}); returning empty Set. '
+            'full body=${r.body}',
+          );
+        }
+        return <String>{};
+      }
+      final ids = list
+          .whereType<Map>()
+          .where((m) => m['subscribed'] == true)
+          .map((m) => m['id']?.toString() ?? '')
+          .where((s) => s.isNotEmpty)
+          .toSet();
+      if (Get.isLogEnable) {
+        Get.log(
+          '[$_tag] fetchLikedPlaylistIds: total=${list.length} '
+          'subscribed=${ids.length} sample=${ids.take(5).toList()}',
+        );
+      }
+      return ids;
+    } on ApiException catch (e) {
+      if (Get.isLogEnable) {
+        Get.log('[$_tag] [WARN] fetchLikedPlaylistIds failed: $e');
+      }
+      return null;
+    }
+  }
+
+  /// 收藏 / 取消收藏一张歌单。
+  ///
+  /// API: `/playlist/subscribe?t=1|2&id=X` (t=1 收藏, t=2 取消)
+  /// 抛 [ApiException] (调用方决定是否 snackbar)。
+  Future<void> togglePlaylistSubscribe(String playlistId, bool next) async {
+    if (Get.isLogEnable) {
+      Get.log('[$_tag] togglePlaylistSubscribe id=$playlistId next=$next');
+    }
+    try {
+      await apiCall(
+        () => _api.callApi('playlist_subscribe', <Object?>[
+          next ? '1' : '2',
+          playlistId,
+        ]),
+        what: next ? '收藏歌单' : '取消收藏',
+      );
+      if (Get.isLogEnable) {
+        Get.log('[$_tag] togglePlaylistSubscribe id=$playlistId ok');
+      }
+    } on ApiException catch (e) {
+      if (Get.isLogEnable) {
+        Get.log(
+          '[$_tag] [WARN] togglePlaylistSubscribe id=$playlistId failed: $e',
+        );
+      }
+      rethrow;
+    }
+  }
+
+  Future<Set<String>?> fetchLikedSongIds(String uid) async {
+    if (Get.isLogEnable) {
+      Get.log('[$_tag] fetchLikedSongIds(uid=$uid) enter');
+    }
+    try {
+      final r = await apiCall(
+        () => _api.callApi('likelist', <Object?>[uid]),
+        what: '拉喜欢列表',
+      );
+      if (Get.isLogEnable) {
+        Get.log('[$_tag] fetchLikedSongIds body keys=${r.body.keys.toList()}');
+      }
+      final rawIds = r.body['ids'];
+      if (rawIds is! List) {
+        if (Get.isLogEnable) {
+          Get.log(
+            '[$_tag] [WARN] fetchLikedSongIds: body["ids"] missing or not List '
+            '(type=${rawIds.runtimeType}); returning empty Set. '
+            'full body=${r.body}',
+          );
+        }
+        return <String>{};
+      }
+      final ids = rawIds.whereType<int>().map((i) => i.toString()).toSet();
+      if (Get.isLogEnable) {
+        Get.log(
+          '[$_tag] fetchLikedSongIds: parsed count=${ids.length} '
+          'sample=${ids.take(5).toList()}',
+        );
+      }
+      return ids;
+    } on ApiException catch (e) {
+      if (Get.isLogEnable) {
+        Get.log('[$_tag] [WARN] fetchLikedSongIds failed: $e');
+      }
+      return null;
+    }
+  }
+
+  /// 喜欢 / 取消喜欢一首歌曲。
+  ///
+  /// API: `/like?id=X&like=true|false`
+  /// 抛 [ApiException] (调用方决定是否 snackbar)。
+  Future<void> toggleLike(String songId, bool next) async {
+    if (Get.isLogEnable) {
+      Get.log('[$_tag] toggleLike id=$songId next=$next');
+    }
+    try {
+      await apiCall(
+        () => _api.callApi('like', <Object?>[songId, next.toString()]),
+        what: next ? '喜欢歌曲' : '取消喜欢',
+      );
+      if (Get.isLogEnable) {
+        Get.log('[$_tag] toggleLike id=$songId ok');
+      }
+    } on ApiException catch (e) {
+      if (Get.isLogEnable) {
+        Get.log('[$_tag] [WARN] toggleLike id=$songId failed: $e');
+      }
+      rethrow;
+    }
+  }
+
+  /// 拉关注的艺人 id 全量列表。
+  ///
+  /// API: `/artist/sublist`, 响应:
+  /// ```
+  /// { data: [{ id, ... }, ...], hasMore: ..., count: ... }
+  /// ```
+  /// 顶层字段名是 `data`(2026-08 实测样本: keys=[data, hasMore, count, code])。
+  /// 之前注释误标 `artists`,导致 likedArtistIds 一直空集、UI 显示"未关注"。
+  ///
+  /// 返回 null: API 失败。返回空 Set: 拉成功但无关注 / data 字段缺失。
+  Future<Set<String>?> fetchLikedArtistIds() async {
+    if (Get.isLogEnable) {
+      Get.log('[$_tag] fetchLikedArtistIds() enter');
+    }
+    try {
+      final r = await apiCall(
+        () => _api.callApi('artist_sublist', const <Object?>[]),
+        what: '拉关注艺人',
+      );
+      if (Get.isLogEnable) {
+        Get.log(
+          '[$_tag] fetchLikedArtistIds body keys=${r.body.keys.toList()}',
+        );
+      }
+      final rawArtists = r.body['data'];
+      if (rawArtists is! List) {
+        if (Get.isLogEnable) {
+          Get.log(
+            '[$_tag] [WARN] fetchLikedArtistIds: body["data"] missing or not List '
+            '(type=${rawArtists.runtimeType}); returning empty Set. '
+            'full body=${r.body}',
+          );
+        }
+        return <String>{};
+      }
+      final ids = rawArtists
+          .whereType<Map>()
+          .map((m) => m['id']?.toString() ?? '')
+          .where((s) => s.isNotEmpty)
+          .toSet();
+      if (Get.isLogEnable) {
+        Get.log(
+          '[$_tag] fetchLikedArtistIds: parsed count=${ids.length} '
+          'sample=${ids.take(5).toList()}',
+        );
+      }
+      return ids;
+    } on ApiException catch (e) {
+      if (Get.isLogEnable) {
+        Get.log('[$_tag] [WARN] fetchLikedArtistIds failed: $e');
+      }
+      return null;
+    }
+  }
+
+  /// 关注 / 取消关注一位艺人。
+  ///
+  /// API: `/artist/sub?id=X&t=1|0`
+  /// 抛 [ApiException] (调用方决定是否 snackbar)。
+  Future<void> toggleArtistSub(String artistId, bool next) async {
+    if (Get.isLogEnable) {
+      Get.log('[$_tag] toggleArtistSub id=$artistId next=$next');
+    }
+    try {
+      await apiCall(
+        () => _api.callApi('artist_sub', <Object?>[artistId, next ? '1' : '0']),
+        what: next ? '关注艺人' : '取消关注',
+      );
+      if (Get.isLogEnable) {
+        Get.log('[$_tag] toggleArtistSub id=$artistId ok');
+      }
+    } on ApiException catch (e) {
+      if (Get.isLogEnable) {
+        Get.log('[$_tag] [WARN] toggleArtistSub id=$artistId failed: $e');
+      }
+      rethrow;
+    }
+  }
+
+  /// 同步单个艺人的关注状态。
+  ///
+  /// API: `/artists?id=X`, 响应:
+  /// ```
+  /// { artist: { id, followed: bool, ... } }
+  /// ```
+  ///
+  /// 返回 bool?: API 失败 → null; 成功 → artist.followed (缺则 null)。
+  Future<bool?> fetchFollowed(String artistId) async {
+    if (Get.isLogEnable) {
+      Get.log('[$_tag] fetchFollowed(id=$artistId) enter');
+    }
+    try {
+      final r = await apiCall(
+        () => _api.callApi('artists', <Object?>[artistId]),
+        what: '同步艺人关注状态',
+      );
+      if (Get.isLogEnable) {
+        Get.log('[$_tag] fetchFollowed body keys=${r.body.keys.toList()}');
+      }
+      final raw = r.body['artist'];
+      if (raw is! Map) {
+        if (Get.isLogEnable) {
+          Get.log(
+            '[$_tag] [WARN] fetchFollowed id=$artistId: body["artist"] missing or not Map '
+            '(type=${raw.runtimeType}); returning null. '
+            'full body=${r.body}',
+          );
+        }
+        return null;
+      }
+      final m = Map<String, dynamic>.from(raw);
+      final followed = m['followed'];
+      if (followed is! bool) {
+        if (Get.isLogEnable) {
+          Get.log(
+            '[$_tag] [WARN] fetchFollowed id=$artistId: artist.followed missing or not bool '
+            '(type=${followed.runtimeType}); returning null. artist=$m',
+          );
+        }
+        return null;
+      }
+      if (Get.isLogEnable) {
+        Get.log('[$_tag] fetchFollowed id=$artistId: followed=$followed');
+      }
+      return followed;
+    } on ApiException catch (e) {
+      if (Get.isLogEnable) {
+        Get.log('[$_tag] [WARN] fetchFollowed id=$artistId failed: $e');
+      }
+      return null;
+    }
   }
 }
