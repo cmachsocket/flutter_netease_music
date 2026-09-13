@@ -13,6 +13,7 @@ import 'LikedController.dart';
 import 'repositories/LyricsRepository.dart';
 import 'repositories/SongRepository.dart';
 import 'AudioPlayerHandler.dart';
+import '../models/Lyrics.dart';
 
 /// ---- 顶层包装层暴露给 UI 的快照 ------------------------------------------------
 
@@ -38,6 +39,7 @@ class AudioPlayerService extends GetxController {
   final SongRepository _songRepo = Get.find<SongRepository>();
   final LikedController _likedService = Get.find<LikedController>();
   final LyricsRepository _lyricsRepo = Get.find<LyricsRepository>();
+
   /// 全局音质偏好 (SettingsPage 用户选择) —— 注入到 handler,handler 在
   /// _playAt 拉 URL 时取当前 quality 作为 level 参数。
   /// wrapper 不在这里读 currentQuality —— 单向流: handler 自己取,
@@ -436,7 +438,7 @@ class AudioPlayerService extends GetxController {
   // ---- 歌词 (转发到 LyricsRepository) -----------------------------------------
 
   /// 拉取 songId 的歌词 (按 songId 缓存)。LyricsService 删了,走这里。
-  Future<String?> fetchLyric(String songId) => _lyricsRepo.fetch(songId);
+  Future<Lyrics?> fetchLyric(String songId) => _lyricsRepo.fetch(songId);
 
   /// 清歌词缓存 (用户手动刷新时调)。
   void invalidateLyric([String? songId]) => _lyricsRepo.invalidate(songId);

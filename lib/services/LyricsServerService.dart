@@ -39,14 +39,15 @@ import 'repositories/LyricsRepository.dart';
 /// **依赖**:`AudioPlayerService` (snapshot / lyric repo) 已通过 GetX 注册,本类
 /// 只通过 `Get.find` 拿,**不在 onInit 之外阻塞构造**。
 class LyricsServerService extends GetxService {
+  static const int defaultPort = 41831;
   HttpServer? _server;
-  int get port => _server?.port ?? 41831;
+  int get port => _server?.port ?? defaultPort;
   bool get isRunning => _server != null;
 
   /// 启动 HTTP server。await 完成表示 server 已 bind,后续 accept 异步跑。
   Future<void> startServer() async {
     if (_server != null) return;
-    final server = await HttpServer.bind(InternetAddress.anyIPv4, 41831);
+    final server = await HttpServer.bind(InternetAddress.anyIPv4, defaultPort);
     _server = server;
     // listen 一旦挂上 server 就开始 accept,不需要再 await
     server.listen(_handleRequest);
@@ -72,16 +73,24 @@ class LyricsServerService extends GetxService {
 
   Future<void> _respondPlayer(HttpRequest request) async {
     final wrapper = Get.find<AudioPlayerService>();
+    final lyricsRepo = Get.find<LyricsRepository>();
     final snap = wrapper.snapshot.value;
     final song = snap.currentSong;
 
     // ---- lyric ----
     String lrc = '';
+    String tlyric = '';
+    String romalrc = '';
     if (song != null && song.id.isNotEmpty) {
       // LyricsRepository.fetch 已经做了 cache,重复调用不会触发 RPC
       try {
-        lrc = await Get.find<LyricsRepository>().fetch(song.id) ?? '';
+        final lyrics = await lyricsRepo.fetch(song.id);
+        lrc = lyrics?.lrc ?? '';
+        tlyric = lyrics?.tlyric ?? '';
+        romalrc = lyrics?.romalrc ?? '';
         lrc = _removeBeforeTimestamp(lrc);
+        tlyric = _removeBeforeTimestamp(tlyric);
+        romalrc = _removeBeforeTimestamp(romalrc);
       } catch (_) {
         lrc = '';
       }
@@ -100,8 +109,8 @@ class LyricsServerService extends GetxService {
         'repeatMode': _mapRepeatMode(snap.playOrder),
         'lyric': <String, Object?>{
           'lrc': lrc,
-          'tlyric': '', // 本项目不区分翻译歌词
-          'romalrc': '',
+          'tlyric': tlyric,
+          'romalrc': romalrc,
         },
       },
     };

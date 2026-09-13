@@ -1,5 +1,5 @@
 import 'package:get/get.dart';
-
+import '../../models/Lyrics.dart';
 import '../../sdk/ApiCall.dart';
 import '../../models/ApiException.dart';
 import '../../sdk/NeteaseApi.dart';
@@ -25,27 +25,32 @@ class LyricsRepository extends GetxService {
   /// { lrc: { lyric: "..." }, yrc: { lyric: "..." } }
   /// ```
   /// 优先 lrc (flutter_lyric 只支持标准 LRC), fallback yrc。
-  Future<String?> _fetch(String songId) async {
+  Future<Lyrics?> _fetch(String songId) async {
     try {
       final r = await apiCall(
         () => _api.callApi('lyric_new', <Object?>[songId]),
         what: '取歌词',
       );
       final lrc = (r.body['lrc']?['lyric'] as String?)?.toString() ?? '';
-      if (lrc.trim().isNotEmpty) return lrc;
+      final tlyric = (r.body['tlyric']?['lyric'] as String?)?.toString() ?? '';
+      final romalrc =
+          (r.body['romalrc']?['lyric'] as String?)?.toString() ?? '';
+      if (lrc.trim().isNotEmpty) {
+        return Lyrics(lrc: lrc, tlyric: tlyric, romalrc: romalrc);
+      }
       final yrc = (r.body['yrc']?['lyric'] as String?)?.toString() ?? '';
       if (yrc.trim().isEmpty) return null;
-      return yrc;
+      return Lyrics(lrc: yrc, tlyric: tlyric, romalrc: romalrc);
     } on ApiException {
       return null;
     }
   }
 
-  final Map<String, String> _cache = {};
+  final Map<String, Lyrics?> _cache = {};
 
   /// 拉取 songId 的歌词 (优先 lrc, fallback yrc)。
   /// 拉失败 / 都空 → null。
-  Future<String?> fetch(String songId) async {
+  Future<Lyrics?> fetch(String songId) async {
     final cached = _cache[songId];
     if (cached != null) return cached;
     final lyric = await _fetch(songId);

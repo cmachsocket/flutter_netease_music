@@ -77,11 +77,8 @@ class _DownloadTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return ListTile(
-      leading: SizedBox(
-        width: 48,
-        height: 48,
-        child: _StatusIcon(view: view, color: scheme.primary),
-      ),
+      leading: _StatusIcon(view: view, color: scheme.primary),
+
       title: Text(
         view.song.title,
         maxLines: 1,

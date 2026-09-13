@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 
 import '../models/Song.dart';
 import '../services/AudioPlayerWrapper.dart';
+import 'package:get_storage/get_storage.dart';
 
 /// 歌词控制器 —— 直接订阅 [AudioPlayerService.snapshot] 拉歌词、推进度。
 ///
@@ -37,16 +38,26 @@ import '../services/AudioPlayerWrapper.dart';
 /// - lyricController 实例跨切歌复用,跨页路由销毁
 /// - permanent 是为了跨路由(从 PlayerPage 跳到 PlayListPage 再回来)LyricView
 ///   重新 mount 时能从 lyricNotifier.value 立刻拿到当前 lyric,不再重拉
+
+enum LyricShowMode {
+  translation, // 显示翻译歌词
+  romaji, // 显示罗马拼音歌词
+  original, // 显示原歌词(不显示次要歌词)
+}
+
 class LyricsController extends GetxController {
+  static const lyricShowModeKey = 'lyric_show_mode_v1';
   final LyricController lyricController = LyricController();
 
   final AudioPlayerService _audio = Get.find<AudioPlayerService>();
+  GetStorage get _box => GetStorage();
 
   /// 正在拉 lyric 的 song id (防止重复请求 — currentSong 流偶尔抖)
   String? _fetchingSongId;
 
   /// 当前持有的 lyric (UI 调试 / 备用 — flutter_lyric 主用 lyricNotifier)
   final Rxn<String> currentLyric = Rxn<String>();
+  late final Rx<LyricShowMode> lyricShowMode;
 
   /// 上一次 snapshot 里的 currentSong / position,用于内部 diff 判断字段变化
   Song? _lastSong;
@@ -60,6 +71,12 @@ class LyricsController extends GetxController {
     // 订阅 wrapper.snapshot 整体流,内部 diff 出当前歌 / 进度变化
     // snapshot 每次都 new 一份(PlayOrderSnapshot.copyWith),stream 等价 onChange,
     // 但我们只对 currentSong / position 字段变化感兴趣
+    final storedName = _box.read<String>(lyricShowModeKey);
+    final initialMode = LyricShowMode.values.firstWhere(
+      (m) => m.name == storedName,
+      orElse: () => LyricShowMode.original,
+    );
+    lyricShowMode = initialMode.obs;
     final initial = _audio.snapshot.value;
     _lastSong = initial.currentSong;
     _lastPosition = initial.position;
@@ -75,6 +92,17 @@ class LyricsController extends GetxController {
   void onClose() {
     _snapshotSub?.cancel();
     super.onClose();
+  }
+
+  Future<void> switchLyric() async {
+    final mode = switch (lyricShowMode.value) {
+      LyricShowMode.original => LyricShowMode.translation,
+      LyricShowMode.translation => LyricShowMode.romaji,
+      LyricShowMode.romaji => LyricShowMode.original,
+    };
+    lyricShowMode.value = mode;
+    _box.write(lyricShowModeKey, mode.name);
+    await refreshCurrent();
   }
 
   /// snapshot 变化 → diff 出 currentSong / position 的字段级变化
@@ -101,7 +129,6 @@ class LyricsController extends GetxController {
   Future<void> refreshCurrent() async {
     final song = _audio.snapshot.value.currentSong;
     if (song == null) return;
-    _audio.invalidateLyric(song.id);
     await _loadLyricFor(song.id);
   }
 
@@ -129,7 +156,16 @@ class LyricsController extends GetxController {
       lyricController.loadLyric('');
       return;
     }
-    currentLyric.value = lyric;
-    lyricController.loadLyric(lyric);
+    // 结束fetch,避免refreshCurrent时被防抖拦截
+    _fetchingSongId = null;
+    currentLyric.value = lyric.lrc;
+    lyricController.loadLyric(
+      lyric.lrc ?? '',
+      translationLyric: switch (lyricShowMode.value) {
+        LyricShowMode.original => null,
+        LyricShowMode.translation => lyric.tlyric,
+        LyricShowMode.romaji => lyric.romalrc,
+      },
+    );
   }
 }

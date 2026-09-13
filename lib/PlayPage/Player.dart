@@ -8,12 +8,14 @@ import '../PlayListPage/PlayListPage.dart';
 import '../PlayListPage/PlayListController.dart';
 import '../widgets/linked_detail_text.dart';
 import 'MusicProgressbar.dart';
+import 'LyricsController.dart';
 import '../models/Snapshot.dart' show PlayOrder;
 
 class Player extends StatelessWidget {
   Player({super.key});
   final controller = Get.find<PlayerController>();
   final playlist = Get.find<PlayListController>();
+  final lyricController = Get.find<LyricsController>();
   static const tileMaxLine = 1;
   @override
   Widget build(BuildContext context) {
@@ -51,16 +53,39 @@ class Player extends StatelessWidget {
           );
         }),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: controller.switchPage,
-        child: Obx(() {
-          // exhaustive switch: enum 加新 page 时编译器报错,不会走错 icon
-          final icon = switch (controller.center.value) {
-            CenterPage.cover => Icons.music_note,
-            CenterPage.lyric => Icons.lyrics,
-          };
-          return Icon(icon);
-        }),
+      floatingActionButton: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Obx(() {
+            return controller.center.value == CenterPage.lyric
+                ? FloatingActionButton(
+                    onPressed: lyricController.switchLyric,
+                    child:
+                        // exhaustive switch: enum 加新 page 时编译器报错,不会走错 icon
+                        switch (lyricController.lyricShowMode.value) {
+                          LyricShowMode.original => const Icon(Icons.block),
+                          LyricShowMode.translation => const Icon(
+                            Icons.translate,
+                          ),
+                          LyricShowMode.romaji => const Icon(
+                            Icons.sort_by_alpha,
+                          ),
+                        },
+                  )
+                : const SizedBox.shrink();
+          }),
+          FloatingActionButton(
+            onPressed: controller.switchPage,
+            child: Obx(() {
+              // exhaustive switch: enum 加新 page 时编译器报错,不会走错 icon
+              final icon = switch (controller.center.value) {
+                CenterPage.cover => Icons.music_note,
+                CenterPage.lyric => Icons.lyrics,
+              };
+              return Icon(icon);
+            }),
+          ),
+        ],
       ),
       body: Column(
         children: [
