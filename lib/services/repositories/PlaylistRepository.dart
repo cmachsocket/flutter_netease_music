@@ -6,7 +6,7 @@ import '../../models/Song.dart';
 import '../../sdk/ApiCall.dart';
 import '../../models/ApiException.dart';
 import '../../sdk/NeteaseApi.dart';
-import '../../sdk/music_response.dart';
+import '../../sdk/MusicResponse.dart';
 import '../../models/Playlist.dart';
 import '../PlaylistEventsController.dart';
 
@@ -26,8 +26,7 @@ class PlaylistRepository extends GetxService {
 
   /// 全局歌单事件中心(addTracks / removeTracks / deletePlaylist 成功后 emit)。
   /// 注入而非全局 Get.find,便于测试时 mock。
-  final PlaylistEventsController _events =
-      Get.find<PlaylistEventsController>();
+  final PlaylistEventsController _events = Get.find<PlaylistEventsController>();
 
   /// 拉歌单元信息(标题/封面/描述 + source)。
   ///
@@ -150,10 +149,11 @@ class PlaylistRepository extends GetxService {
     final MusicResponse r;
     try {
       r = await apiCall(
-        () => _api.callApi(
-          'playlist_tracks',
-          <Object?>['add', playlistId, tracks],
-        ),
+        () => _api.callApi('playlist_tracks', <Object?>[
+          'add',
+          playlistId,
+          tracks,
+        ]),
         what: '添加歌曲到歌单',
       );
     } on ApiException catch (e) {
@@ -206,10 +206,11 @@ class PlaylistRepository extends GetxService {
     final MusicResponse r;
     try {
       r = await apiCall(
-        () => _api.callApi(
-          'playlist_tracks',
-          <Object?>['del', playlistId, tracks],
-        ),
+        () => _api.callApi('playlist_tracks', <Object?>[
+          'del',
+          playlistId,
+          tracks,
+        ]),
         what: '从歌单删除歌曲',
       );
     } on ApiException catch (e) {

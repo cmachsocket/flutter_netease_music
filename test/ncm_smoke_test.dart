@@ -17,8 +17,8 @@ import 'dart:io' show Platform;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ncm_api_enhanced/ncm_api_enhanced.dart';
-import 'package:flutter_netease_music/sdk/method_spec.dart';
-import 'package:flutter_netease_music/sdk/music_response.dart';
+import 'package:flutter_netease_music/sdk/MethodSpec.dart';
+import 'package:flutter_netease_music/sdk/MusicResponse.dart';
 
 void main() {
   final root = Platform.environment['NCM_BRIDGE_ROOT'];
@@ -67,7 +67,10 @@ void main() {
   test('MusicResponse.fromNcm parses upstream payload', () {
     final m = MusicResponse.fromNcm({
       'status': 200,
-      'body': {'code': 200, 'result': {'songs': []}},
+      'body': {
+        'code': 200,
+        'result': {'songs': []},
+      },
       'cookie': ['NMTID=foo; Path=/;', 'MUSIC_U=bar; Path=/;'],
     });
     expect(m.status, 200);
@@ -78,10 +81,11 @@ void main() {
 
   test('search round-trip', () async {
     final sw = Stopwatch()..start();
-    final raw = await api.call(
-      'search',
-      <String, dynamic>{'keywords': '周杰伦', 'type': '1', 'limit': '3'},
-    );
+    final raw = await api.call('search', <String, dynamic>{
+      'keywords': '周杰伦',
+      'type': '1',
+      'limit': '3',
+    });
     sw.stop();
     final r = MusicResponse.fromNcm(raw);
     // ignore: avoid_print

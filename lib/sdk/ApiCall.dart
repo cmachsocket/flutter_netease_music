@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import '../models/ApiException.dart';
-import 'music_response.dart';
+import 'MusicResponse.dart';
 
 /// 调用一次后端接口 + 业务检查
 ///
@@ -42,13 +42,12 @@ void checkResponse(MusicResponse r, {String? hint}) {
   }
   final bodyCode = r.body['code'] ?? r.body['body']?['code'];
   if (bodyCode is int && bodyCode != 200) {
-    final msg = r.body['message'] ?? r.body['msg']
-        ?? r.body['body']?['message'] ?? r.body['body']?['msg']
-        ?? '未知业务错误';
-    throw ApiException(
-      bodyCode,
-      '${hint ?? "请求"} 失败: $msg',
-      rawBody: r.body,
-    );
+    final msg =
+        r.body['message'] ??
+        r.body['msg'] ??
+        r.body['body']?['message'] ??
+        r.body['body']?['msg'] ??
+        '未知业务错误';
+    throw ApiException(bodyCode, '${hint ?? "请求"} 失败: $msg', rawBody: r.body);
   }
 }

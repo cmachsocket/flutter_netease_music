@@ -20,8 +20,8 @@ import 'package:get_storage/get_storage.dart';
 import 'package:ncm_api_enhanced/ncm_api_enhanced.dart';
 
 import 'ApiCall.dart';
-import 'method_spec.dart';
-import 'music_response.dart';
+import 'MethodSpec.dart';
+import 'MusicResponse.dart';
 
 /// 全局网易云 API facade — 仓库层 / UI 层的入口
 ///
@@ -254,11 +254,10 @@ class NeteaseApi extends GetxService {
     // Order: caller-provided `cookie` wins, then auth (login), then anon
     // (visitor), then empty. Calling code that wants to suppress cookies
     // can pass `cookie: ''`.
-    final hasCallerCookie = query.containsKey('cookie') && query['cookie'] != null;
+    final hasCallerCookie =
+        query.containsKey('cookie') && query['cookie'] != null;
     if (!hasCallerCookie) {
-      final cookie = _authCookie.isNotEmpty
-          ? _authCookie
-          : _anonCookie;
+      final cookie = _authCookie.isNotEmpty ? _authCookie : _anonCookie;
       query['cookie'] = cookie;
     }
     final raw = await _ncm.call(method, query);

@@ -10,6 +10,7 @@ import 'AppShell.dart';
 import 'AppShellController.dart';
 import 'PlayPage/LyricsController.dart';
 import 'PlayPage/PlayerController.dart';
+import 'SettingsPage/SettingsController.dart';
 import 'services/AudioPlayerWrapper.dart';
 import 'services/LyricsServerService.dart';
 import 'sdk/NeteaseApi.dart';
@@ -44,8 +45,12 @@ Future<void> main() async {
     LyricsRepository(Get.find<NeteaseApi>()),
     permanent: true,
   );
+  // SettingsController 必须在 SongRepository 之前: SongRepository 构造时
+  // Get.find<SettingsController>() 取全局音质偏好。
+  // (ThemeController 同模式, onInit 同步读 GetStorage, 不需要 putAsync)
+  Get.put<SettingsController>(SettingsController(), permanent: true);
   Get.put<SongRepository>(
-    SongRepository(Get.find<NeteaseApi>()),
+    SongRepository(Get.find<NeteaseApi>(), Get.find<SettingsController>()),
     permanent: true,
   );
   Get.put<SearchRepository>(

@@ -6,6 +6,7 @@ import 'LoginPage.dart';
 import 'SettingsController.dart';
 import 'ThemeSwitcher.dart';
 import '../models/Default.dart';
+import 'QualitySwitcher.dart';
 
 /// 设置 tab 内容(放进 app_shell 的 IndexedStack)。
 /// 父级 IndexedStack 必须被 Expanded 包裹 —— 否则 Column 的主轴给的是
@@ -64,6 +65,11 @@ class Settings extends StatelessWidget {
             onTap: () => auth.loggedIn ? _doLogout() : _openLogin(),
           );
         }),
+        const ListTile(
+          leading: Icon(Icons.high_quality_outlined),
+          title: Text('音质'),
+          trailing: QualitySwitcher(),
+        ),
       ],
     );
   }

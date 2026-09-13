@@ -3,6 +3,7 @@ import '../models/Snapshot.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
 
+import '../SettingsPage/SettingsController.dart';
 import 'LikedController.dart';
 import 'repositories/SongRepository.dart';
 
@@ -32,6 +33,7 @@ class AudioPlayerHandler extends BaseAudioHandler
   AudioPlayerHandler({
     required this._songRepo,
     required this._likedService,
+    required this._settings,
     List<MediaItem> initialQueue = const [],
     int initialIndex = -1,
     PlayOrder initialMode = PlayOrder.sequential,
@@ -75,6 +77,10 @@ class AudioPlayerHandler extends BaseAudioHandler
 
   final SongRepository _songRepo;
   final LikedController _likedService;
+  /// 全局音质偏好 (用户设置) —— 在 [_playAt] 拉 URL 时取当前值传给
+  /// [SongRepository.fetchSongUrl], 走 `/song/url/v1` 接口。
+  /// 改值不需要重启 handler, 下一次 _playAt 自动读到新值。
+  final SettingsController _settings;
   final AudioPlayer _audio = AudioPlayer();
 
   /// likedSongIds 变化的订阅 (用于锁屏 like 按钮 icon 实时更新)
@@ -505,8 +511,11 @@ class AudioPlayerHandler extends BaseAudioHandler
     if (queueIndex < 0 || queueIndex >= _queue.length) return;
     _currentIndex = queueIndex;
 
-    // 准备 URL:从 repo 拉真实 url,写到 MediaItem.extras 里
-    final url = await _songRepo.fetchSongUrl(_queue[queueIndex].id);
+    // 准备 URL:从 repo 拉真实 url (按当前用户音质偏好),写到 MediaItem.extras 里
+    final url = await _songRepo.fetchSongUrl(
+      _queue[queueIndex].id,
+      level: _settings.currentQuality.value.name,
+    );
     if (url == null) return; // 取不到 URL 直接放弃 (上层 snackbar 另说)
     // stale request 校验: await 期间用户可能又切了别的歌,
     // 此刻 _currentIndex 已不是本次目标,丢弃这个过期的 fetch 结果

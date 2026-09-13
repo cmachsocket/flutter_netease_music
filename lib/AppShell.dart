@@ -58,18 +58,29 @@ class AppShell extends StatelessWidget {
 
   /// shell 这一层的 Navigator,内容跟着 tab index 走
   static Widget _navigator(PageIndex i) {
-    return Navigator(
-      key: Get.nestedKey(DefaultValues.shellNavigatorId),
-      initialRoute: '/',
-      onGenerateRoute: (settings) {
-        if (settings.name == '/') {
-          return GetPageRoute(
-            page: () => _content(i),
-            binding: _bindingForTab(i),
-          );
+    final key = Get.nestedKey(DefaultValues.shellNavigatorId);
+
+    return NavigatorPopHandler(
+      onPopWithResult: (result) {
+        final navigator = key?.currentState;
+
+        if (navigator != null && navigator.canPop()) {
+          navigator.pop(result);
         }
-        return null;
       },
+      child: Navigator(
+        key: key,
+        initialRoute: '/',
+        onGenerateRoute: (settings) {
+          if (settings.name == '/') {
+            return GetPageRoute(
+              page: () => _content(i),
+              binding: _bindingForTab(i),
+            );
+          }
+          return null;
+        },
+      ),
     );
   }
 

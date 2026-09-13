@@ -6,6 +6,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 
+import '../SettingsPage/SettingsController.dart';
 import '../models/Headers.dart';
 import '../models/Song.dart';
 import 'LikedController.dart';
@@ -37,6 +38,11 @@ class AudioPlayerService extends GetxController {
   final SongRepository _songRepo = Get.find<SongRepository>();
   final LikedController _likedService = Get.find<LikedController>();
   final LyricsRepository _lyricsRepo = Get.find<LyricsRepository>();
+  /// 全局音质偏好 (SettingsPage 用户选择) —— 注入到 handler,handler 在
+  /// _playAt 拉 URL 时取当前 quality 作为 level 参数。
+  /// wrapper 不在这里读 currentQuality —— 单向流: handler 自己取,
+  /// wrapper 只持有引用避免 handler 重新 Get.find。
+  final SettingsController _settings = Get.find<SettingsController>();
   late final AudioPlayerHandler audioHandler;
 
   // ---- 业务层 Rx 集合 (跟 UI / 上层 controller 交互用) ------------------------
@@ -194,6 +200,7 @@ class AudioPlayerService extends GetxController {
       builder: () => AudioPlayerHandler(
         songRepo: _songRepo,
         likedService: _likedService,
+        settings: _settings,
         initialQueue: initialItems,
         initialIndex: initialIndex,
         initialMode: savedMode,

@@ -136,9 +136,10 @@ const List<MethodSpec> methodSpecs = [
     ParamSlot('type', defaultIfMissing: '1'),
     ParamSlot('limit', defaultIfMissing: '30'),
   ]),
-  MethodSpec(method: 'song_url', params: [
+  // song_url 已弃用, 改用 song_url_v1 (按音质等级而非码率)。
+  MethodSpec(method: 'song_url_v1', params: [
     ParamSlot('id'),
-    ParamSlot('br', defaultIfMissing: '999000'),
+    ParamSlot('level'),
   ]),
   MethodSpec(method: 'song_detail', params: [
     ParamSlot('ids'),
