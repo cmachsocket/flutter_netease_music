@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../theme/ThemeController.dart';
+import 'ThemeController.dart';
 
 /// 设置页用的三段主题切换器
 /// 使用 ToggleButtons 替代 SegmentedButton 以解决 Android 渲染黑屏问题
@@ -20,7 +20,7 @@ class ThemeSwitcher extends StatelessWidget {
         ],
         onPressed: (index) {
           final modes = [ThemeMode.system, ThemeMode.light, ThemeMode.dark];
-          theme.set(modes[index]);
+          theme.setMode(modes[index]);
         },
         children: const [
           Icon(Icons.brightness_auto),
@@ -29,5 +29,20 @@ class ThemeSwitcher extends StatelessWidget {
         ],
       );
     });
+  }
+}
+
+class ColorSchemeSwitcher extends StatelessWidget {
+  const ColorSchemeSwitcher({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final themeCtrl = Get.find<ThemeController>();
+    return IconButton(
+      icon: const Icon(Icons.color_lens_outlined),
+      onPressed: () {
+        themeCtrl.openColorPickerDialog();
+      },
+    );
   }
 }

@@ -28,13 +28,17 @@ class Lyrics extends StatelessWidget {
       width: double.infinity,
       height: double.infinity,
       style: LyricStyles.default1.copyWith(
-        textStyle: textTheme.bodyMedium?.copyWith(
+        textStyle: textTheme.titleLarge?.copyWith(
           color: scheme.onSurfaceVariant,
         ),
-        activeStyle: textTheme.titleMedium?.copyWith(
+        activeStyle: textTheme.titleLarge?.copyWith(
           color: scheme.primary,
           fontWeight: FontWeight.bold,
         ),
+        translationStyle: textTheme.titleMedium?.copyWith(
+          color: scheme.onSurfaceVariant,
+        ),
+        translationActiveColor: scheme.primary,
         activeHighlightColor: scheme.primary,
         textAlign: TextAlign.center,
         contentAlignment: CrossAxisAlignment.center,

@@ -26,9 +26,9 @@ class MusicProgressBar extends StatelessWidget {
         onSeek: controller.seek,
         progressBarColor: scheme.primary,
         baseBarColor: scheme.onSurface.withValues(alpha: baseBarAplha),
-        bufferedBarColor: scheme.primary.withValues(alpha: bufferedBarAlpha),
-        thumbColor: scheme.primary,
-        thumbGlowColor: scheme.primary.withValues(alpha: thumbGlowColorAlpha),
+        bufferedBarColor: scheme.tertiary.withValues(alpha: bufferedBarAlpha),
+        thumbColor: scheme.secondary,
+        thumbGlowColor: scheme.secondary.withValues(alpha: thumbGlowColorAlpha),
         timeLabelTextStyle: textTheme.bodySmall,
       ),
     );

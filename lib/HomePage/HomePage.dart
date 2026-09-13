@@ -15,23 +15,20 @@ class HomePage extends StatelessWidget {
     final home = Get.find<HomeController>();
     final textTheme = Theme.of(context).textTheme;
 
-    return Column(
-      children: [
-        // 推荐歌单标题 —— Align 让 Text 撑满宽度后靠左,不需要 padding
-        Align(
-          alignment: Alignment.centerLeft,
-          child: ListTile(
-            title: Text('推荐歌单', style: textTheme.titleLarge),
-            trailing: IconButton(
-              icon: Icon(Icons.refresh),
-              onPressed: home.load,
-            ),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('推荐歌单', style: textTheme.titleLarge),
+        actions: [
+          IconButton(
+            tooltip: '刷新',
+            icon: const Icon(Icons.refresh),
+            onPressed: home.load,
           ),
-        ),
-
-        // 推荐歌单网格
-        Expanded(child: _RecommendedGrid(home: home)),
-      ],
+        ],
+      ),
+      body:
+          // 推荐歌单网格
+          _RecommendedGrid(home: home),
     );
   }
 }

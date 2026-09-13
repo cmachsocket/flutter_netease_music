@@ -4,7 +4,7 @@ import 'package:get/get.dart';
 import 'LoginController.dart';
 import 'LoginPage.dart';
 import 'SettingsController.dart';
-import 'ThemeSwitcher.dart';
+import '../theme/ThemeSwitcher.dart';
 import '../models/Default.dart';
 import 'QualitySwitcher.dart';
 import 'DownloadPage.dart';
@@ -48,7 +48,12 @@ class Settings extends StatelessWidget {
           subtitle: Text('跟随系统 / 浅色 / 深色'),
           trailing: ThemeSwitcher(),
         ),
-
+        const ListTile(
+          leading: Icon(Icons.colorize),
+          title: Text('强调色'),
+          subtitle: Text('自定义强调色'),
+          trailing: ColorSchemeSwitcher(),
+        ),
         // 登录账号:已登录 → "已登录 (退出)" / 未登录 → "登录账号"
         Obx(() {
           final auth = Get.find<AuthController>();

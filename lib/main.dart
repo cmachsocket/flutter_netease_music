@@ -26,7 +26,6 @@ import 'services/PlaylistEventsController.dart';
 import 'services/repositories/LibraryRepository.dart';
 import 'sdk/AuthController.dart';
 import 'services/DownloadService.dart';
-import 'theme/AppTheme.dart';
 import 'theme/ThemeController.dart';
 import 'widgets/netease_image.dart' show NeteaseHttpOverrides;
 
@@ -191,8 +190,8 @@ class FlutterNeteaseMusicApp extends StatelessWidget {
         title: 'Flutter Netease Music',
         debugShowCheckedModeBanner: false,
         initialBinding: AppShellBinding(),
-        theme: AppTheme.light(),
-        darkTheme: AppTheme.dark(),
+        theme: theme.lightTheme,
+        darkTheme: theme.darkTheme,
         themeMode: theme.mode.value,
         home: const AppShell(),
       ),

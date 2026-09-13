@@ -127,7 +127,8 @@ class AppShell extends StatelessWidget {
                 tab.change(j);
                 // 用 GetX 的导航 API 推到 shell 自己的 navigator
                 final toThePage = PageIndex.values[j.clamp(0, tailOfThePage)];
-                Get.to(
+                Get.offAll(
+                  //清空 navigator 栈,避免积压
                   () => _content(toThePage),
                   binding: _bindingForTab(toThePage),
                   id: DefaultValues.shellNavigatorId,
