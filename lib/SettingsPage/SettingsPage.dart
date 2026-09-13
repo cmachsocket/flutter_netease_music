@@ -8,6 +8,7 @@ import 'ThemeSwitcher.dart';
 import '../models/Default.dart';
 import 'QualitySwitcher.dart';
 import 'DownloadPage.dart';
+import 'package:media_store_plus/media_store_plus.dart';
 
 /// 设置 tab 内容(放进 app_shell 的 IndexedStack)。
 /// 父级 IndexedStack 必须被 Expanded 包裹 —— 否则 Column 的主轴给的是
@@ -73,19 +74,20 @@ class Settings extends StatelessWidget {
         ),
         ListTile(
           leading: const Icon(Icons.download_outlined),
-          title: const Text('下载'),
-          subtitle: Obx(
-            () => Text(
-              settingsCtrl.DownloadPath.value.isEmpty
-                  ? '未设置'
-                  : settingsCtrl.DownloadPath.value,
+          title: const Text('下载模式'),
+          subtitle: Text('点击进入下载详情'),
+          trailing: Obx(
+            () => Switch(
+              value: settingsCtrl.DownloadMode.value,
+              onChanged: (value) async {
+                await settingsCtrl.setDownloadPath(value);
+              },
             ),
           ),
           onTap: () => Get.to(
             () => const DownloadPage(),
             id: DefaultValues.shellNavigatorId,
           ),
-          trailing: DownloadPathSwitcher(),
         ),
       ],
     );

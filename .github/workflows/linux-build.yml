@@ -1,0 +1,178 @@
+name: Linux Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Linux x64 bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      # ------------------------------------------------------------
+      # Source
+      # ------------------------------------------------------------
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # ------------------------------------------------------------
+      # System dependencies
+      # ------------------------------------------------------------
+      # ncm_api_enhanced 在 desktop 是 pure Dart (调系统 node), 所以这里
+      # 不需要 Android 那套 JDK / Android SDK / NDK。
+      # CMake + GTK + pkg-config 是 Flutter Linux build 的硬依赖;
+      # media_kit 的 mpv 后端由 pubspec 里的 media_kit_libs_linux 提供
+      # 预编译 .so, 不需要系统 libmpv-dev。
+      # node 是 ncm_api_enhanced desktop bridge 启动时 Process.spawn 用的。
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake \
+            gcc \
+            g++ \
+            pkg-config \
+            libgtk-3-dev \
+            nodejs \
+            ninja-build
+
+      - name: Setup Node.js 22 (matches ncm_api_enhanced upstream)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # ------------------------------------------------------------
+      # Cache
+      # ------------------------------------------------------------
+      - name: Cache Pub
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-ubuntu-flutter-3.47.0-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-ubuntu-flutter-3.47.0-
+            pub-
+
+      - name: Cache CMake / Flutter Linux artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cmake
+            build
+          key: cmake-ubuntu-linux-x64-${{ hashFiles('**/CMakeLists.txt', '**/linux/CMakeLists.txt') }}
+          restore-keys: |
+            cmake-ubuntu-linux-x64-
+
+      # ------------------------------------------------------------
+      # Flutter
+      # ------------------------------------------------------------
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.0
+          cache: true
+
+      - name: Flutter doctor
+        run: flutter doctor -v
+
+      # ------------------------------------------------------------
+      # Dependencies
+      # ------------------------------------------------------------
+      - name: Flutter pub get
+        run: flutter pub get
+
+      # ------------------------------------------------------------
+      # Build
+      # ------------------------------------------------------------
+      # flutter build linux 默认输出到 build/linux/x64/release/bundle/,
+      # 含可执行文件 + lib/*.so + data/flutter_assets/ + icudtl.dat。
+      # 把整个 bundle 目录打包成 tar.gz 给用户直接解压就能跑。
+      - name: Build release bundle
+        run: |
+          flutter build linux \
+            --release \
+            --target-platform=linux-x64
+
+      # ------------------------------------------------------------
+      # Verify bundle
+      # ------------------------------------------------------------
+      - name: Verify bundle
+        run: |
+          BUNDLE="build/linux/x64/release/bundle"
+
+          if [ ! -d "$BUNDLE" ]; then
+            echo "::error::bundle missing at $BUNDLE"
+            echo "Actual contents:"
+            find build/linux -maxdepth 4 -type d -print 2>/dev/null || true
+            exit 1
+          fi
+
+          echo "=== Bundle top-level ==="
+          ls -lh "$BUNDLE"
+
+          echo
+          echo "=== Bundle libraries ==="
+          ls -lh "$BUNDLE/lib" || true
+
+      # ------------------------------------------------------------
+      # Package
+      # ------------------------------------------------------------
+      - name: Package artifact
+        run: |
+          BUNDLE="build/linux/x64/release/bundle"
+          STAGE="release-artifacts/flutter_netease_music-linux-x64"
+
+          rm -rf release-artifacts
+          mkdir -p release-artifacts
+          mkdir -p "$STAGE"
+          cp -r "$BUNDLE"/. "$STAGE"/
+
+          cd release-artifacts
+          tar -czf flutter_netease_music-linux-x64.tar.gz \
+            flutter_netease_music-linux-x64
+
+          sha256sum *.tar.gz > SHA256SUMS
+
+          echo
+          echo "=== release artifacts ==="
+          ls -lh
+
+          echo
+          echo "=== SHA256SUMS ==="
+          cat SHA256SUMS
+
+      # ------------------------------------------------------------
+      # GitHub Release
+      # ------------------------------------------------------------
+      - name: Upload to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          overwrite_files: true
+          files: |
+            release-artifacts/*.tar.gz
+            release-artifacts/SHA256SUMS
+
+      # ------------------------------------------------------------
+      # Manual workflow run
+      # ------------------------------------------------------------
+      - name: Upload artifacts (manual run only)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter_netease_music-linux-x64
+          path: release-artifacts/
+          retention-days: 7

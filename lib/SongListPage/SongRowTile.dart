@@ -5,6 +5,7 @@ import '../widgets/linked_detail_text.dart';
 import '../widgets/song_cover.dart';
 import '../models/Default.dart';
 import 'package:responsive_builder/responsive_builder.dart';
+import '../SettingsPage/SettingsController.dart';
 
 /// 查询 song 是否被喜欢的回调（无参：调用方包好 song 后注入）
 typedef IsLikedGetter = bool Function();
@@ -42,6 +43,7 @@ class SongRowTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final settingsCtrl = Get.find<SettingsController>();
     return ListTile(
       selected: selected,
       leading: AspectRatio(
@@ -82,13 +84,21 @@ class SongRowTile extends StatelessWidget {
                 tooltip: '喜爱',
               );
             }),
-          IconButton(
-            padding: DefaultValues.onlyZero,
-            icon: const Icon(Icons.play_arrow),
-            onPressed: onPlay,
-            tooltip: '播放',
-          ),
-          if (extraTrailing != null) extraTrailing!(),
+          //extraTrailing存在时 在下载模式下 下载图标会失效，
+          Obx(() {
+            if (extraTrailing != null) {
+              return const SizedBox.shrink();
+            } else if (settingsCtrl.DownloadMode.value) {
+              return IconButton(
+                padding: DefaultValues.onlyZero,
+                icon: const Icon(Icons.download_outlined),
+                onPressed: null, // TODO: 下载模式下的下载按钮响应
+                tooltip: '下载',
+              );
+            } else {
+              return const SizedBox.shrink();
+            }
+          }),
         ],
       ),
     );
