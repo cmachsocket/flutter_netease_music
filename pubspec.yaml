@@ -57,7 +57,7 @@ dependencies:
   cached_network_image_ce: 
   audio_service_mpris:
   android_libcpp_shared:
-  media_store_plus:
+  background_downloader:
 dev_dependencies:
   flutter_test:
     sdk: flutter
