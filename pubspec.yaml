@@ -53,11 +53,11 @@ dependencies:
   media_kit_libs_linux:
   media_kit_libs_windows_audio:
   media_kit_libs_android_audio:
-  keyboard_insets:
   meta:
   cached_network_image_ce: 
   audio_service_mpris:
   android_libcpp_shared:
+  file_picker:
 dev_dependencies:
   flutter_test:
     sdk: flutter

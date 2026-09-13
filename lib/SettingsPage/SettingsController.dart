@@ -26,9 +26,11 @@ enum Quality { standard, higher, exhigh, lossless, hires }
 
 class SettingsController extends GetxController {
   static const _key = 'quality_v1';
+  static const _download_key = 'download_path_v1';
   final _box = GetStorage();
 
   late final Rx<Quality> currentQuality;
+  late final Rx<String> DownloadPath;
 
   @override
   void onInit() {
@@ -42,6 +44,7 @@ class SettingsController extends GetxController {
                     orElse: () => Quality.standard,
                   ))
             .obs;
+    DownloadPath = _box.read<String>(_download_key)?.obs ?? ''.obs;
   }
 
   /// 切换音质。立刻写盘 (GetStorage write 同步), 后续 [_playAt] event loop
@@ -49,8 +52,13 @@ class SettingsController extends GetxController {
   ///
   /// 返回值给 UI 用 (snackbar "已切换到无损" 等), 失败也算"已切换" (内存值
   /// 已变, 下次写盘重试)。上层不需要 await 这个 future。
-  Future<void> set(Quality q) async {
+  Future<void> setQuality(Quality q) async {
     currentQuality.value = q;
     await _box.write(_key, q.name);
+  }
+
+  Future<void> setDownloadPath(String path) async {
+    DownloadPath.value = path;
+    await _box.write(_download_key, path);
   }
 }

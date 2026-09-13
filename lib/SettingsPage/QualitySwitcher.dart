@@ -30,7 +30,7 @@ class QualitySwitcher extends StatelessWidget {
         ],
         onChanged: (value) {
           if (value != null) {
-            settingsCtrl.set(value);
+            settingsCtrl.setQuality(value);
           }
         },
       ),

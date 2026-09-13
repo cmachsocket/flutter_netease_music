@@ -7,6 +7,7 @@ import 'SettingsController.dart';
 import 'ThemeSwitcher.dart';
 import '../models/Default.dart';
 import 'QualitySwitcher.dart';
+import 'DownloadPage.dart';
 
 /// 设置 tab 内容(放进 app_shell 的 IndexedStack)。
 /// 父级 IndexedStack 必须被 Expanded 包裹 —— 否则 Column 的主轴给的是
@@ -38,7 +39,7 @@ class Settings extends StatelessWidget {
     // 之前这里没有 binding, AppShell._bindingForTab(3) fallthrough 到 default
     // (HomePageBinding), 导致切到设置 tab 时 binding lifecycle 跟其他 tab 不一致,
     // 推测是 Android 16 / Flutter 3.47 上点击设置 tab 渲染 stall 到 fps=0.44 的 root cause。
-    Get.find<SettingsController>();
+    final settingsCtrl = Get.find<SettingsController>();
     return ListView(
       children: [
         const ListTile(
@@ -69,6 +70,22 @@ class Settings extends StatelessWidget {
           leading: Icon(Icons.high_quality_outlined),
           title: Text('音质'),
           trailing: QualitySwitcher(),
+        ),
+        ListTile(
+          leading: const Icon(Icons.download_outlined),
+          title: const Text('下载'),
+          subtitle: Obx(
+            () => Text(
+              settingsCtrl.DownloadPath.value.isEmpty
+                  ? '未设置'
+                  : settingsCtrl.DownloadPath.value,
+            ),
+          ),
+          onTap: () => Get.to(
+            () => const DownloadPage(),
+            id: DefaultValues.shellNavigatorId,
+          ),
+          trailing: DownloadPathSwitcher(),
         ),
       ],
     );

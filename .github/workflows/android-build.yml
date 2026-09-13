@@ -1,4 +1,3 @@
----
 name: Android Release
 
 on:
@@ -32,7 +31,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '17'
-          distribution: 'temurin'
+          distribution: temurin
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -76,10 +75,6 @@ jobs:
 
       # ------------------------------------------------------------
       # Android Gradle wrapper
-      #
-      # This android/ directory belongs to the Flutter APP.
-      # It is unrelated to ncm_api_enhanced's old Android plugin
-      # directory.
       # ------------------------------------------------------------
       - name: Ensure gradlew is executable
         run: |
@@ -99,75 +94,32 @@ jobs:
 
       # ------------------------------------------------------------
       # Dependencies
-      #
-      # Important:
-      # ncm_api_enhanced's hook/build.dart is NOT invoked manually.
-      # Flutter invokes the Native Assets build hook automatically
-      # during `flutter build apk`.
       # ------------------------------------------------------------
       - name: Flutter pub get
         run: flutter pub get
 
       # ------------------------------------------------------------
       # Build
-      #
-      # Only arm64 is requested.
-      #
-      # ncm_api_enhanced/hook/build.dart:
-      #
-      #   buildCodeAssets
-      #        ↓
-      #   targetOS == Android
-      #        ↓
-      #   targetArchitecture == arm64
-      #        ↓
-      #   download nodejs-mobile v18.20.4
-      #        ↓
-      #   extract libnode.so
-      #        ↓
-      #   CBuilder -> libncm_node_bridge.so
-      #        ↓
-      #   register CodeAssets
-      #
-      # No old Android Plugin / Kotlin / JNI / CMake code from
-      # ncm_api_enhanced is involved here.
       # ------------------------------------------------------------
-      - name: Build debug APK
-        # 2026-08-24 优化: 原来 4 ABI 全编 + debug symbol 完整输出 = 178MB。
-        # 改成只出 arm64-v8a split APK:
-        #   - --target-platform=android-arm64 限制 Flutter Dart AOT engine (libapp.so)
-        #     只编 arm64。
-        #   - --split-per-abi 让 AGP splits 拆出单 ABI APK。
-        # 注: FlutterPlugin 只 hook application module, plugin (library module, 如
-        # musiclibrary) 仍按 plugin 自己的 defaultConfig 编全部 ABI .so。但 splits 在
-        # 打包阶段只挑目标 ABI 进 APK, 最终 APK 仍是单 ABI。
-        # release build 保留 4 ABI: 去掉 --target-platform 保留 --split-per-abi
-        # (产 4 个 split APK, 每个含一个 ABI)。
-        working-directory: .
+      - name: Build release APK
         run: |
           flutter build apk \
-            --debug \
+            --release \
             --target-platform=android-arm64 \
             --split-per-abi \
             --no-tree-shake-icons
 
-      # 路径说明: AGP splits-per-abi + debug buildType 产出
-      #   <repo-root>/build/app/outputs/apk/debug/app-arm64-v8a-debug.apk
-      # (命名规则: <module>-<abi>-<buildType>.apk, 见 AGP docs configure-apk-splits)。
-      # 之前误写成 app-arm64-v8a.apk, verify step 找不到文件。
-      # android/build.gradle.kts 里 rootProject.layout.buildDirectory.dir("../../build")
-      # 把 build/ 移到仓库根。
-      - name: Verify native libs in APK
+      # ------------------------------------------------------------
+      # Verify APK
+      # ------------------------------------------------------------
+      - name: Verify APK
         run: |
-          APK="build/app/outputs/apk/debug/app-arm64-v8a-debug.apk"
+          APK="build/app/outputs/apk/release/app-arm64-v8a-release.apk"
 
           if [ ! -f "$APK" ]; then
             echo "::error::APK not found at $APK"
-            echo "Expected:"
-            echo "  $APK"
-            echo
             echo "Actual files:"
-            find build/app/outputs/apk/debug \
+            find build/app/outputs/apk/release \
               -maxdepth 2 \
               -type f \
               -print 2>/dev/null || true
@@ -178,16 +130,11 @@ jobs:
           ls -lh "$APK"
 
       # ------------------------------------------------------------
-      # Verify Native Assets inside APK
-      #
-      # The new ncm_api_enhanced architecture requires:
-      #
-      #   lib/arm64-v8a/libncm_node_bridge.so
-      #   lib/arm64-v8a/libnode.so
+      # Verify Native Assets
       # ------------------------------------------------------------
       - name: Verify Node native libraries in APK
         run: |
-          APK="build/app/outputs/apk/debug/app-arm64-v8a-debug.apk"
+          APK="build/app/outputs/apk/release/app-arm64-v8a-release.apk"
 
           echo "=== Native libraries in APK ==="
           unzip -l "$APK" | grep -E '\.so$' || true
@@ -218,17 +165,10 @@ jobs:
 
       # ------------------------------------------------------------
       # Verify bridge -> libnode.so
-      #
-      # This verifies that CBuilder actually generated:
-      #
-      #   DT_NEEDED -> libnode.so
-      #
-      # Having both files in the APK is not sufficient.
-      # The bridge must actually be dynamically linked against Node.
       # ------------------------------------------------------------
       - name: Verify bridge DT_NEEDED
         run: |
-          APK="build/app/outputs/apk/debug/app-arm64-v8a-debug.apk"
+          APK="build/app/outputs/apk/release/app-arm64-v8a-release.apk"
 
           CHECK_DIR="$RUNNER_TEMP/ncm-native-check"
           mkdir -p "$CHECK_DIR"
@@ -238,7 +178,6 @@ jobs:
             > "$CHECK_DIR/libncm_node_bridge.so"
 
           echo "=== libncm_node_bridge.so dynamic dependencies ==="
-
           readelf -d "$CHECK_DIR/libncm_node_bridge.so" \
             | grep NEEDED || true
 
@@ -256,13 +195,11 @@ jobs:
           echo "Bridge -> libnode.so: OK"
 
       # ------------------------------------------------------------
-      # Verify Node library architecture
-      #
-      # Prevent accidentally packaging a wrong ABI.
+      # Verify architecture
       # ------------------------------------------------------------
       - name: Verify Node library architecture
         run: |
-          APK="build/app/outputs/apk/debug/app-arm64-v8a-debug.apk"
+          APK="build/app/outputs/apk/release/app-arm64-v8a-release.apk"
 
           CHECK_DIR="$RUNNER_TEMP/ncm-native-check"
           mkdir -p "$CHECK_DIR"
@@ -277,38 +214,37 @@ jobs:
 
           echo "=== libnode.so ==="
           file "$CHECK_DIR/libnode.so"
-          readelf -h "$CHECK_DIR/libnode.so" | grep -E 'Class|Machine'
+          readelf -h "$CHECK_DIR/libnode.so" \
+            | grep -E 'Class|Machine'
 
           echo
           echo "=== libncm_node_bridge.so ==="
           file "$CHECK_DIR/libncm_node_bridge.so"
-          readelf -h "$CHECK_DIR/libncm_node_bridge.so" | grep -E 'Class|Machine'
+          readelf -h "$CHECK_DIR/libncm_node_bridge.so" \
+            | grep -E 'Class|Machine'
 
           echo
 
-          # ELF64 + AArch64
-          readelf -h "$CHECK_DIR/libnode.so" \
-            | grep -q 'Machine:.*AArch64' \
-            || {
-              echo "::error::libnode.so is not AArch64"
-              exit 1
-            }
+          if ! readelf -h "$CHECK_DIR/libnode.so" \
+              | grep -q 'Machine:.*AArch64'; then
+            echo "::error::libnode.so is not AArch64"
+            exit 1
+          fi
 
-          readelf -h "$CHECK_DIR/libncm_node_bridge.so" \
-            | grep -q 'Machine:.*AArch64' \
-            || {
-              echo "::error::libncm_node_bridge.so is not AArch64"
-              exit 1
-            }
+          if ! readelf -h "$CHECK_DIR/libncm_node_bridge.so" \
+              | grep -q 'Machine:.*AArch64'; then
+            echo "::error::libncm_node_bridge.so is not AArch64"
+            exit 1
+          fi
 
           echo "Both native libraries are AArch64."
 
       # ------------------------------------------------------------
-      # Optional but useful: inspect Node dependencies
+      # Inspect libnode.so
       # ------------------------------------------------------------
       - name: Inspect libnode.so dependencies
         run: |
-          APK="build/app/outputs/apk/debug/app-arm64-v8a-debug.apk"
+          APK="build/app/outputs/apk/release/app-arm64-v8a-release.apk"
 
           CHECK_DIR="$RUNNER_TEMP/ncm-native-check"
           mkdir -p "$CHECK_DIR"
@@ -321,23 +257,22 @@ jobs:
           readelf -d "$CHECK_DIR/libnode.so" | grep NEEDED || true
 
       # ------------------------------------------------------------
-      # Prepare debug artifacts
+      # Prepare artifacts
       # ------------------------------------------------------------
       - name: Prepare artifacts
-        id: prep
         run: |
-          APK="build/app/outputs/apk/debug/app-arm64-v8a-debug.apk"
+          APK="build/app/outputs/apk/release/app-arm64-v8a-release.apk"
 
-          mkdir -p debug-artifacts
+          mkdir -p release-artifacts
 
-          cp "$APK" debug-artifacts/
+          cp "$APK" release-artifacts/
 
-          cd debug-artifacts
+          cd release-artifacts
 
           sha256sum *.apk > SHA256SUMS
 
           echo
-          echo "=== debug artifacts ==="
+          echo "=== release artifacts ==="
           ls -lh
 
           echo
@@ -349,14 +284,15 @@ jobs:
       # ------------------------------------------------------------
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
+          overwrite_files: true
           files: |
-            debug-artifacts/*.apk
-            debug-artifacts/SHA256SUMS
+            release-artifacts/*.apk
+            release-artifacts/SHA256SUMS
 
       # ------------------------------------------------------------
       # Manual workflow run
@@ -365,6 +301,6 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: app-build
-          path: debug-artifacts/
+          name: app-release
+          path: release-artifacts/
           retention-days: 7
