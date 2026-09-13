@@ -88,7 +88,7 @@ class SongRowTile extends StatelessWidget {
           Obx(() {
             if (extraTrailing != null) {
               return const SizedBox.shrink();
-            } else if (settingsCtrl.DownloadMode.value) {
+            } else if (settingsCtrl.downloadMode.value) {
               return IconButton(
                 padding: DefaultValues.onlyZero,
                 icon: const Icon(Icons.download_outlined),

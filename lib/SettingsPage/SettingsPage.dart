@@ -78,9 +78,9 @@ class Settings extends StatelessWidget {
           subtitle: Text('点击进入下载详情'),
           trailing: Obx(
             () => Switch(
-              value: settingsCtrl.DownloadMode.value,
+              value: settingsCtrl.downloadMode.value,
               onChanged: (value) async {
-                await settingsCtrl.setDownloadPath(value);
+                settingsCtrl.downloadMode.value = value;
               },
             ),
           ),

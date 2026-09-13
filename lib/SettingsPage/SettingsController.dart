@@ -29,7 +29,7 @@ class SettingsController extends GetxController {
   final _box = GetStorage();
 
   late final Rx<Quality> currentQuality;
-  final Rx<bool> DownloadMode = false.obs;
+  final Rx<bool> downloadMode = false.obs;
 
   @override
   void onInit() {
@@ -53,9 +53,5 @@ class SettingsController extends GetxController {
   Future<void> setQuality(Quality q) async {
     currentQuality.value = q;
     await _box.write(_key, q.name);
-  }
-
-  Future<void> setDownloadPath(bool mode) async {
-    DownloadMode.value = mode;
   }
 }
