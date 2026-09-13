@@ -6,6 +6,8 @@ import '../widgets/song_cover.dart';
 import '../models/Default.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 import '../SettingsPage/SettingsController.dart';
+import '../services/DownloadService.dart';
+import '../models/DownloadTaskView.dart';
 
 /// 查询 song 是否被喜欢的回调（无参：调用方包好 song 后注入）
 typedef IsLikedGetter = bool Function();
@@ -84,23 +86,124 @@ class SongRowTile extends StatelessWidget {
                 tooltip: '喜爱',
               );
             }),
-          //extraTrailing存在时 在下载模式下 下载图标会失效，
-          Obx(() {
-            if (extraTrailing != null) {
-              return const SizedBox.shrink();
-            } else if (settingsCtrl.downloadMode.value) {
-              return IconButton(
-                padding: DefaultValues.onlyZero,
-                icon: const Icon(Icons.download_outlined),
-                onPressed: null, // TODO: 下载模式下的下载按钮响应
-                tooltip: '下载',
-              );
-            } else {
-              return const SizedBox.shrink();
-            }
-          }),
+          // 下载模式下的下载按钮。
+          // 三态合一:
+          // - extraTrailing != null: caller 提供了自定义 trailing (如专辑页"更多"),
+          //   本组件不接管,避免重复按钮挤在一起。
+          // - settingsCtrl.DownloadMode == false: 不显示下载按钮 (隐藏)。
+          // - DownloadMode == true: 显示下载按钮,根据 DownloadService.tasks[songId]
+          //   实时变化: idle / queued / running(progress) / complete(check) / failed(alert)。
+          //
+          // 外层 if-else 拆开避免 Obx 闭包零订阅 (GetX 会抛 "improper use") —
+          // DownloadMode 路径必须包 Obx 才能响应 settings 切换,空路径不需要 Obx。
+          if (settingsCtrl.downloadMode.value)
+            Obx(() {
+              final downloadSvc = Get.find<DownloadService>();
+              final view = downloadSvc.tasks[song.id];
+              return _DownloadButton(song: song, view: view);
+            })
+          else if (extraTrailing != null)
+            extraTrailing!()
+          else
+            const SizedBox.shrink(),
         ],
       ),
     );
+  }
+}
+
+/// 下载按钮 —— 单一职责,根据 [view] (DownloadService.tasks[songId] 的当前值)
+/// 决定图标 / 进度 / 点击行为。
+///
+/// - view == null (这首歌还没下载过): 显示普通下载图标,点击触发下载
+/// - view.status == enqueued / running: 显示 CircularProgressIndicator,点击取消
+/// - view.status == complete: 显示 check,点击无效 (已在 DownloadPage 提供移除按钮)
+/// - view.status == failed / canceled / notFound: 显示 alert,点击重试 (复用 download())
+class _DownloadButton extends StatelessWidget {
+  const _DownloadButton({required this.song, required this.view});
+
+  final Song song;
+  final DownloadTaskView? view;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final svc = Get.find<DownloadService>();
+    final status = view?.status;
+    final isInProgress =
+        status == DownloadStatus.enqueued ||
+        status == DownloadStatus.running ||
+        status == DownloadStatus.waitingToRetry;
+    final isComplete = status == DownloadStatus.complete;
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        IconButton(
+          padding: DefaultValues.onlyZero,
+          icon: Icon(
+            _iconFor(status),
+            color: isComplete ? scheme.primary : null,
+          ),
+          tooltip: _tooltipFor(status),
+          onPressed: () {
+            if (isInProgress) {
+              svc.remove(song.id);
+            } else {
+              // ignore: discarded_futures
+              svc.download(song);
+            }
+          },
+        ),
+        // running 时按钮底下叠一圈进度环,圆形覆盖在 IconButton 上
+        if (status == DownloadStatus.running ||
+            status == DownloadStatus.waitingToRetry)
+          IgnorePointer(
+            child: SizedBox.expand(
+              child: CircularProgressIndicator(
+                value: (view?.progress ?? 0) > 0 ? view!.progress : null,
+                color: scheme.primary,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  IconData _iconFor(DownloadStatus? s) {
+    switch (s) {
+      case DownloadStatus.complete:
+        return Icons.check_circle;
+      case DownloadStatus.failed:
+      case DownloadStatus.notFound:
+        return Icons.error_outline;
+      case DownloadStatus.canceled:
+        return Icons.cancel_outlined;
+      case DownloadStatus.enqueued:
+      case DownloadStatus.running:
+      case DownloadStatus.waitingToRetry:
+        return Icons.downloading;
+      case null:
+        return Icons.download_outlined;
+    }
+  }
+
+  String _tooltipFor(DownloadStatus? s) {
+    switch (s) {
+      case DownloadStatus.complete:
+        return '已下载';
+      case DownloadStatus.failed:
+      case DownloadStatus.notFound:
+        return '点击重试';
+      case DownloadStatus.canceled:
+        return '已取消 · 点击重试';
+      case DownloadStatus.enqueued:
+        return '等待中 · 点击取消';
+      case DownloadStatus.running:
+      case DownloadStatus.waitingToRetry:
+        return '下载中 · 点击取消';
+      case null:
+        return '下载';
+    }
   }
 }

@@ -25,6 +25,7 @@ import 'services/repositories/ArtistRepository.dart';
 import 'services/PlaylistEventsController.dart';
 import 'services/repositories/LibraryRepository.dart';
 import 'sdk/AuthController.dart';
+import 'services/DownloadService.dart';
 import 'theme/AppTheme.dart';
 import 'theme/ThemeController.dart';
 import 'widgets/netease_image.dart' show NeteaseHttpOverrides;
@@ -93,6 +94,19 @@ Future<void> main() async {
   // 单一 LikedController: 之前 4 个 service (Songs/Albums/Artists/Playlists) 都合并到这里,
   // 按 LikedType 分桶, API 调用走 LikedRepository
   Get.put<LikedController>(LikedController(), permanent: true);
+
+  // ---- 下载服务 (background_downloader 包装) ------------------------------
+  // 依赖 SongRepository (上面已经 put 好了)。
+  // Get.putAsync 是因为 init() 里有 await FileDownloader().start() 异步链,
+  // 不能放进 onInit (GetX _onStart 同步调 onInit 丢 future —— 见
+  // AudioPlayerService 注释里的 _onStart 引用)。putAsync 会 await builder
+  // 整链, 等 start + registerCallbacks + database 反序列化都完成才返回
+  // instance, 后续任何 Get.find<DownloadService>() 拿到的都是已就绪的。
+  await Get.putAsync<DownloadService>(() async {
+    final svc = DownloadService(Get.find<SongRepository>());
+    await svc.init();
+    return svc;
+  }, permanent: true);
 
   // ---- 音频服务层 (唯一入口) -----------------------------------------------
   // NewAudioPlayerService 把"PlayQueueService + 老 AudioPlayerService +

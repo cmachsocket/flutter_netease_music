@@ -11,6 +11,18 @@
     <!-- 媒体访问权限 -->
     <!-- 网络(SDK /search /song/url 等全部需要) -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- background_downloader: Android 13+ (API 33+) 强制要求, 否则 WorkManager
+         调度的 download 任务可能被系统拒绝 / 严重延迟 (通知 worker 需要 token)。 -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- background_downloader: Android 14+ (API 34+) 强制要求, 用于 UIDT
+         (User-Initiated Data Transfer) JobScheduler 模式, 不声明也能跑
+         (fallback 到 WorkManager), 但声明了能减少延迟。 -->
+    <uses-permission android:name="android.permission.RUN_USER_INITIATED_JOBS" />
+    <!-- background_downloader: Android 9 及以下 SharedStorage.downloads 走
+         moveToPublicDirectory 需要此权限写入公共目录。Android 10+ 走 MediaStore,
+         不需要此权限,但声明了不报错 (运行时忽略)。 -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
 
     <application
         android:label="flutter_netease_music"

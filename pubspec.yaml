@@ -58,6 +58,7 @@ dependencies:
   audio_service_mpris:
   android_libcpp_shared:
   background_downloader:
+  path_provider:
 dev_dependencies:
   flutter_test:
     sdk: flutter
