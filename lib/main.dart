@@ -139,9 +139,10 @@ Future<void> main() async {
     return audioWrapper;
   });
 
-  Get.lazyPut<PlayerController>(
-    () => PlayerController(),
+  Get.put<PlayerController>(
+    PlayerController(),
     tag: DefaultValues.playerControllerTag,
+    permanent: true,
   );
   // LyricsController 依赖 PlayerController (订阅 currentSong) + wrapper.fetchLyric。
   // 注册顺序: wrapper → PlayerController → LyricsController。
