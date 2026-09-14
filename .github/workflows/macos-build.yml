@@ -28,7 +28,6 @@ jobs:
       # Xcode
       # ------------------------------------------------------------
       # macos-14 = Apple Silicon runner
-      # Flutter macOS build requires Xcode / CocoaPods toolchain.
       - name: Select Xcode
         run: |
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
@@ -43,27 +42,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: |
-            package-lock.json
-            **/package-lock.json
 
       - name: Verify Node.js
         run: |
           node --version
           npm --version
-
-      # ------------------------------------------------------------
-      # Cache
-      # ------------------------------------------------------------
-      - name: Cache Pub
-        uses: actions/cache@v4
-        with:
-          path: ~/.pub-cache
-          key: pub-macos-flutter-3.47.0-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            pub-macos-flutter-3.47.0-
-            pub-
 
       # ------------------------------------------------------------
       # Flutter
@@ -95,15 +78,6 @@ jobs:
       # ------------------------------------------------------------
       # Build
       # ------------------------------------------------------------
-      # macOS ARM64:
-      #
-      #   build/macos/Build/Products/Release/
-      #
-      # Flutter 会生成：
-      #
-      #   flutter_netease_music.app
-      #
-      # 这里直接将 .app 打包为 tar.gz。
       - name: Build release bundle
         run: |
           flutter build macos \
