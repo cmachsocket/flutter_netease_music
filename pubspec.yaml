@@ -40,7 +40,7 @@ dependencies:
   # /home/cmach_socket/projects/ncm_api_enhanced).
   ncm_api_enhanced:
     git: https://github.com/cmachsocket/ncm_api_enhanced
-  flex_color_scheme:
+  flex_color_scheme: ^8.4.0
   audio_video_progress_bar:
   responsive_builder:
   flutter_lyric:
@@ -59,6 +59,7 @@ dependencies:
   background_downloader:
   path_provider:
   flex_color_picker:
+  media_kit_libs_macos:
 dev_dependencies:
   flutter_test:
     sdk: flutter
