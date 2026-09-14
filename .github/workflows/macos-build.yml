@@ -27,17 +27,25 @@ jobs:
       # ------------------------------------------------------------
       # Xcode
       # ------------------------------------------------------------
-      # macos-14 = Apple Silicon runner
       - name: Select Xcode
         run: |
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+          echo "=== Xcode ==="
           xcodebuild -version
           xcode-select -p
+
+          echo
+          echo "=== macOS SDK ==="
+          xcrun --sdk macosx --show-sdk-version
+
+          echo
+          echo "=== macOS ==="
+          sw_vers
 
       # ------------------------------------------------------------
       # Node.js
       # ------------------------------------------------------------
-      # ncm_api_enhanced desktop bridge 使用系统 Node.js。
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
@@ -66,6 +74,15 @@ jobs:
       # ------------------------------------------------------------
       - name: Flutter pub get
         run: flutter pub get
+
+      - name: Show critical dependencies
+        run: |
+          echo "=== Flutter ==="
+          flutter --version
+
+          echo
+          echo "=== connectivity_plus ==="
+          grep -A 3 -B 1 "connectivity_plus:" pubspec.lock || true
 
       # ------------------------------------------------------------
       # Enable macOS desktop
