@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../models/Song.dart';
 import '../SongListPage/SongRowTile.dart';
 import 'PlayListController.dart';
+import '../models/Default.dart';
 
 /// 播放列表页 —— 显示当前 AudioPlayerService.playlist(已加载的播放队列)。
 ///
@@ -28,7 +29,9 @@ class PlayListPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<PlayListController>();
+    final controller = Get.find<PlayListController>(
+      tag: DefaultValues.playlistControllerTag,
+    );
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -55,10 +58,7 @@ class PlayListPage extends StatelessWidget {
               onPlay: () => controller.selectIndex(index),
               onToggleFavorite: () => controller.toggleFavorite(song.id),
               isLiked: () => controller.isLiked(song.id),
-              extraTrailing: () => RemoveIconButton(
-                song: song,
-                index: index,
-              ),
+              extraTrailing: () => RemoveIconButton(song: song, index: index),
             );
           },
         );
@@ -79,7 +79,9 @@ class RemoveIconButton extends StatelessWidget {
     return IconButton(
       icon: const Icon(Icons.remove_circle_outline),
       onPressed: () {
-        final controller = Get.find<PlayListController>();
+        final controller = Get.find<PlayListController>(
+          tag: DefaultValues.playlistControllerTag,
+        );
         controller.removeSong(index);
       },
       tooltip: '移除',
@@ -90,6 +92,9 @@ class RemoveIconButton extends StatelessWidget {
 class PlayListBinding extends Bindings {
   @override
   void dependencies() {
-    Get.lazyPut<PlayListController>(() => PlayListController());
+    Get.lazyPut<PlayListController>(
+      () => PlayListController(),
+      tag: DefaultValues.playlistControllerTag,
+    );
   }
 }

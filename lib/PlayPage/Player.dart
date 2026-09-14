@@ -13,8 +13,12 @@ import '../models/Snapshot.dart' show PlayOrder;
 
 class Player extends StatelessWidget {
   Player({super.key});
-  final controller = Get.find<PlayerController>();
-  final playlist = Get.find<PlayListController>();
+  final controller = Get.find<PlayerController>(
+    tag: DefaultValues.playerControllerTag,
+  );
+  final playlist = Get.find<PlayListController>(
+    tag: DefaultValues.playlistControllerTag,
+  );
   final lyricController = Get.find<LyricsController>();
   static const tileMaxLine = 1;
   @override
@@ -229,7 +233,13 @@ class Player extends StatelessWidget {
 class PlayerBinding extends Bindings {
   @override
   void dependencies() {
-    Get.lazyPut(() => PlayerController());
-    Get.lazyPut(() => PlayListController());
+    Get.lazyPut(
+      () => PlayerController(),
+      tag: DefaultValues.playerControllerTag,
+    );
+    Get.lazyPut(
+      () => PlayListController(),
+      tag: DefaultValues.playlistControllerTag,
+    );
   }
 }

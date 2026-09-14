@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:get/get.dart';
 import 'PlayerController.dart';
+import '../models/Default.dart';
 
 class MusicProgressBar extends StatelessWidget {
   const MusicProgressBar({
@@ -14,7 +15,9 @@ class MusicProgressBar extends StatelessWidget {
   static const thumbGlowColorAlpha = 0.4;
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<PlayerController>();
+    final controller = Get.find<PlayerController>(
+      tag: DefaultValues.playerControllerTag,
+    );
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     return Obx(

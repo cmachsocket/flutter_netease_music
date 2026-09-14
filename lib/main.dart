@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_netease_music/models/Default.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 
@@ -138,7 +139,10 @@ Future<void> main() async {
     return audioWrapper;
   });
 
-  Get.lazyPut<PlayerController>(() => PlayerController());
+  Get.lazyPut<PlayerController>(
+    () => PlayerController(),
+    tag: DefaultValues.playerControllerTag,
+  );
   // LyricsController 依赖 PlayerController (订阅 currentSong) + wrapper.fetchLyric。
   // 注册顺序: wrapper → PlayerController → LyricsController。
   // **LyricsController 必须 permanent: true** — flutter_lyric 自己的 LyricController

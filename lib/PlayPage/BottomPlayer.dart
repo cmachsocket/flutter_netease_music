@@ -22,7 +22,9 @@ class BottomPlayer extends StatelessWidget {
   static const toolBarFlex = 3;
   @override
   Widget build(BuildContext context) {
-    final player = Get.find<PlayerController>();
+    final player = Get.find<PlayerController>(
+      tag: DefaultValues.playerControllerTag,
+    );
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     return GestureDetector(
