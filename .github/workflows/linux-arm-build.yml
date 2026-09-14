@@ -1,0 +1,180 @@
+name: Linux ARM64 Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Linux arm64 bundle
+    runs-on: ubuntu-24.04-arm  # GitHub ARM64 runner: flutter 默认 build 出 arm64
+    timeout-minutes: 60
+
+    steps:
+      # ------------------------------------------------------------
+      # Source
+      # ------------------------------------------------------------
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # ------------------------------------------------------------
+      # System dependencies
+      # ------------------------------------------------------------
+      # 同 linux-build.yml (x64): 注释里解释了为什么只装这些。
+      # ARM64 runner 已经装好 cmake/gcc/pkg-config/libgtk-3/nodejs 等,
+      # 但 apt-get install 会快速跳过已装的包 (幂等)。
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake \
+            gcc \
+            g++ \
+            pkg-config \
+            libgtk-3-dev \
+            nodejs \
+            ninja-build
+
+      - name: Setup Node.js 22 (matches ncm_api_enhanced upstream)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # ------------------------------------------------------------
+      # Cache
+      # ------------------------------------------------------------
+      # 缓存 key 跟 x64 build 独立 (架构不同,pub-cache 内容相同但 build/
+      # 目录的 cmake cache 必须分开)。Linux-arm64 runner 上 ~ 展开到 /home/runner。
+      - name: Cache Pub
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-ubuntu-arm-flutter-3.47.0-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-ubuntu-arm-flutter-3.47.0-
+            pub-
+
+      - name: Cache CMake / Flutter Linux artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cmake
+            build
+          key: cmake-ubuntu-linux-arm64-${{ hashFiles('**/CMakeLists.txt', '**/linux/CMakeLists.txt') }}
+          restore-keys: |
+            cmake-ubuntu-linux-arm64-
+
+      # ------------------------------------------------------------
+      # Flutter
+      # ------------------------------------------------------------
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.0
+          cache: true
+
+      - name: Flutter doctor
+        run: flutter doctor -v
+
+      # ------------------------------------------------------------
+      # Dependencies
+      # ------------------------------------------------------------
+      - name: Flutter pub get
+        run: flutter pub get
+
+      # ------------------------------------------------------------
+      # Build
+      # ------------------------------------------------------------
+      # flutter build linux 在 arm64 runner 上默认 build arm64 二进制,
+      # 输出到 build/linux/arm64/release/bundle/ (跟 x64 的 x64 子目录对应)。
+      - name: Build release bundle
+        run: flutter build linux --release
+
+      # ------------------------------------------------------------
+      # Verify bundle
+      # ------------------------------------------------------------
+      - name: Verify bundle
+        run: |
+          BUNDLE="build/linux/arm64/release/bundle"
+
+          if [ ! -d "$BUNDLE" ]; then
+            echo "::error::bundle missing at $BUNDLE"
+            echo "Actual contents:"
+            find build/linux -maxdepth 4 -type d -print 2>/dev/null || true
+            exit 1
+          fi
+
+          echo "=== Bundle top-level ==="
+          ls -lh "$BUNDLE"
+
+          echo
+          echo "=== Bundle libraries ==="
+          ls -lh "$BUNDLE/lib" || true
+
+          echo
+          echo "=== Verify arm64 ELF ==="
+          BINARY="$BUNDLE/flutter_netease_music"
+          if [ -f "$BINARY" ]; then
+            file "$BINARY"
+          fi
+
+      # ------------------------------------------------------------
+      # Package
+      # ------------------------------------------------------------
+      - name: Package artifact
+        run: |
+          BUNDLE="build/linux/arm64/release/bundle"
+          STAGE="release-artifacts/flutter_netease_music-linux-arm64"
+
+          rm -rf release-artifacts
+          mkdir -p release-artifacts
+          mkdir -p "$STAGE"
+          cp -r "$BUNDLE"/. "$STAGE"/
+
+          cd release-artifacts
+          tar -czf flutter_netease_music-linux-arm64.tar.gz \
+            flutter_netease_music-linux-arm64
+
+          sha256sum *.tar.gz > SHA256SUMS
+
+          echo
+          echo "=== release artifacts ==="
+          ls -lh
+
+          echo
+          echo "=== SHA256SUMS ==="
+          cat SHA256SUMS
+
+      # ------------------------------------------------------------
+      # GitHub Release
+      # ------------------------------------------------------------
+      - name: Upload to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          overwrite_files: true
+          files: |
+            release-artifacts/*.tar.gz
+            release-artifacts/SHA256SUMS
+
+      # ------------------------------------------------------------
+      # Manual workflow run
+      # ------------------------------------------------------------
+      - name: Upload artifacts (manual run only)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter_netease_music-linux-arm64
+          path: release-artifacts/
+          retention-days: 7

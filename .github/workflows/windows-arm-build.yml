@@ -1,4 +1,4 @@
-name: Windows Release
+name: Windows ARM64 Release
 
 on:
   push:
@@ -11,8 +11,10 @@ permissions:
 
 jobs:
   build:
-    name: Build Windows x64 bundle
-    runs-on: windows-latest
+    name: Build Windows arm64 bundle
+    # windows-11-arm 是 GitHub 2024 推出的 ARM64 runner (基于 Windows 11 ARM)。
+    # MSVC 工具链在这里是 ARM64 native,flutter 默认 build 出 arm64 二进制。
+    runs-on: windows-11-arm
     timeout-minutes: 60
 
     steps:
@@ -27,11 +29,9 @@ jobs:
       # ------------------------------------------------------------
       # System dependencies
       # ------------------------------------------------------------
-      # ncm_api_enhanced 在 Windows desktop 是 pure Dart (调系统 node),
-      # 不需要 Android 那套 JDK / Android SDK / NDK, 也不需要额外 native
-      # build 工具 (flutter build windows 自己带 MSVC, GitHub Actions
-      # windows-latest runner 已经预装)。
-      # node 是 ncm_api_enhanced desktop bridge 启动时 Process.spawn 用的。
+      # 同 windows-build.yml (x64): 注释里解释了为什么只装 node。
+      # windows-11-arm runner 预装 VS Build Tools + CMake + flutter 需要的
+      # 一切 (除了 node)。
       - name: Setup Node.js 22 (matches ncm_api_enhanced upstream)
         uses: actions/setup-node@v4
         with:
@@ -40,18 +40,16 @@ jobs:
       # ------------------------------------------------------------
       # Cache
       # ------------------------------------------------------------
+      # 缓存 key 跟 x64 build 独立 (架构不同,VS intermediate 目录不同)。
       - name: Cache Pub
         uses: actions/cache@v4
-        # Windows 路径用 ~ 展开到 C:\Users\RUNNER~1\AppData\Roaming\Pub\Cache
-        # 但 actions/cache 在 windows 上能识别 ~ 路径; 也可写环境变量。
-        # 用 RUNNER_USERPROFILE 显式展开, 避免路径转义问题。
         env:
           PUB_CACHE: ${{ runner.workspace }}\.pub-cache
         with:
           path: ${{ runner.workspace }}\.pub-cache
-          key: pub-windows-flutter-3.47.0-${{ hashFiles('**/pubspec.lock') }}
+          key: pub-windows-arm-flutter-3.47.0-${{ hashFiles('**/pubspec.lock') }}
           restore-keys: |
-            pub-windows-flutter-3.47.0-
+            pub-windows-arm-flutter-3.47.0-
             pub-
 
       # ------------------------------------------------------------
@@ -78,11 +76,9 @@ jobs:
       # ------------------------------------------------------------
       # Build
       # ------------------------------------------------------------
-      # flutter build windows 默认输出到 build/windows/x64/runner/Release/,
-      # 含 .exe + .dll + data/flutter_assets/ + icudtl.dat。但 runner 是
-      # 多 config 构建目录, 完整 bundle 还要看 flutter tool 怎么布置;
-      # 用 --target-platform=windows-x64 显式指定平台, 输出到 build/windows/
-      # 顶层。把整个 Release/ 目录打包成 zip。
+      # flutter build windows 在 windows-11-arm runner 上默认 build arm64。
+      # 输出路径跟 x64 同 (build/windows/<runner arch>/runner/Release/),
+      # cmake 内部根据 host arch 自动选 MSVC toolchain。
       - name: Build release bundle
         shell: pwsh
         run: |
@@ -102,27 +98,48 @@ jobs:
       - name: Verify bundle
         shell: pwsh
         run: |
-          $bundle = "build\windows\x64\runner\Release"
+          # windows-11-arm runner 上 flutter build windows 写到 arch-specific 子目录,
+          # 但具体是 'arm64' 还是 'arm' 取决于 flutter 版本 —— 通配匹配。
+          $bundle = Get-ChildItem -Recurse -Directory -Path "build\windows" `
+            | Where-Object { $_.Name -match '^(x64|arm64|arm)$' } `
+            | Select-Object -First 1
+          if (-not $bundle) {
+            $fallback = "build\windows\arm64\runner\Release"
+            if (Test-Path $fallback) { $bundle = Get-Item $fallback }
+          }
 
-          if (-not (Test-Path $bundle)) {
-            Write-Error "bundle missing at $bundle"
+          if (-not $bundle -or -not (Test-Path $bundle.FullName)) {
+            Write-Error "arm64 bundle not found under build/windows"
             Get-ChildItem -Recurse build\windows -ErrorAction SilentlyContinue |
               Where-Object { $_.PSIsContainer } |
               ForEach-Object { Write-Host $_.FullName }
             exit 1
           }
 
-          Write-Host "=== Bundle top-level ==="
-          Get-ChildItem -Force $bundle | Format-Table Name, Length
+          Write-Host "=== Bundle ==="
+          Write-Host $bundle.FullName
+          Get-ChildItem -Force $bundle.FullName | Format-Table Name, Length
 
-          Write-Host ""
-          Write-Host "=== Bundle .exe ==="
-          $exe = Get-ChildItem -Path $bundle -Filter "*.exe" -ErrorAction SilentlyContinue
+          $exe = Get-ChildItem -Path $bundle.FullName -Filter "*.exe" `
+            -ErrorAction SilentlyContinue
           if (-not $exe) {
-            Write-Error "no .exe found in $bundle"
+            Write-Error "no .exe found in $($bundle.FullName)"
             exit 1
           }
           Write-Host "exe: $($exe.Name)"
+
+          Write-Host ""
+          Write-Host "=== exe machine type (should be ARM64) ==="
+          # 用 .NET 读 PE 头 Machine 字段: 0xAA64 = IMAGE_FILE_MACHINE_ARM64
+          $bytes = [System.IO.File]::ReadAllBytes($exe.FullName)[0..511]
+          $peOffset = [System.BitConverter]::ToInt32($bytes, 0x3C)
+          $machine = [System.BitConverter]::ToUInt16($bytes, $peOffset + 4)
+          Write-Host "Machine: 0x$('{0:X4}' -f $machine) ($machine)"
+          if ($machine -ne 0xAA64) {
+            Write-Error "exe is not ARM64 (got 0x$('{0:X4}' -f $machine))"
+            exit 1
+          }
+          Write-Host "ARM64 binary verified."
 
       # ------------------------------------------------------------
       # Package
@@ -130,22 +147,31 @@ jobs:
       - name: Package artifact
         shell: pwsh
         run: |
-          $bundle = "build\windows\x64\runner\Release"
-          $stage  = "release-artifacts\flutter_netease_music-windows-x64"
+          $bundle = Get-ChildItem -Recurse -Directory -Path "build\windows" `
+            | Where-Object { $_.Name -match '^(x64|arm64|arm)$' } `
+            | Select-Object -First 1
+          if (-not $bundle) {
+            $fallback = Get-Item "build\windows\arm64\runner\Release" `
+              -ErrorAction SilentlyContinue
+            if ($fallback) { $bundle = $fallback }
+          }
+          if (-not $bundle) {
+            Write-Error "bundle directory not found"
+            exit 1
+          }
+
+          $stage = "release-artifacts\flutter_netease_music-windows-arm64"
 
           if (Test-Path release-artifacts) {
             Remove-Item release-artifacts -Recurse -Force
           }
           New-Item -ItemType Directory -Path $stage -Force | Out-Null
 
-          # Copy-Item -Recurse 保留文件 + 目录结构
-          Copy-Item -Path (Join-Path $bundle "*") -Destination $stage -Recurse -Force
+          Copy-Item -Path (Join-Path $bundle.FullName "*") `
+            -Destination $stage -Recurse -Force
 
-          # 用 7z / Compress-Archive 打包 zip; GitHub Actions windows-latest
-          # 自带 7z, Compress-Archive 也行。Compress-Archive 默认 .zip,
-          # 跨平台解压稳。
           Compress-Archive -Path $stage `
-            -DestinationPath "release-artifacts\flutter_netease_music-windows-x64.zip" `
+            -DestinationPath "release-artifacts\flutter_netease_music-windows-arm64.zip" `
             -CompressionLevel Optimal -Force
 
           Get-ChildItem release-artifacts | Format-Table Name, Length
@@ -183,6 +209,6 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: flutter_netease_music-windows-x64
+          name: flutter_netease_music-windows-arm64
           path: release-artifacts/
           retention-days: 7
