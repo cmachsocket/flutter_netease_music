@@ -34,9 +34,15 @@ jobs:
           distribution: temurin
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        # v3 + cmdline-tools 11076708 默认跑 `sdkmanager tools`,但该
+        # 镜像里 tools 包已被 deprecate,报 `Failed to find package 'tools'`。
+        # v4 同样支持 `packages:` 控制,Flutter Android build 不需要老
+        # tools 包(platform-tools 自带 adb/aapt/zipalign),把 packages
+        # 置空跳过默认安装。cmdline-tools 14742923 (20.0) 是当前推荐。
+        uses: android-actions/setup-android@v4
         with:
-          cmdline-tools-version: '11076708'
+          cmdline-tools-version: '14742923'
+          packages: ''
 
       # ------------------------------------------------------------
       # Cache

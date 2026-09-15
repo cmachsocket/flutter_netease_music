@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.2.7+1
+version: 1.2.8+1
 
 environment:
   sdk: ^3.12.0
@@ -115,4 +115,10 @@ flutter:
 
 
 dependency_overrides:
+  # objective_c 9.6.1 (2026-09-15) 在 build.dart 顶层 const map 里引用
+  # Architecture.arm64e,但 code_assets 的 Architecture enum 没这个成员,
+  # 导致 Windows native-assets build hook 在 load 时就 throw
+  # `Member not found: 'arm64e'` (G75B77105)。9.6.0 用的是字符串 'arm64e',
+  # 没问题。先 pin 9.6.0 等上游修复。
+  objective_c: 9.6.0
   path_provider_android:
