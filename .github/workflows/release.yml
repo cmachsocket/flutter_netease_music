@@ -7,14 +7,23 @@ on:
     workflows: ["Android Release", "Windows Release", "Linux Release", "macOS Release"]
     types: [completed]
 
+# 同一 tag 的 release run 串行化,避免 race。
+concurrency:
+  group: release-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
 jobs:
   release:
     name: Publish unified GitHub Release
+    # 只在本次 workflow_run 触发的 build 是 success 时进 job(其他 build 的
+    # 状态在 verify step 里查)。这样把"4 个 build workflow 任一不是 success"
+    # 的早 fail 路径下放到 verify step,失败时 cancel-in-progress 会被尊重。
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,33 +31,53 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      # workflow_run 事件每次某个 build workflow 跑完都会触发一次 release.yml,
-      # 所以 release.yml 本身可能跑多次。用 gh api 检查 4 个 build workflow
-      # "最近一次由 push tag 触发的 run" 是否全部 success,才放行。
-      - name: Verify all 4 platform builds succeeded
+      # workflow_run 每次某个 build workflow 跑完都触发 release.yml 一次。
+      # 在这里用 gh run watch 等齐 4 个 build workflow 的最近一次 push run
+      # 都 success 才放行。这样:timeline 上虽然会出现 4 个 release.yml run,
+      # 但只有 1 个会跑完 verify step,其他 3 个被 gh run watch 自动 cancel
+      # (或 fail),避免重复发 release。
+      - name: Wait for all 4 platform builds
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          WORKFLOWS=("Android Release" "Windows Release" "Linux Release" "macOS Release")
+          WORKFLOWS=("android-build.yml" "windows-build.yml" "linux-build.yml" "macos-build.yml")
 
-          for wf in "${WORKFLOWS[@]}"; do
-            # workflow filename -> workflow id
-            case "$wf" in
-              "Android Release") file="android-build.yml" ;;
-              "Windows Release") file="windows-build.yml" ;;
-              "Linux Release")   file="linux-build.yml" ;;
-              "macOS Release")   file="macos-build.yml" ;;
-            esac
-
-            conclusion=$(gh api \
+          # 1) 拿 4 个 build workflow 的最近 push run id
+          declare -a run_ids
+          for file in "${WORKFLOWS[@]}"; do
+            run_id=$(gh api \
               "repos/${{ github.repository }}/actions/workflows/${file}/runs?event=push&per_page=1" \
-              --jq '.workflow_runs[0].conclusion // "missing"')
+              --jq '.workflow_runs[0].database_id // empty')
 
-            if [ "$conclusion" != "success" ]; then
-              echo "::error::Workflow '$wf' (${file}) conclusion is '$conclusion' (expected 'success'). Skipping release."
+            if [ -z "$run_id" ]; then
+              echo "::error::No recent push run for ${file}"
               exit 1
             fi
-            echo "✓ $wf: $conclusion"
+
+            run_ids+=("$run_id")
+            echo "  ${file}: run ${run_id}"
+          done
+
+          # 2) 轮询每个 run 的 status(不等它 running,直接看是否已经 success)
+          #    用 gh run watch 阻塞,任意一个非 success 就 fail。
+          #    多个 watch 串行等,总时间 ≤ 30min(timeout-minutes)。
+          for i in "${!run_ids[@]}"; do
+            file="${WORKFLOWS[$i]}"
+            run_id="${run_ids[$i]}"
+
+            echo
+            echo ">>> Waiting for ${file} run ${run_id} to finish..."
+
+            # --exit-status:non-zero only if run failed/cancelled;
+            # --fail:not-needed here, we want to know success vs other.
+            # We use --exit-status and treat "success" as the only OK outcome.
+            if ! gh run watch "$run_id" --exit-status --interval 30 --timeout 1800; then
+              echo "::error::${file} run ${run_id} did not finish successfully"
+              # 拉 conclusion 写到日志
+              gh run view "$run_id" --json conclusion,name,displayTitle || true
+              exit 1
+            fi
+            echo "✓ ${file}: success"
           done
 
       - name: Determine current and previous tags
