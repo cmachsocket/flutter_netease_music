@@ -151,28 +151,10 @@ jobs:
           echo "=== SHA256SUMS ==="
           cat SHA256SUMS
 
-      # ------------------------------------------------------------
-      # GitHub Release
-      # ------------------------------------------------------------
-      - name: Upload to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ github.ref_name }}
-          generate_release_notes: true
-          prerelease: ${{ contains(github.ref_name, '-') }}
-          overwrite_files: true
-          files: |
-            release-artifacts/*.tar.gz
-            release-artifacts/SHA256SUMS
-
-      # ------------------------------------------------------------
-      # Manual workflow run
-      # ------------------------------------------------------------
-      - name: Upload artifacts (manual run only)
-        if: github.event_name == 'workflow_dispatch'
+      # Release 在独立的 .github/workflows/release.yml 里统一处理。
+      - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: flutter_netease_music-linux-x64
+          name: release-artifacts-linux-${{ github.ref_name }}
           path: release-artifacts/
           retention-days: 7

@@ -1,0 +1,139 @@
+name: Release
+
+# 监听 4 个 build workflow 全部完成后再统一发 release。
+# 不用 push tag 直接触发,避免 4 个 runner 并发改同一 release 造成竞态。
+on:
+  workflow_run:
+    workflows: ["Android Release", "Windows Release", "Linux Release", "macOS Release"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Publish unified GitHub Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      # workflow_run 事件每次某个 build workflow 跑完都会触发一次 release.yml,
+      # 所以 release.yml 本身可能跑多次。用 gh api 检查 4 个 build workflow
+      # "最近一次由 push tag 触发的 run" 是否全部 success,才放行。
+      - name: Verify all 4 platform builds succeeded
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          WORKFLOWS=("Android Release" "Windows Release" "Linux Release" "macOS Release")
+
+          for wf in "${WORKFLOWS[@]}"; do
+            # workflow filename -> workflow id
+            case "$wf" in
+              "Android Release") file="android-build.yml" ;;
+              "Windows Release") file="windows-build.yml" ;;
+              "Linux Release")   file="linux-build.yml" ;;
+              "macOS Release")   file="macos-build.yml" ;;
+            esac
+
+            conclusion=$(gh api \
+              "repos/${{ github.repository }}/actions/workflows/${file}/runs?event=push&per_page=1" \
+              --jq '.workflow_runs[0].conclusion // "missing"')
+
+            if [ "$conclusion" != "success" ]; then
+              echo "::error::Workflow '$wf' (${file}) conclusion is '$conclusion' (expected 'success'). Skipping release."
+              exit 1
+            fi
+            echo "✓ $wf: $conclusion"
+          done
+
+      - name: Determine current and previous tags
+        id: tags
+        run: |
+          current=$(git tag --sort=-creatordate | head -1)
+          if [ -z "$current" ]; then
+            echo "::error::No tag found in repo"
+            exit 1
+          fi
+
+          prev=$(git tag --sort=-creatordate | sed -n '2p')
+          if [ -z "$prev" ]; then
+            # 第一次 release 时没有 prev tag,用 root commit 做 fallback
+            prev=$(git rev-list --max-parents=0 HEAD)
+          fi
+
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "prev=$prev" >> "$GITHUB_OUTPUT"
+          echo "Current tag: $current"
+          echo "Previous tag: $prev"
+
+      # 4 个 build workflow 都用 actions/upload-artifact@v4 上传了
+      # release-artifacts/,这里统一拉下来重新打包到一个 release 里。
+      - name: Download artifacts from all 4 builds
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: release-artifacts-*
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Stage release assets
+        run: |
+          mkdir -p staged-release
+          shopt -s nullglob
+
+          if [ -d artifacts ]; then
+            for f in artifacts/**/*; do
+              [ -f "$f" ] || continue
+              cp "$f" staged-release/
+            done
+          fi
+
+          echo "=== Staged files ==="
+          ls -la staged-release/
+
+          # 没有任何文件就 fail,不能发空 release
+          if [ -z "$(ls -A staged-release/)" ]; then
+            echo "::error::No artifacts to release. Check that build workflows uploaded release-artifacts-*"
+            exit 1
+          fi
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          current="${{ steps.tags.outputs.current }}"
+          prev="${{ steps.tags.outputs.prev }}"
+
+          repo="${{ github.repository }}"
+
+          # compare URL:只对 prev 是真 tag 时写 Full Changelog 行,
+          # fallback 到 root commit 时不写(URL 会很奇怪)。
+          if [[ "$prev" =~ ^v?[0-9] ]]; then
+            notes_suffix="**Full Changelog**: https://github.com/${repo}/compare/${prev}...${current}"
+          else
+            notes_suffix="Initial release."
+          fi
+
+          prerelease_flag=""
+          if [[ "$current" == *-* ]]; then
+            prerelease_flag="--prerelease"
+          fi
+
+          # 如果 release 已存在(比如重跑 release.yml),追加 assets 而不重建,
+          # 避免覆盖人工编辑过的 release notes。
+          if gh release view "$current" >/dev/null 2>&1; then
+            echo "Release $current already exists, uploading assets only."
+            gh release upload "$current" staged-release/* --clobber
+          else
+            gh release create "$current" \
+              staged-release/* \
+              --title "$current" \
+              --notes "$notes_suffix" \
+              --generate-notes \
+              $prerelease_flag
+          fi
