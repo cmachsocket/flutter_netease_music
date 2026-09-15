@@ -1,10 +1,21 @@
-name: Android Release
+name: Android Build
+
+# Reusable workflow: invoked by .github/workflows/release.yml.
+#
+# Inputs:
+#   ref  : tag/branch/SHA to checkout (e.g. github.ref from caller)
+#
+# Output:
+#   Uploads release-artifacts/ as a workflow artifact named
+#   "release-artifacts-android" so the calling workflow's publish job
+#   can download all 4 platforms via the same name.
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -22,6 +33,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.ref }}
           submodules: recursive
 
       # ------------------------------------------------------------
@@ -231,16 +243,12 @@ jobs:
           echo "=== SHA256SUMS ==="
           cat SHA256SUMS
 
-      # Release 在独立的 .github/workflows/release.yml 里统一处理,
-      # 这里只负责 build + verify。release.yml 用 workflow_run 监听
-      # 4 个 build 都 success 才发,避免 4 个 runner 并发改同一 release
-      # 造成竞态。
-      # 把 release-artifacts/ 上传成 GH Actions artifact,给 release.yml 用
-      # actions/download-artifact 拉。注意 artifact name 不能带点且要全平台
-      # 唯一,这里用 platform 名 + tag 区分。
+      # Upload as workflow artifact. Name is platform-scoped (no tag
+      # suffix) because all 4 build jobs in the calling workflow share
+      # the same workflow run — caller downloads by name.
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: release-artifacts-android-${{ github.ref_name }}
+          name: release-artifacts-android
           path: release-artifacts/
           retention-days: 7

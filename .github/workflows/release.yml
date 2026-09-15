@@ -3,225 +3,132 @@ name: Release
 # ============================================================================
 # Unified Release
 #
-# 4 个平台 Build Workflow 全部完成后，统一创建 GitHub Release。
+# Single entry point for releases. On push of a v*.*.* tag:
 #
-# 不直接由 push tag 触发，避免 Android / Windows / Linux / macOS
-# 四个 runner 同时操作同一个 Release。
+#   android ─┐
+#   windows ─┤
+#   linux ───┼──→ publish
+#   macos ───┘
+#
+# Each platform is a reusable workflow (workflow_call). The publish job
+# declares `needs: [android, windows, linux, macos]` — GitHub Actions
+# itself enforces the all-four-success gate, no polling, no API queries,
+# no SHA tracking, no gh run watch.
 # ============================================================================
 
 on:
-  workflow_run:
-    workflows:
-      - Android Release
-      - Windows Release
-      - Linux Release
-      - macOS Release
-    types:
-      - completed
+  push:
+    tags:
+      - 'v*.*.*'
 
-# 同一个 commit 的 Release 只能同时运行一个。
-#
-# 使用 head_sha，而不是 head_branch：
-# - branch push：可以区分不同 commit
-# - tag push：不会因为 branch 名称变化而串版本
+# 同一个 tag 的 release 只能同时跑一个。tag 名本身就是 stable key,
+# 多次 push 同一 tag 也只会串行化,不会重复 publish。
 concurrency:
-  group: release-${{ github.event.workflow_run.head_sha }}
+  group: release-${{ github.ref_name }}
   cancel-in-progress: false
 
 permissions:
   contents: write
-  actions: read
 
 jobs:
-  release:
-    name: Publish unified GitHub Release
+  android:
+    name: Android APK
+    uses: ./.github/workflows/android-build.yml
+    with:
+      ref: ${{ github.ref }}
 
-    # 只有成功的 build completion 才启动。
-    #
-    # 注意：
-    # 这里只代表“触发本次 release 的那个 build”成功。
-    # 另外 3 个 workflow 的状态会在下面统一检查。
-    if: github.event.workflow_run.conclusion == 'success'
+  windows:
+    name: Windows x64
+    uses: ./.github/workflows/windows-build.yml
+    with:
+      ref: ${{ github.ref }}
 
+  linux:
+    name: Linux x64
+    uses: ./.github/workflows/linux-build.yml
+    with:
+      ref: ${{ github.ref }}
+
+  macos:
+    name: macOS ARM64
+    uses: ./.github/workflows/macos-build.yml
+    with:
+      ref: ${{ github.ref }}
+
+  publish:
+    name: Publish GitHub Release
+    needs:
+      - android
+      - windows
+      - linux
+      - macos
     runs-on: ubuntu-latest
     timeout-minutes: 40
 
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       REPO: ${{ github.repository }}
-      TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
+      CURRENT_TAG: ${{ github.ref_name }}
 
     steps:
       # ----------------------------------------------------------------------
-      # 1. Checkout 本次 build 对应的 commit
+      # 1. Checkout
+      #
+      # 用发布 tag 本身的 checkout。GitHub Actions 在 tag push 时
+      # 默认 checkout 已经是这个 tag,这里显式写一下更清晰。
       # ----------------------------------------------------------------------
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.TARGET_SHA }}
+          ref: ${{ github.ref }}
           fetch-depth: 0
           submodules: recursive
 
       # ----------------------------------------------------------------------
-      # 2. 等待同一个 SHA 的 4 个平台 Build 全部成功
+      # 2. Download all 4 platform artifacts
+      #
+      # 同一个 workflow run 里 4 个 build job 用统一 name 命名:
+      #   release-artifacts-android / -windows / -linux / -macos
+      #
+      # actions/download-artifact 默认会把 artifact 内容下载到
+      # 名字相同的目录,4 个目录分别落到 ./release-artifacts-android/ 等。
       # ----------------------------------------------------------------------
-      - name: Wait for all platform builds
-        id: builds
+      - name: Download Android artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts-android
+          path: release-artifacts-android
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts-windows
+          path: release-artifacts-windows
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts-linux
+          path: release-artifacts-linux
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts-macos
+          path: release-artifacts-macos
+
+      # ----------------------------------------------------------------------
+      # 3. Find previous release tag for changelog link
+      # ----------------------------------------------------------------------
+      - name: Determine previous release tag
+        id: prev
         shell: bash
         run: |
           set -euo pipefail
 
-          WORKFLOWS=(
-            "android-build.yml"
-            "windows-build.yml"
-            "linux-build.yml"
-            "macos-build.yml"
-          )
+          current="$CURRENT_TAG"
 
-          declare -A RUN_IDS
-
-          echo "Target repository : $REPO"
-          echo "Target SHA        : $TARGET_SHA"
-          echo
-
-          # ------------------------------------------------------------------
-          # 找到“同一个 SHA”的四个平台 workflow run。
-          #
-          # 不能使用最近一次 push run，否则连续 push 时可能发生：
-          #
-          # Android -> v1.2.1
-          # Windows -> v1.2.0
-          # Linux   -> v1.2.1
-          #
-          # 最后 Release 把两个版本的 artifact 混在一起。
-          # ------------------------------------------------------------------
-          for workflow in "${WORKFLOWS[@]}"; do
-            echo "Searching $workflow ..."
-
-            run_id=""
-
-            for attempt in {1..20}; do
-              run_id=$(gh api \
-                "repos/$REPO/actions/workflows/$workflow/runs?event=push&head_sha=$TARGET_SHA&per_page=10" \
-                --jq '.workflow_runs
-                  | sort_by(.created_at)
-                  | reverse
-                  | .[0].database_id // empty')
-
-              if [[ -n "$run_id" ]]; then
-                break
-              fi
-
-              echo "  Run not visible yet, retry $attempt/20 ..."
-              sleep 10
-            done
-
-            if [[ -z "$run_id" ]]; then
-              echo "::error::Cannot find $workflow run for SHA $TARGET_SHA"
-              exit 1
-            fi
-
-            RUN_IDS["$workflow"]="$run_id"
-
-            echo "  $workflow -> run $run_id"
-          done
-
-          echo
-          echo "All four workflow runs found."
-          echo
-
-          # ------------------------------------------------------------------
-          # 等待每一个 run 完成。
-          #
-          # 不依赖 gh run watch：
-          # 直接查询 API，更容易保证我们检查的是指定 SHA 的指定 run。
-          # ------------------------------------------------------------------
-          for workflow in "${WORKFLOWS[@]}"; do
-            run_id="${RUN_IDS[$workflow]}"
-
-            echo "============================================================"
-            echo "Waiting for $workflow"
-            echo "Run ID: $run_id"
-            echo "============================================================"
-
-            for attempt in {1..120}; do
-              status=$(gh api \
-                "repos/$REPO/actions/runs/$run_id" \
-                --jq '.status')
-
-              conclusion=$(gh api \
-                "repos/$REPO/actions/runs/$run_id" \
-                --jq '.conclusion // empty')
-
-              echo "[$attempt/120] status=$status conclusion=${conclusion:-pending}"
-
-              if [[ "$status" == "completed" ]]; then
-                if [[ "$conclusion" != "success" ]]; then
-                  echo "::error::$workflow failed: $conclusion"
-
-                  gh run view "$run_id" \
-                    --json name,displayTitle,status,conclusion,headSha,url \
-                    || true
-
-                  exit 1
-                fi
-
-                echo "✓ $workflow succeeded"
-                break
-              fi
-
-              if [[ "$attempt" == "120" ]]; then
-                echo "::error::Timeout waiting for $workflow"
-                exit 1
-              fi
-
-              sleep 15
-            done
-          done
-
-          # ------------------------------------------------------------------
-          # 输出四个 run ID，供后面的 artifact 下载使用。
-          # ------------------------------------------------------------------
-          {
-            echo "android_run=${RUN_IDS[android-build.yml]}"
-            echo "windows_run=${RUN_IDS[windows-build.yml]}"
-            echo "linux_run=${RUN_IDS[linux-build.yml]}"
-            echo "macos_run=${RUN_IDS[macos-build.yml]}"
-          } >> "$GITHUB_OUTPUT"
-
-          echo
-          echo "✓ All platform builds completed successfully."
-
-      # ----------------------------------------------------------------------
-      # 3. 确定当前版本 tag
-      # ----------------------------------------------------------------------
-      - name: Determine release tag
-        id: tag
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          # 当前 commit 对应的 tag。
-          #
-          # 优先使用 TARGET_SHA 上的 tag，而不是：
-          #   git tag --sort=-creatordate | head -1
-          #
-          # 后者在多个版本同时存在时可能拿错 tag。
-          current=$(git tag --points-at "$TARGET_SHA" \
-            | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+([-.].*)?$' \
-            | head -1 || true)
-
-          if [[ -z "$current" ]]; then
-            echo "::error::No release tag found on $TARGET_SHA"
-            echo
-            echo "Tags pointing at this commit:"
-            git tag --points-at "$TARGET_SHA" || true
-            exit 1
-          fi
-
-          # ------------------------------------------------------------------
-          # 找上一个版本 tag。
-          # ------------------------------------------------------------------
+          # 找上一个版本 tag。剔除当前 tag,按 semver 倒序。
           prev=$(
             git tag --sort=-version:refname \
               | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+([-.].*)?$' \
@@ -233,67 +140,10 @@ jobs:
           echo "Current tag : $current"
           echo "Previous tag: ${prev:-<none>}"
 
-          echo "current=$current" >> "$GITHUB_OUTPUT"
           echo "previous=$prev" >> "$GITHUB_OUTPUT"
 
       # ----------------------------------------------------------------------
-      # 4. 下载四个平台的 artifact
-      #
-      # 关键：
-      # actions/download-artifact@v4 不能直接下载其他 workflow run 的 artifact。
-      #
-      # 所以这里使用 gh run download，并明确指定四个 run ID。
-      # ----------------------------------------------------------------------
-      - name: Download Android artifacts
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          mkdir -p artifacts/android
-
-          gh run download \
-            "${{ steps.builds.outputs.android_run }}" \
-            --name release-artifacts \
-            --dir artifacts/android
-
-      - name: Download Windows artifacts
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          mkdir -p artifacts/windows
-
-          gh run download \
-            "${{ steps.builds.outputs.windows_run }}" \
-            --name release-artifacts \
-            --dir artifacts/windows
-
-      - name: Download Linux artifacts
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          mkdir -p artifacts/linux
-
-          gh run download \
-            "${{ steps.builds.outputs.linux_run }}" \
-            --name release-artifacts \
-            --dir artifacts/linux
-
-      - name: Download macOS artifacts
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          mkdir -p artifacts/macos
-
-          gh run download \
-            "${{ steps.builds.outputs.macos_run }}" \
-            --name release-artifacts \
-            --dir artifacts/macos
-
-      # ----------------------------------------------------------------------
-      # 5. 整理 Release assets
+      # 4. Stage release assets (flatten + dedupe)
       # ----------------------------------------------------------------------
       - name: Stage release assets
         shell: bash
@@ -304,7 +154,7 @@ jobs:
           mkdir -p staged-release
 
           echo "=== Downloaded artifacts ==="
-          find artifacts \
+          find release-artifacts-* \
             -type f \
             -printf '%p\n' \
             | sort
@@ -318,9 +168,6 @@ jobs:
             filename=$(basename "$file")
 
             # 防止不同平台出现同名文件时互相覆盖。
-            #
-            # 如果你的四个平台产物本身已经保证唯一名称，
-            # 这里也不会产生问题。
             if [[ -e "staged-release/$filename" ]]; then
               echo "::error::Duplicate artifact filename: $filename"
               echo "Source: $file"
@@ -332,7 +179,7 @@ jobs:
             echo "  + $filename"
             count=$((count + 1))
           done < <(
-            find artifacts \
+            find release-artifacts-* \
               -type f \
               -print0
           )
@@ -349,7 +196,7 @@ jobs:
           ls -lah staged-release
 
       # ----------------------------------------------------------------------
-      # 6. 生成 Release Notes
+      # 5. Generate release notes
       # ----------------------------------------------------------------------
       - name: Generate release notes
         id: notes
@@ -357,8 +204,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          current="${{ steps.tag.outputs.current }}"
-          previous="${{ steps.tag.outputs.previous }}"
+          current="$CURRENT_TAG"
+          previous="${{ steps.prev.outputs.previous }}"
 
           if [[ -n "$previous" ]]; then
             compare_url="https://github.com/$REPO/compare/$previous...$current"
@@ -376,14 +223,14 @@ jobs:
           cat release-notes.md
 
       # ----------------------------------------------------------------------
-      # 7. 创建 / 更新 Release
+      # 6. Create / update Release
       # ----------------------------------------------------------------------
       - name: Publish release
         shell: bash
         run: |
           set -euo pipefail
 
-          current="${{ steps.tag.outputs.current }}"
+          current="$CURRENT_TAG"
 
           # prerelease:
           #   v1.2.3-beta
@@ -398,13 +245,13 @@ jobs:
           fi
 
           # ------------------------------------------------------------------
-          # Release 已存在：
+          # Release 已存在:
           #
-          # 典型场景：
+          # 典型场景:
           # - Release workflow 被手动重新运行
           # - 某个平台 artifact 后来重新生成
           #
-          # 不重新生成 notes，避免覆盖人工修改过的 Release description。
+          # 不重新生成 notes,避免覆盖人工修改过的 Release description。
           # ------------------------------------------------------------------
           if gh release view "$current" >/dev/null 2>&1; then
             echo "Release $current already exists."

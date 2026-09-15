@@ -1,10 +1,13 @@
-name: Windows Release
+name: Windows Build
+
+# Reusable workflow: invoked by .github/workflows/release.yml.
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -22,6 +25,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.ref }}
           submodules: recursive
 
       # ------------------------------------------------------------
@@ -160,10 +164,12 @@ jobs:
           }
           $sums | Out-File "release-artifacts\SHA256SUMS" -Encoding ascii -NoNewline:$false
 
-      # Release 在独立的 .github/workflows/release.yml 里统一处理。
+      # Upload as workflow artifact. Platform-scoped name (no tag suffix)
+      # because all 4 build jobs in the calling workflow share the same
+      # workflow run — caller downloads by name.
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: release-artifacts-windows-${{ github.ref_name }}
+          name: release-artifacts-windows
           path: release-artifacts/
           retention-days: 7
