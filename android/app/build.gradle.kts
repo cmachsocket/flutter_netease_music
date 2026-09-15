@@ -18,7 +18,10 @@ android {
 
     defaultConfig {
         applicationId = "com.example.flutter_netease_music"
-        minSdk = flutter.minSdkVersion
+        // ncm_api_enhanced plugin 硬要求 minSdk 29(Android 10+),
+        // 继承 Flutter SDK 默认的 24 会让 manifest merger 拒绝合并。
+        // 直接 pin 29,跟 plugin 声明对齐。
+        minSdk = 29
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
