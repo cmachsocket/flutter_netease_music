@@ -565,7 +565,7 @@ packages:
     description:
       path: "."
       ref: HEAD
-      resolved-ref: a4198d9abaf537a55592fbc9880d2644c4930b5b
+      resolved-ref: "15860004264d93a5a570b96a762a0caafffbb2a3"
       url: "https://github.com/cmachsocket/ncm_api_enhanced"
     source: git
     version: "0.1.0"
@@ -589,10 +589,10 @@ packages:
     dependency: transitive
     description:
       name: objective_c
-      sha256: ad56fd53a78ff6b1472fa59ff2a4e8b8ccabafc586fc263a1dfad0b99b5553e3
+      sha256: "2f9a00fff06cc27846da6e8bcda5e64c41a1ea656dcc4dc355ac717f8a272413"
       url: "https://pub.flutter-io.cn"
     source: hosted
-    version: "9.6.0"
+    version: "9.6.1"
   octo_image:
     dependency: transitive
     description:
