@@ -109,7 +109,19 @@ jobs:
         run: |
           mkdir -p android
           echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+      - name: Debug dependencies
+        shell: bash
+        run: |
+          echo "=== pubspec.yaml ==="
+          grep -n -A8 -B2 "ncm_api_enhanced" pubspec.yaml || true
 
+          echo
+          echo "=== pubspec.lock ==="
+          grep -n -A5 -B2 "ncm_api_enhanced" pubspec.lock || true
+
+          echo
+          echo "=== Files ==="
+          find . -maxdepth 3 -iname '*ncm*' -print
       # ------------------------------------------------------------
       # Dependencies
       # ------------------------------------------------------------

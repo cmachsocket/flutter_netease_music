@@ -97,25 +97,25 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: release-artifacts-android
-          path: release-artifacts-android
+          path: artifacts/android
 
       - name: Download Windows artifacts
         uses: actions/download-artifact@v4
         with:
           name: release-artifacts-windows
-          path: release-artifacts-windows
+          path: artifacts/windows
 
       - name: Download Linux artifacts
         uses: actions/download-artifact@v4
         with:
           name: release-artifacts-linux
-          path: release-artifacts-linux
+          path: artifacts/linux
 
       - name: Download macOS artifacts
         uses: actions/download-artifact@v4
         with:
           name: release-artifacts-macos
-          path: release-artifacts-macos
+          path: artifacts/macos
 
       # ----------------------------------------------------------------------
       # 3. Find previous release tag for changelog link
