@@ -154,47 +154,67 @@ jobs:
           mkdir -p staged-release
 
           echo "=== Downloaded artifacts ==="
-          find release-artifacts-* \
-            -type f \
-            -printf '%p\n' \
-            | sort
+          find artifacts -type f -print | sort
 
           echo
-          echo "=== Staging release assets ==="
+          echo "=== Selecting release assets ==="
 
-          count=0
+          # ------------------------------------------------------------
+          # 只从每个平台 artifact 中取发行文件。
+          #
+          # 不把 Flutter 应用目录内部文件放进 GitHub Release。
+          # tar.gz / zip 本身已经包含完整应用。
+          # ------------------------------------------------------------
 
-          while IFS= read -r -d '' file; do
-            filename=$(basename "$file")
+          find artifacts -type f \
+            \( \
+              -name '*.apk' \
+              -o -name '*.zip' \
+              -o -name '*.tar.gz' \
+            \) \
+            -exec cp {} staged-release/ \;
 
-            # 防止不同平台出现同名文件时互相覆盖。
-            if [[ -e "staged-release/$filename" ]]; then
-              echo "::error::Duplicate artifact filename: $filename"
-              echo "Source: $file"
+          # ------------------------------------------------------------
+          # SHA256SUMS 每个平台都有一个，不能直接全部复制。
+          #
+          # 分别重命名成：
+          #
+          # SHA256SUMS-android
+          # SHA256SUMS-windows
+          # SHA256SUMS-linux
+          # SHA256SUMS-macos
+          # ------------------------------------------------------------
+
+          for platform in android windows linux macos; do
+            src=$(find "artifacts/$platform" \
+              -maxdepth 1 \
+              -type f \
+              -name 'SHA256SUMS' \
+              -print -quit)
+
+            if [[ -z "$src" ]]; then
+              echo "::error::Missing SHA256SUMS for $platform"
               exit 1
             fi
 
-            cp "$file" "staged-release/$filename"
-
-            echo "  + $filename"
-            count=$((count + 1))
-          done < <(
-            find release-artifacts-* \
-              -type f \
-              -print0
-          )
-
-          if [[ "$count" -eq 0 ]]; then
-            echo "::error::No artifacts found."
-            exit 1
-          fi
+            cp "$src" "staged-release/SHA256SUMS-$platform"
+          done
 
           echo
-          echo "Total assets: $count"
-          echo
-
+          echo "=== Final release assets ==="
           ls -lah staged-release
 
+          # ------------------------------------------------------------
+          # 最低限检查：
+          # 4 个 SHA256SUMS + 至少一个发行包
+          # ------------------------------------------------------------
+
+          count=$(find staged-release -maxdepth 1 -type f | wc -l)
+
+          if [[ "$count" -lt 5 ]]; then
+            echo "::error::Expected at least 5 release assets, got $count"
+            exit 1
+          fi
       # ----------------------------------------------------------------------
       # 5. Generate release notes
       # ----------------------------------------------------------------------
