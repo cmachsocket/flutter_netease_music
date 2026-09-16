@@ -53,9 +53,9 @@ jobs:
           PUB_CACHE: ${{ runner.workspace }}\.pub-cache
         with:
           path: ${{ runner.workspace }}\.pub-cache
-          key: pub-windows-flutter-3.47.2-${{ hashFiles('**/pubspec.lock') }}
+          key: pub-windows-flutter-3.47.4-${{ hashFiles('**/pubspec.lock') }}
           restore-keys: |
-            pub-windows-flutter-3.47.2-
+            pub-windows-flutter-3.47.4-
             pub-
 
       # ------------------------------------------------------------

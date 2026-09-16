@@ -61,9 +61,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.pub-cache
-          key: pub-ubuntu-flutter-3.47.2-${{ hashFiles('**/pubspec.lock') }}
+          key: pub-ubuntu-flutter-3.47.4-${{ hashFiles('**/pubspec.lock') }}
           restore-keys: |
-            pub-ubuntu-flutter-3.47.2-
+            pub-ubuntu-flutter-3.47.4-
             pub-
 
       - name: Cache CMake / Flutter Linux artifacts
