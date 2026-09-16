@@ -9,7 +9,6 @@ android {
 
     // 强制覆盖 Flutter SDK 写死的 ndkVersion=28.2.13676358,
     // 用系统里已有的 29.0.14206865(避免自动下载/无写权限)。
-    ndkVersion = "29.0.14206865"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -18,10 +17,8 @@ android {
 
     defaultConfig {
         applicationId = "com.example.flutter_netease_music"
-        // ncm_api_enhanced plugin 硬要求 minSdk 29(Android 10+),
         // 继承 Flutter SDK 默认的 24 会让 manifest merger 拒绝合并。
-        // 直接 pin 29,跟 plugin 声明对齐。
-        minSdk = 29
+        minSdk = 31
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -46,9 +43,5 @@ kotlin {
 
 flutter {
     source = "../.."
-    // Flutter SDK 内部的 ndkVersion val=28.2.13676358 在 android{} 块里通过
-    // ndkVersion = "29.0.14206865" 显式 override。本地/CI 走 gradle.properties 里的
-    // android.ndkVersion,SDK 自动下载对应版本(android.builder.sdkDownload=true)。
-    // jni plugin (path_provider_android 2.3.x) 用 `ndkVersion flutter.ndkVersion`
-    // 拿到的是 override 后的 29,不需降版本。
+
 }
