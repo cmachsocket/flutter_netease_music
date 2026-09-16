@@ -85,10 +85,10 @@ packages:
     dependency: "direct main"
     description:
       name: background_downloader
-      sha256: "42daf57fc33453f03c8c9c9af4d0f68cb203e3c20041678f005a4c528c8bed1f"
+      sha256: f82729d0458f58e888f235bc0e0c0b94d9381362852e57b0b614b96199fb6ed0
       url: "https://pub.flutter-io.cn"
     source: hosted
-    version: "9.6.1"
+    version: "9.6.2"
   bare_flutter:
     dependency: transitive
     description:
@@ -266,10 +266,10 @@ packages:
     dependency: transitive
     description:
       name: flutter_cache_manager
-      sha256: "1de7849213b4c73c85aca7e0ac687a9a5d82ccdb594366b9dcc26cb6a2189cd2"
+      sha256: "911f5f56a586634132c54ef8ae3820c727770d141874ee7ea67998d66046a5f3"
       url: "https://pub.flutter-io.cn"
     source: hosted
-    version: "3.4.2"
+    version: "3.4.3"
   flutter_lints:
     dependency: "direct dev"
     description:
@@ -573,7 +573,7 @@ packages:
     description:
       path: "."
       ref: HEAD
-      resolved-ref: bbb39e50128cccf0df79bca025323e3fd0cebb93
+      resolved-ref: "832b07f08377d6f9efb66c4293562c2b9e320703"
       url: "https://github.com/cmachsocket/ncm_api_enhanced"
     source: git
     version: "0.1.0"
