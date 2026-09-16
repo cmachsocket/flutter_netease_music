@@ -282,10 +282,10 @@ packages:
     dependency: "direct main"
     description:
       name: flutter_lyric
-      sha256: a731b76bfcf6e63d1a1108cac5d1aea9f5138449b778526c38194ccefa72534f
+      sha256: "7cb3531568c4b5607564555298ac4415c5868a50d77172338894e535529f07d2"
       url: "https://pub.flutter-io.cn"
     source: hosted
-    version: "3.0.7"
+    version: "3.0.8"
   flutter_staggered_grid_view:
     dependency: "direct main"
     description:
@@ -573,7 +573,7 @@ packages:
     description:
       path: "."
       ref: HEAD
-      resolved-ref: fc4d428e8189e7082372023694375be93bc31c59
+      resolved-ref: e525462b12c89e867adedbbe839faa97af909042
       url: "https://github.com/cmachsocket/ncm_api_enhanced"
     source: git
     version: "0.1.0"
