@@ -565,7 +565,7 @@ packages:
     description:
       path: "."
       ref: HEAD
-      resolved-ref: "9d1b5213d32700b101eda72a060efa68c2b34431"
+      resolved-ref: bbf73e2b07c004d8ab9778e688ac7a601f321b95
       url: "https://github.com/cmachsocket/ncm_api_enhanced"
     source: git
     version: "0.1.0"
@@ -786,10 +786,10 @@ packages:
     dependency: transitive
     description:
       name: sqflite_common
-      sha256: b3ebf7b30c8ae279615f146dfc29ea6ba097299294193107c85a7531ec2346d9
+      sha256: "077e38e82c099534146a2fb31b608c2a3a4489a0f21d9af6b2f5c87b566a1ea0"
       url: "https://pub.flutter-io.cn"
     source: hosted
-    version: "2.5.12"
+    version: "2.5.13"
   sqflite_darwin:
     dependency: transitive
     description:
