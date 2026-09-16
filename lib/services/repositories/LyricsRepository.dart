@@ -35,12 +35,9 @@ class LyricsRepository extends GetxService {
       final tlyric = (r.body['tlyric']?['lyric'] as String?)?.toString() ?? '';
       final romalrc =
           (r.body['romalrc']?['lyric'] as String?)?.toString() ?? '';
-      if (lrc.trim().isNotEmpty) {
-        return Lyrics(lrc: lrc, tlyric: tlyric, romalrc: romalrc);
-      }
       final yrc = (r.body['yrc']?['lyric'] as String?)?.toString() ?? '';
-      if (yrc.trim().isEmpty) return null;
-      return Lyrics(lrc: yrc, tlyric: tlyric, romalrc: romalrc);
+      if (lrc.trim().isEmpty && yrc.trim().isEmpty) return null;
+      return Lyrics(lrc: lrc, yrc: yrc, tlyric: tlyric, romalrc: romalrc);
     } on ApiException {
       return null;
     }

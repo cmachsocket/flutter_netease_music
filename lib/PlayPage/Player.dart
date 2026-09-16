@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'Lyrics.dart';
+import 'LyricsPage.dart';
 import '../widgets/song_cover.dart';
 import 'PlayerController.dart';
 import '../models/Default.dart';

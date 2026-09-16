@@ -158,8 +158,12 @@ class LyricsController extends GetxController {
     }
     // 结束fetch,避免refreshCurrent时被防抖拦截
     _fetchingSongId = null;
-    currentLyric.value = lyric.lrc;
+    currentLyric.value = lyric.yrc ?? lyric.lrc ?? '';
+    Get.log("${lyric.yrc}");
+    Get.log("${lyric.tlyric}");
     lyricController.loadLyric(
+      // 一些问题发生在上游，先使用lrc
+      //lyric.yrc ?? lyric.lrc ?? '',
       lyric.lrc ?? '',
       translationLyric: switch (lyricShowMode.value) {
         LyricShowMode.original => null,
