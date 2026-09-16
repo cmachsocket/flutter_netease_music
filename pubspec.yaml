@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.2.23+1
+version: 1.2.24+1
 
 environment:
   sdk: ^3.12.2
@@ -40,7 +40,7 @@ dependencies:
   # /home/cmach_socket/projects/ncm_api_enhanced).
   ncm_api_enhanced:
     git: https://github.com/cmachsocket/ncm_api_enhanced
-  flex_color_scheme: ^8.4.0
+  flex_color_scheme: 
   audio_video_progress_bar:
   responsive_builder:
   flutter_lyric:
