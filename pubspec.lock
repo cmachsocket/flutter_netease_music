@@ -573,7 +573,7 @@ packages:
     description:
       path: "."
       ref: HEAD
-      resolved-ref: d326767f7ab95340e3308dd7fedd79b4a3727034
+      resolved-ref: "37a62bbc113f0ad8dc73674a0bf3cb9662e0b388"
       url: "https://github.com/cmachsocket/ncm_api_enhanced"
     source: git
     version: "0.1.0"
