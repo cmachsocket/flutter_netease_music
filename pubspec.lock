@@ -92,10 +92,11 @@ packages:
   bare_flutter:
     dependency: transitive
     description:
-      name: bare_flutter
-      sha256: "51ad9766aee56b2a3e6fba0023f5e197c5f92903ba521bc14155b830f7bf93d5"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
+      path: "."
+      ref: HEAD
+      resolved-ref: "83fdc17e470d697d55a269ba485427f7a5ba9dd2"
+      url: "https://github.com/cmachsocket/bare_flutter"
+    source: git
     version: "0.1.0"
   boolean_selector:
     dependency: transitive
@@ -573,7 +574,7 @@ packages:
     description:
       path: "."
       ref: HEAD
-      resolved-ref: "686a566c43b2680e5708e27d158a0a687860d54e"
+      resolved-ref: "0ce459875b738d3bba51783f2000b151d8a0016b"
       url: "https://github.com/cmachsocket/ncm_api_enhanced"
     source: git
     version: "0.1.0"
