@@ -94,7 +94,7 @@ packages:
     description:
       path: "."
       ref: HEAD
-      resolved-ref: "83fdc17e470d697d55a269ba485427f7a5ba9dd2"
+      resolved-ref: "6fb954fef6ba8b4f01b980ed45be1b4383cdabe0"
       url: "https://github.com/cmachsocket/bare_flutter"
     source: git
     version: "0.1.0"
@@ -574,7 +574,7 @@ packages:
     description:
       path: "."
       ref: HEAD
-      resolved-ref: "0ce459875b738d3bba51783f2000b151d8a0016b"
+      resolved-ref: d308748cbdcad30aed3564f3b14465d7806544d1
       url: "https://github.com/cmachsocket/ncm_api_enhanced"
     source: git
     version: "0.1.0"
